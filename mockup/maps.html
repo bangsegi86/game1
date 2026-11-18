@@ -4,7 +4,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jua&family=Noto+Sans+KR:wght@400;500;700&display=swap">
 <style>
-/* Layout: 맵 17종(살아 있는 지형, 눌러서 폭격) → 돌발 이벤트 4종 → 바람과 낙사. 탱크 도감과 같은 해질녘 팔레트. */
+/* Layout: 맵 4종(살아 있는 지형, 눌러서 폭격) → 돌발 이벤트 4종 → 바람과 낙사. 탱크 도감과 같은 해질녘 팔레트. */
 :root {
   --sky: #1f2d52;
   --panel: #283a66;
@@ -74,11 +74,11 @@ section > .lead { margin-bottom: 14px; }
   <header>
     <div class="eyebrow">포탄대결 · 아트 시안 v3</div>
     <h1>맵 도감</h1>
-    <p class="lead">맵 17종은 모두 실제 게임 엔진으로 움직입니다. <b>맵을 누르면 그 자리에 포탄이 떨어져</b> 땅이 파이고, 발밑을 잃은 탱크는 떨어집니다. 물, 용암, 허공, 산성으로 떨어지면 낙사입니다.</p>
+    <p class="lead">맵 4종은 모두 끝에서 끝까지 이어진 땅이라 어디든 걸어서 갈 수 있고, 길을 막는 벽이나 낭떠러지가 없습니다. 바닥에 부서지지 않는 암반이 있어 포탄에 뚫려 떨어지지 않습니다. <b>맵을 누르면 그 자리에 포탄이 떨어져</b> 땅이 파이고, 파인 구덩이에 탱크가 빠질 수 있습니다.</p>
   </header>
 
   <section>
-    <h2>맵 17종</h2>
+    <h2>맵 4종</h2>
     <p class="lead">탱크 두 대가 서로 쏘는 장면이 계속 반복됩니다. 바람(가운데 위 나침반)은 쏠 때마다 바뀝니다.</p>
     <div class="maps" id="maps"></div>
   </section>
@@ -182,7 +182,7 @@ Object.entries(EVENTS).forEach(([key, e], i) => {
   const el = document.createElement('div'); el.className = 'ev';
   el.innerHTML = `<canvas aria-label="${e.n}"></canvas><div class="body"><h3>${e.n}</h3><p>${e.d}</p></div>`;
   evEl.append(el);
-  const st = {}, map = ['valley', 'volcano', 'moon', 'hills'][i];
+  const st = {}, map = ['valley', 'dunes', 'snow', 'hills'][i];
   const setup = () => { const W = st.W || (st.W = new World({ w: 400, h: 225, map: 'demo', labels: false })); W.reset(); W.addTank('hammer', 90, 1, 'red', ''); W.addTank('bee', 300, -1, 'blue', ''); st.t0 = W.clock; st.spawned = false; st.shot = false; };
   setup();
   addView(el.querySelector('canvas'), 400, 225, (c, w, h, t, dt) => {

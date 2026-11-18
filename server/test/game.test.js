@@ -36,7 +36,7 @@ test('2인 팀전이 끝까지 진행되고 승패가 난다', () => {
 });
 
 test('모든 맵·필살기에서 오류 없이 끝난다', () => {
-  const maps = ['demo', 'valley', 'mesa', 'ice', 'sky', 'factory', 'shroom', 'volcano', 'moon'];
+  const maps = ['demo', 'hills', 'valley', 'dunes', 'snow'];
   const tanks = [['laser', 'whale'], ['cloud', 'magnet'], ['bee', 'shroom'], ['mole', 'hammer']];
   maps.forEach((m, i) => { const { g } = run(m, tanks[i % tanks.length]); assert.equal(g.phase, 'over', m); });
 });

@@ -12,541 +12,75 @@
     c.closePath();
     c.fill();
   }
-  function blob(c, w, h, pts, mat) {
-    c.fillStyle = MK[mat];
-    c.beginPath();
-    pts.forEach(([u, v], i) => i ? c.lineTo(u * w, v * h) : c.moveTo(u * w, v * h));
-    c.closePath();
-    c.fill();
-  }
-  function box(c, w, h, u, v, uw, vh, mat) {
-    c.fillStyle = MK[mat];
-    c.fillRect(u * w, v * h, uw * w, vh * h);
-  }
-  function tree(c, w, h, u, v, s = 1) {
-    const x = u * w, y = v * h, k = s * w / 960;
-    c.fillStyle = MK.wood;
-    c.fillRect(x - 4 * k, y - 36 * k, 8 * k, 44 * k);
-    c.fillStyle = MK.leaf;
-    [[0, -54, 22], [-16, -42, 16], [16, -42, 16], [0, -72, 15]].forEach(([dx, dy, r]) => {
-      c.beginPath();
-      c.arc(x + dx * k, y + dy * k, r * k, 0, TAU2);
-      c.fill();
-    });
-  }
-  function island(c, w, h, u, v, uw, depth) {
-    const x0 = u * w, x1 = (u + uw) * w, y = v * h, d = depth * h, m = (x0 + x1) / 2, s = x1 - x0;
-    c.fillStyle = MK.soil;
-    c.beginPath();
-    c.moveTo(x0, y + 6);
-    for (let x = x0; x <= x1; x += 3) c.lineTo(x, y - 5 * Math.sin((x - x0) / s * Math.PI) + 2 * Math.sin(x * 0.09));
-    c.lineTo(x1, y + 6);
-    c.quadraticCurveTo(m + s * 0.2, y + d * 0.9, m, y + d);
-    c.quadraticCurveTo(m - s * 0.25, y + d * 0.7, x0, y + 6);
-    c.fill();
-    c.fillStyle = MK.rock;
-    c.beginPath();
-    c.moveTo(x0 + s * 0.1, y + d * 0.3);
-    c.quadraticCurveTo(m, y + d * 0.45, x1 - s * 0.1, y + d * 0.3);
-    c.quadraticCurveTo(m + s * 0.14, y + d * 0.95, m, y + d - 2);
-    c.quadraticCurveTo(m - s * 0.2, y + d * 0.65, x0 + s * 0.1, y + d * 0.3);
-    c.fill();
-  }
-  var hillsY = (u) => 0.66 + 0.06 * Math.sin(u * 7 + 0.4) + 0.03 * Math.sin(u * 19 + 2);
-  var valleyY = (u) => u < 0.3 ? 0.42 + 0.012 * Math.sin(u * 30) : 0.42 + (u - 0.3) * 0.62;
-  var moonY = (u) => 0.68 + 0.04 * Math.sin(u * 5 + 1) + 0.02 * Math.sin(u * 17);
-  var mountY = (u) => 0.8 - 0.46 * Math.exp(-(((u - 0.5) / 0.12) ** 2)) - 0.05 * Math.exp(-(((u - 0.18) / 0.08) ** 2)) - 0.05 * Math.exp(-(((u - 0.82) / 0.08) ** 2)) + 0.012 * Math.sin(u * 23);
-  var caveY = (u) => 0.4 + 0.03 * Math.sin(u * 9 + 1) + 0.015 * Math.sin(u * 27);
-  var iceY = (u) => 0.58 + 0.035 * Math.sin(u * 6 + 0.5) + 0.015 * Math.sin(u * 21);
-  var volY = (u) => {
-    const cone = Math.max(0, 1 - Math.abs(u - 0.5) / 0.2), cr = Math.abs(u - 0.5) < 0.04 ? 0.06 * (1 - Math.abs(u - 0.5) / 0.04) : 0;
-    return 0.74 - cone * 0.42 + cr + 0.012 * Math.sin(u * 23);
-  };
-  var arenaY = (u) => {
-    const x = 2 * u - 1, v = 0.44 + 0.36 * (1 - x * x);
-    return Math.abs(x) > 0.45 ? Math.round(v * 28) / 28 : v;
-  };
-  var brgY = (u) => 0.5 + 0.02 * Math.sin((u < 0.5 ? u : 1 - u) * 20);
-  var mirror = (pts) => pts.map(([u, v]) => [1 - u, v]);
-  var hole = (c, w, h, f) => {
-    c.globalCompositeOperation = "destination-out";
-    f();
-    c.globalCompositeOperation = "source-over";
+  var hillsY = (u) => 0.55 + 0.05 * Math.sin(u * 7 + 0.4) + 0.02 * Math.sin(u * 19 + 2);
+  var valleyY = (u) => 0.42 + 0.17 * Math.sin(Math.PI * u) + 0.012 * Math.sin(u * 23);
+  var dunesY = (u) => 0.5 + 0.045 * Math.sin(u * 10) + 0.015 * Math.sin(u * 27 + 1);
+  var snowY = (u) => 0.5 + 0.05 * Math.sin(u * 5) + 0.02 * Math.sin(u * 13 + 0.7);
+  var ground = (c, w, h, fn) => {
+    under(c, w, h, fn, 0, 1, "soil");
+    under(c, w, h, (u) => 0.9 + 0.012 * Math.sin(u * 9), 0, 1, "rock");
+    under(c, w, h, (u) => 0.965, 0, 1, "steel");
   };
   var MAPS = {
     hills: {
       n: "\uCD08\uB85D\uC5B8\uB355",
-      d: "\uC644\uB9CC\uD55C \uC5B8\uB355\uACFC \uB098\uBB34\uAC00 \uC788\uB294 \uAE30\uBCF8 \uB9F5. \uCC98\uC74C \uD558\uB294 \uC0AC\uB78C\uC5D0\uAC8C \uC88B\uB2E4.",
-      tags: ["\uC785\uBB38", "\uB098\uBB34\uB3C4 \uBD80\uC11C\uC9D0"],
+      d: "\uC644\uB9CC\uD55C \uC5B8\uB355\uC774 \uC774\uC5B4\uC9C4 \uAE30\uBCF8 \uB9F5. \uC5B4\uB514\uB4E0 \uAC78\uC5B4\uC11C \uAC08 \uC218 \uC788\uB2E4.",
+      tags: ["\uC785\uBB38", "\uC774\uC5B4\uC9C4 \uB545"],
       grav: 1,
       windMax: 8,
       liquid: null,
-      spawn: [0.17, 0.83],
+      spawn: [0.15, 0.85],
       ev: { tornado: 0.25, lightning: 0.15, meteors: 0.1 },
-      pal: { soil: ["#b07a48", "#5e3a22"], crust: "#7cc25a", rock: ["#8a8478", "#55504a"], leaf: "#4f9e3c", wood: "#7a4f2c" },
-      sky: { stops: ["#7ec8f0", "#bfe6f7", "#e8f6f0"], sun: [0.8, 0.18, 0.035, "#fff6c8"], clouds: 5, far: [["#a6d6b8", 0.6, 0.05, 6, 1], ["#86c49a", 0.68, 0.04, 9, 2]] },
+      pal: { soil: ["#b07a48", "#5e3a22"], crust: "#7cc25a", rock: ["#8a8478", "#55504a"], steel: "#4a4440" },
+      sky: { stops: ["#7ec8f0", "#bfe6f7", "#e8f6f0"], sun: [0.8, 0.18, 0.035, "#fff6c8"], clouds: 5, far: [["#a6d6b8", 0.5, 0.05, 6, 1], ["#86c49a", 0.56, 0.04, 9, 2]] },
       terrain(c, w, h) {
-        under(c, w, h, hillsY, 0, 1, "soil");
-        [0.07, 0.31, 0.6, 0.93].forEach((u) => tree(c, w, h, u, hillsY(u) + 6e-3, 0.8));
+        ground(c, w, h, hillsY);
       }
     },
     valley: {
       n: "\uACE8\uC9DC\uAE30",
-      d: "\uC591\uCABD \uB192\uC740 \uACE0\uC6D0 \uC0AC\uC774\uB85C \uBC14\uB2E5\uC774 \uBCF4\uC774\uC9C0 \uC54A\uB294 \uAE4A\uC740 \uACE8\uC9DC\uAE30. \uBC00\uB824 \uB5A8\uC5B4\uC9C0\uBA74 \uADF8\uB300\uB85C \uB099\uC0AC.",
-      tags: ["\uD544\uC218 \uB9F5", "\uB099\uC0AC \uC8FC\uC758", "\uAC15\uD55C \uBC14\uB78C"],
+      d: "\uC591\uCABD\uC774 \uB192\uACE0 \uAC00\uC6B4\uB370\uAC00 \uB0AE\uC740 \uB113\uC740 \uADF8\uB987 \uBAA8\uC591 \uACE8\uC9DC\uAE30. \uB192\uC740 \uCABD\uC774 \uC720\uB9AC\uD558\uC9C0\uB9CC \uB0B4\uB824\uAC00\uB294 \uAE38\uC774 \uB9C9\uD788\uC9C0 \uC54A\uB294\uB2E4.",
+      tags: ["\uACE0\uC800\uCC28", "\uAC15\uD55C \uBC14\uB78C"],
       grav: 1,
       windMax: 10,
-      liquid: { y: 0.9, type: "water" },
+      liquid: null,
       spawn: [0.15, 0.85],
       ev: { tornado: 0.35, lightning: 0.2, meteors: 0.05 },
-      pal: { soil: ["#a87a4e", "#5a3c26"], crust: "#86c45e", rock: ["#a0958a", "#5c544e"], leaf: "#3f8f46", wood: "#6d4526" },
-      sky: { stops: ["#f0a070", "#f6cc98", "#fbe6c2"], sun: [0.5, 0.34, 0.05, "#fff0c0"], clouds: 3, far: [["#cf9f8c", 0.48, 0.09, 5, 0], ["#b08478", 0.57, 0.06, 8, 1.5]] },
+      pal: { soil: ["#a87a4e", "#5a3c26"], crust: "#86c45e", rock: ["#a0958a", "#5c544e"], steel: "#4a4038" },
+      sky: { stops: ["#f0a070", "#f6cc98", "#fbe6c2"], sun: [0.5, 0.3, 0.05, "#fff0c0"], clouds: 3, far: [["#cf9f8c", 0.4, 0.09, 5, 0], ["#b08478", 0.48, 0.06, 8, 1.5]] },
       terrain(c, w, h) {
-        under(c, w, h, valleyY, 0, 0.418, "soil");
-        under(c, w, h, (u) => valleyY(1 - u), 0.582, 1, "soil");
-        const wall = [[0.395, 0.482], [0.418, 0.494], [0.426, 0.56], [0.419, 0.64], [0.434, 0.74], [0.427, 0.84], [0.442, 1.05], [0.37, 1.05], [0.38, 0.6]];
-        blob(c, w, h, wall, "rock");
-        blob(c, w, h, mirror(wall), "rock");
-        blob(c, w, h, [[0.474, 0.76], [0.49, 0.722], [0.512, 0.718], [0.527, 0.75], [0.534, 1.05], [0.466, 1.05]], "rock");
-        [0.05, 0.22, 0.78, 0.95].forEach((u) => tree(c, w, h, u, valleyY(u < 0.5 ? u : 1 - u) + 6e-3, 0.8));
+        ground(c, w, h, valleyY);
       }
     },
-    mountain: {
-      n: "\uD070 \uC0B0",
-      d: "\uAC00\uC6B4\uB370 \uB192\uC740 \uC0B0\uC774 \uAC00\uB85C\uB9C9\uB294 \uB9F5. \uC0B0\uC744 \uB118\uAE30\uB294 \uACE0\uAC01 \uD3EC\uACA9\uACFC, \uC0B0\uC744 \uAE4E\uC544 \uAE38\uC744 \uB0B4\uB294 \uC2F8\uC6C0\uC774 \uB41C\uB2E4.",
-      tags: ["\uACE0\uAC01 \uD3EC\uACA9", "\uC0B0 \uAE4E\uAE30"],
+    dunes: {
+      n: "\uBAA8\uB798\uC5B8\uB355",
+      d: "\uB0AE\uC740 \uBAA8\uB798 \uB454\uB355\uC774 \uBB3C\uACB0\uCC98\uB7FC \uC774\uC5B4\uC9C4 \uC0AC\uB9C9. \uBC14\uB78C\uC774 \uC138\uACE0 \uBAA8\uB798 \uD68C\uC624\uB9AC\uAC00 \uC798 \uC778\uB2E4.",
+      tags: ["\uC794\uC794\uD55C \uB545", "\uBAA8\uB798 \uD68C\uC624\uB9AC"],
       grav: 1,
       windMax: 10,
       liquid: null,
-      spawn: [0.14, 0.86],
-      ev: { tornado: 0.3, lightning: 0.2, meteors: 0.1 },
-      pal: { soil: ["#a77a4c", "#5c3c24"], crust: "#88c45a", rock: ["#9b9286", "#5a534c"], leaf: "#3f8f46", wood: "#6d4526" },
-      sky: { stops: ["#8fc6ee", "#cfe8f6", "#eef7f4"], sun: [0.2, 0.16, 0.03, "#fffbe0"], clouds: 6, far: [["#b9cfe0", 0.42, 0.12, 5, 1], ["#9fbfa8", 0.6, 0.05, 9, 0]] },
-      terrain(c, w, h) {
-        under(c, w, h, mountY, 0, 1, "soil");
-        under(c, w, h, (u) => mountY(u) + 0.025, 0.37, 0.63, "rock");
-        [0.05, 0.28, 0.72, 0.95].forEach((u) => tree(c, w, h, u, mountY(u) + 6e-3, 0.75));
-      }
-    },
-    cave: {
-      n: "\uB545\uAD74",
-      d: "\uB545 \uBC11\uC5D0 \uCEE4\uB2E4\uB780 \uB3D9\uAD74\uC774 \uC228\uC5B4 \uC788\uB2E4. \uB545\uC774 \uD30C\uC774\uBA74 \uB3D9\uAD74\uB85C \uB5A8\uC5B4\uC9C0\uACE0, \uB3D9\uAD74 \uC18D\uC5D0 \uC228\uC5B4 \uC2F8\uC6B8 \uC218\uB3C4 \uC788\uB2E4.",
-      tags: ["\uC9C0\uD558 \uB3D9\uAD74", "\uC5EC\uB7EC \uCE35"],
-      grav: 1,
-      windMax: 8,
-      liquid: null,
-      spawn: [0.12, 0.88],
-      ev: { lightning: 0.2, meteors: 0.2 },
-      pal: { soil: ["#9a7048", "#4a3020"], crust: "#7fbf55", rock: ["#7d7468", "#3f3a34"], leaf: "#4f9e3c", wood: "#6d4526" },
-      sky: { stops: ["#7aa7d8", "#b8d4ec", "#e6eef2"], clouds: 4, far: [["#97b5a8", 0.34, 0.04, 6, 0]] },
-      terrain(c, w, h) {
-        under(c, w, h, caveY, 0, 1, "soil");
-        under(c, w, h, (u) => 0.9 + 0.02 * Math.sin(u * 13), 0, 1, "rock");
-        hole(c, w, h, () => [[0.5, 0.68, 0.22, 0.1], [0.2, 0.6, 0.1, 0.055], [0.8, 0.6, 0.1, 0.055], [0.34, 0.79, 0.07, 0.045], [0.66, 0.79, 0.07, 0.045]].forEach(([u, v, rx, ry]) => {
-          c.beginPath();
-          c.ellipse(u * w, v * h, rx * w, ry * h, 0, 0, TAU2);
-          c.fill();
-        }));
-        [0.4, 0.46, 0.54, 0.6].forEach((u, i) => blob(c, w, h, [[u - 0.012, 0.585], [u + 0.012, 0.585], [u, 0.63 + 0.012 * (i % 2)]], "rock"));
-        [0.1, 0.9].forEach((u) => tree(c, w, h, u, caveY(u) + 6e-3, 0.75));
-      },
-      backTerrain(c, w, h) {
-        under(c, w, h, caveY, 0, 1, "soil");
-      }
-    },
-    ruins: {
-      n: "\uC0AC\uB9C9 \uC720\uC801",
-      d: "\uB192\uC774\uAC00 \uC81C\uAC01\uAC01\uC778 \uB3CC\uAE30\uB465\uC774 \uB298\uC5B4\uC120 \uC720\uC801. \uB192\uC740 \uAE30\uB465\uC744 \uCC28\uC9C0\uD558\uAC70\uB098, \uC0C1\uB300 \uAE30\uB465\uC744 \uBB34\uB108\uB728\uB824 \uB5A8\uC5B4\uB728\uB9B0\uB2E4.",
-      tags: ["\uACE0\uC800\uCC28 \uD07C", "\uAE30\uB465 \uBB34\uB108\uB728\uB9AC\uAE30"],
-      grav: 1,
-      windMax: 9,
-      liquid: null,
-      spawn: [0.1, 0.9],
-      ev: { tornado: 0.3, meteors: 0.15 },
-      pal: { soil: ["#e2b670", "#9a6a3a"], crust: "#f3d79a", rock: ["#d29a62", "#7c4e2c"] },
-      sky: {
-        stops: ["#2c2a5a", "#6a5a8a", "#d9a07a"],
-        stars: true,
-        far: [["#8a6a6a", 0.62, 0, 1, 0]],
-        extra(c, w, h) {
-          c.fillStyle = "rgba(120,80,90,.55)";
-          [[0.22, 0.62, 0.12], [0.62, 0.6, 0.16]].forEach(([u, v, s]) => {
-            c.beginPath();
-            c.moveTo((u - s) * w, v * h + 40);
-            c.lineTo(u * w, (v - s * 1.1) * h);
-            c.lineTo((u + s) * w, v * h + 40);
-            c.fill();
-          });
-        }
-      },
-      terrain(c, w, h) {
-        under(c, w, h, (u) => 0.84 + 0.015 * Math.sin(u * 15), 0, 1, "soil");
-        [[0.05, 0.09, 0.5], [0.19, 0.07, 0.63], [0.31, 0.09, 0.45], [0.45, 0.08, 0.58], [0.58, 0.07, 0.48], [0.7, 0.09, 0.62], [0.85, 0.09, 0.47]].forEach(([u, uw, t], i) => {
-          box(c, w, h, u, t, uw, 0.9 - t, "rock");
-          box(c, w, h, u - 0.01, t - 0.022, uw + 0.02, 0.026, "rock");
-          if (i % 2) blob(c, w, h, [[u, t - 0.022], [u + uw * 0.4, t - 0.05], [u + uw * 0.7, t - 0.03], [u + uw, t - 0.022]], "rock");
-        });
-        box(c, w, h, 0.36, 0.815, 0.1, 0.03, "rock");
-      }
-    },
-    city: {
-      n: "\uBB34\uB108\uC9C4 \uB3C4\uC2DC",
-      d: "\uBD80\uC11C\uC9C4 \uBE4C\uB529\uC774 \uB298\uC5B4\uC120 \uB3C4\uC2DC. \uBE4C\uB529 \uC625\uC0C1\uC744 \uC624\uAC00\uBA70 \uC2F8\uC6B0\uACE0, \uBE4C\uB529\uC744 \uAE4E\uC544 \uC5C4\uD3D0\uBB3C\uC744 \uB9CC\uB4E0\uB2E4.",
-      tags: ["\uBE4C\uB529 \uC625\uC0C1", "\uC5C4\uD3D0\uBB3C"],
-      grav: 1,
-      windMax: 8,
-      liquid: null,
-      spawn: [0.09, 0.91],
-      ev: { lightning: 0.25, pillar: 0.15, meteors: 0.1 },
-      pal: { soil: ["#5d5a62", "#2e2c33"], crust: "#8a8890", rock: ["#b06a4e", "#5e3426"], steel: "#8f99a8" },
-      sky: {
-        stops: ["#3a2f55", "#8a5f7a", "#e8a070"],
-        sun: [0.75, 0.5, 0.05, "#ffd0a0"],
-        extra(c, w, h) {
-          c.fillStyle = "rgba(40,30,60,.75)";
-          for (let i = 0; i < 22; i++) {
-            const u = i / 22, bh = 0.18 + hash(i + 2) * 0.25;
-            c.fillRect(u * w, (0.72 - bh) * h, w / 26, bh * h + 200);
-          }
-        }
-      },
-      terrain(c, w, h) {
-        under(c, w, h, (u) => 0.86, 0, 1, "soil");
-        const bl = [[0.03, 0.12, 0.5], [0.17, 0.08, 0.63], [0.28, 0.1, 0.43], [0.41, 0.07, 0.6], [0.52, 0.1, 0.46], [0.65, 0.08, 0.64], [0.76, 0.11, 0.49], [0.9, 0.08, 0.56]];
-        bl.forEach(([u, uw, t], i) => {
-          box(c, w, h, u, t, uw, 0.88 - t, "rock");
-          if (i % 3 === 1) blob(c, w, h, [[u, t], [u + uw * 0.3, t - 0.03], [u + uw * 0.55, t - 5e-3], [u + uw * 0.8, t - 0.045], [u + uw, t]], "rock");
-        });
-        hole(c, w, h, () => bl.forEach(([u, uw, t]) => {
-          for (let y = t + 0.04; y < 0.8; y += 0.07) for (let x = u + 0.012; x < u + uw - 0.02; x += 0.03) c.fillRect(x * w, y * h, 0.012 * w, 0.03 * h);
-        }));
-        box(c, w, h, 0.14, 0.5, 0.04, 0.012, "steel");
-        box(c, w, h, 0.37, 0.46, 0.05, 0.012, "steel");
-        box(c, w, h, 0.62, 0.49, 0.04, 0.012, "steel");
-        box(c, w, h, 0.86, 0.52, 0.05, 0.012, "steel");
-      },
-      backTerrain(c, w, h) {
-        under(c, w, h, (u) => 0.86, 0, 1, "soil");
-        [[0.03, 0.12, 0.5], [0.17, 0.08, 0.63], [0.28, 0.1, 0.43], [0.41, 0.07, 0.6], [0.52, 0.1, 0.46], [0.65, 0.08, 0.64], [0.76, 0.11, 0.49], [0.9, 0.08, 0.56]].forEach(([u, uw, t]) => box(c, w, h, u, t, uw, 0.88 - t, "rock"));
-      }
-    },
-    castle: {
-      n: "\uC131\uCC44",
-      d: "\uC591\uCABD \uC131\uBCBD \uC704\uC5D0\uC11C \uB9C8\uC8FC \uBCF4\uB294 \uACF5\uC131\uC804. \uAC00\uC6B4\uB370 \uD574\uC790\uB97C \uAC74\uB108\uB294 \uB2E4\uB9AC\uB294 \uBD80\uC11C\uC9C4\uB2E4.",
-      tags: ["\uC131\uBCBD \uC5C4\uD3D0", "\uB2E4\uB9AC \uD30C\uAD34", "\uD574\uC790 \uB099\uC0AC"],
-      grav: 1,
-      windMax: 9,
-      liquid: { y: 0.84, type: "water" },
-      spawn: [0.1, 0.9],
-      ev: { lightning: 0.2, meteors: 0.15, tornado: 0.1 },
-      pal: { soil: ["#8f7a58", "#4e4030"], crust: "#7cb55a", rock: ["#a49c90", "#5e574f"], plank: "#9a6a3c", leaf: "#3f8f46", wood: "#6d4526" },
-      sky: { stops: ["#6f8fc8", "#b9c8e2", "#ebe6dc"], clouds: 5, far: [["#9fb0a0", 0.6, 0.04, 7, 0]] },
-      terrain(c, w, h) {
-        under(c, w, h, (u) => 0.74 + 0.01 * Math.sin(u * 17), 0, 0.44, "soil");
-        under(c, w, h, (u) => 0.74 + 0.01 * Math.sin(u * 17), 0.56, 1, "soil");
-        const side = (f) => {
-          blob(c, w, h, f([[0.03, 0.5], [0.2, 0.5], [0.2, 0.76], [0.03, 0.76]]), "rock");
-          for (let i = 0; i < 5; i++) blob(c, w, h, f([[0.03 + i * 0.036, 0.47], [0.048 + i * 0.036, 0.47], [0.048 + i * 0.036, 0.5], [0.03 + i * 0.036, 0.5]]), "rock");
-          blob(c, w, h, f([[0.15, 0.33], [0.21, 0.33], [0.21, 0.5], [0.15, 0.5]]), "rock");
-          for (let i = 0; i < 3; i++) blob(c, w, h, f([[0.15 + i * 0.024, 0.3], [0.162 + i * 0.024, 0.3], [0.162 + i * 0.024, 0.33], [0.15 + i * 0.024, 0.33]]), "rock");
-        };
-        side((p) => p);
-        side(mirror);
-        hole(c, w, h, () => {
-          [[0.08, 0.6], [0.92, 0.6]].forEach(([u, v]) => {
-            c.beginPath();
-            c.ellipse(u * w, v * h, 0.025 * w, 0.05 * h, 0, Math.PI, 0);
-            c.lineTo((u + 0.025) * w, 0.76 * h);
-            c.lineTo((u - 0.025) * w, 0.76 * h);
-            c.fill();
-          });
-        });
-        box(c, w, h, 0.42, 0.72, 0.16, 0.02, "plank");
-        [0.3, 0.7].forEach((u) => tree(c, w, h, u, 0.745, 0.7));
-      },
-      backTerrain(c, w, h) {
-        this.terrainNoHole(c, w, h);
-      },
-      terrainNoHole(c, w, h) {
-        under(c, w, h, (u) => 0.74, 0, 0.44, "soil");
-        under(c, w, h, (u) => 0.74, 0.56, 1, "soil");
-        blob(c, w, h, [[0.03, 0.5], [0.2, 0.5], [0.2, 0.76], [0.03, 0.76]], "rock");
-        blob(c, w, h, mirror([[0.03, 0.5], [0.2, 0.5], [0.2, 0.76], [0.03, 0.76]]), "rock");
-      }
-    },
-    bridge: {
-      n: "\uC544\uCC14\uD55C \uB2E4\uB9AC",
-      d: "\uAE4A\uC740 \uD611\uACE1 \uC704\uC5D0 \uAE30\uB2E4\uB780 \uD310\uC790 \uB2E4\uB9AC \uD558\uB098. \uB2E4\uB9AC\uB97C \uB04A\uC73C\uBA74 \uC704\uC5D0 \uC788\uB358 \uD0F1\uD06C\uB294 \uBAA8\uB450 \uB5A8\uC5B4\uC9C4\uB2E4.",
-      tags: ["\uB2E4\uB9AC \uB04A\uAE30", "\uB099\uC0AC \uC8FC\uC758"],
-      grav: 1,
-      windMax: 10,
-      liquid: { y: 0.92, type: "water" },
-      spawn: [0.1, 0.9],
-      ev: { tornado: 0.35, lightning: 0.2 },
-      pal: { soil: ["#9c7a50", "#4c3a26"], crust: "#80c05a", rock: ["#8e8a84", "#4c4844"], plank: "#a8763f", leaf: "#3f8f46", wood: "#6a4424" },
-      sky: { stops: ["#5f8fd0", "#a9c8ea", "#e4eef4"], sun: [0.5, 0.14, 0.03, "#ffffff"], clouds: 7, far: [["#8aa6c0", 0.55, 0.08, 4, 1], ["#7f9aa4", 0.68, 0.05, 8, 0]] },
-      terrain(c, w, h) {
-        under(c, w, h, brgY, 0, 0.23, "soil");
-        under(c, w, h, brgY, 0.77, 1, "soil");
-        const cliff = [[0.2, 0.51], [0.23, 0.515], [0.235, 0.6], [0.225, 0.7], [0.24, 0.82], [0.23, 1.05], [0.16, 1.05], [0.18, 0.7]];
-        blob(c, w, h, cliff, "rock");
-        blob(c, w, h, mirror(cliff), "rock");
-        box(c, w, h, 0.22, 0.5, 0.56, 0.016, "plank");
-        blob(c, w, h, [[0.48, 0.72], [0.5, 0.69], [0.52, 0.72], [0.53, 1.05], [0.47, 1.05]], "rock");
-        box(c, w, h, 0.495, 0.516, 0.01, 0.18, "wood");
-        [0.05, 0.95].forEach((u) => tree(c, w, h, u, brgY(u) + 6e-3, 0.75));
-      }
-    },
-    arena: {
-      n: "\uD22C\uAE30\uC7A5",
-      d: "\uB465\uADFC \uACBD\uAE30\uC7A5. \uC591\uCABD \uACC4\uB2E8\uC2DD \uAD00\uC911\uC11D\uC5D0\uC11C \uC2DC\uC791\uD574 \uAC00\uC6B4\uB370 \uBC14\uB2E5\uC73C\uB85C \uBAB0\uB9AC\uAE30 \uC27D\uB2E4.",
-      tags: ["\uACC4\uB2E8 \uC9C0\uD615", "\uAC00\uC6B4\uB370\uB85C \uBAB0\uB9BC"],
-      grav: 1,
-      windMax: 6,
-      liquid: null,
-      spawn: [0.13, 0.87],
-      ev: { pillar: 0.3, lightning: 0.15 },
-      pal: { soil: ["#c9a070", "#7a5a3a"], crust: "#e0c08a", rock: ["#c8bca8", "#7a7064"] },
-      sky: { stops: ["#e89060", "#f4c08a", "#fbe2c0"], sun: [0.5, 0.2, 0.05, "#fff2c0"], far: [["#c88a6a", 0.5, 0.02, 3, 0]] },
-      terrain(c, w, h) {
-        under(c, w, h, arenaY, 0, 1, "rock");
-        under(c, w, h, arenaY, 0.3, 0.7, "soil");
-        [[0.02, 0.26], [0.94, 0.26]].forEach(([u, t]) => {
-          box(c, w, h, u, t, 0.04, 0.45 - t, "rock");
-          box(c, w, h, u - 8e-3, t - 0.02, 0.056, 0.02, "rock");
-        });
-      }
-    },
-    mesa: {
-      n: "\uBAA8\uB798\uD611\uACE1",
-      d: "\uD3C9\uD3C9\uD55C \uBC14\uC704 \uD0D1(\uBA54\uC0AC)\uC774 \uC19F\uC740 \uC0AC\uB9C9. \uB192\uC740 \uD0D1\uC744 \uCC28\uC9C0\uD558\uBA74 \uC720\uB9AC\uD558\uB2E4.",
-      tags: ["\uACE0\uC800\uCC28 \uD07C", "\uBAA8\uB798 \uD68C\uC624\uB9AC"],
-      grav: 1,
-      windMax: 10,
-      liquid: null,
-      spawn: [0.1, 0.85],
+      spawn: [0.15, 0.85],
       ev: { tornado: 0.4, meteors: 0.1 },
-      pal: { soil: ["#e6b86e", "#9a6a3a"], crust: "#f6dca0", rock: ["#cf7e4e", "#7a3f26"] },
-      sky: {
-        stops: ["#f2b670", "#f9dca6", "#fdf0d0"],
-        sun: [0.2, 0.2, 0.045, "#fff7d8"],
-        far: [["#e7b48a", 0.6, 0.03, 4, 0]],
-        extra(c, w, h) {
-          c.fillStyle = "rgba(205,130,90,.45)";
-          [[0.12, 0.48, 0.1], [0.4, 0.52, 0.08], [0.7, 0.45, 0.12]].forEach(([u, v, s]) => {
-            c.fillRect(u * w, v * h, s * w, h);
-          });
-        }
-      },
+      pal: { soil: ["#e6b86e", "#9a6a3a"], crust: "#f6dca0", rock: ["#cf7e4e", "#7a3f26"], steel: "#5a3a26" },
+      sky: { stops: ["#f2b670", "#f9dca6", "#fdf0d0"], sun: [0.2, 0.2, 0.045, "#fff7d8"], far: [["#e7b48a", 0.46, 0.03, 4, 0]] },
       terrain(c, w, h) {
-        under(c, w, h, (u) => 0.86 + 0.02 * Math.sin(u * 11), 0, 1, "soil");
-        [[0.04, 0.16, 0.52], [0.27, 0.4, 0.42], [0.55, 0.66, 0.5], [0.78, 0.92, 0.44]].forEach(([a, b, t]) => {
-          blob(c, w, h, [[a - 0.01, 0.88], [a + 0.012, t + 0.05], [a + 0.02, t], [b - 0.02, t], [b - 0.012, t + 0.05], [b + 0.01, 0.88]], "rock");
-          box(c, w, h, a + 0.02, t - 0.014, b - a - 0.04, 0.022, "soil");
-        });
+        ground(c, w, h, dunesY);
       }
     },
-    ice: {
-      n: "\uBE59\uD558 \uACC4\uACE1",
-      d: "\uBBF8\uB044\uB7EC\uC6B4 \uBE59\uD558 \uC704. \uC5BC\uC74C \uD2C8(\uD06C\uB808\uBC14\uC2A4) \uC544\uB798\uB294 \uC5BC\uC74C\uBB3C\uC774\uB77C \uBE60\uC9C0\uBA74 \uB099\uC0AC.",
-      tags: ["\uBBF8\uB044\uB7EC\uC6C0", "\uD06C\uB808\uBC14\uC2A4 \uB099\uC0AC"],
+    snow: {
+      n: "\uB208\uBC8C\uD310",
+      d: "\uB208 \uB36E\uC778 \uC644\uB9CC\uD55C \uBC8C\uD310. \uBC14\uB2E5\uC774 \uBBF8\uB044\uB7EC\uC6CC \uBA48\uCD98 \uB4A4\uC5D0\uB3C4 \uC870\uAE08 \uBBF8\uB044\uB7EC\uC9C4\uB2E4.",
+      tags: ["\uBBF8\uB044\uB7EC\uC6C0", "\uC774\uC5B4\uC9C4 \uB545"],
       slip: true,
       grav: 1,
       windMax: 9,
-      liquid: { y: 0.86, type: "water" },
-      spawn: [0.14, 0.86],
+      liquid: null,
+      spawn: [0.15, 0.85],
       ev: { lightning: 0.25, tornado: 0.2 },
-      pal: { soil: ["#9fb6c8", "#5d7488"], crust: "#ffffff", ice: ["#d8f2ff", "#78b8dc"], rock: ["#7f8c98", "#4a5560"] },
-      sky: { stops: ["#9ab8dc", "#cfe2f2", "#eef6fb"], sun: [0.75, 0.2, 0.03, "#ffffff"], clouds: 4, far: [["#c3d4e6", 0.5, 0.08, 6, 1], ["#e2ecf5", 0.62, 0.03, 10, 0]] },
+      pal: { soil: ["#9fb6c8", "#5d7488"], crust: "#ffffff", rock: ["#7f8c98", "#4a5560"], steel: "#3e4650" },
+      sky: { stops: ["#9ab8dc", "#cfe2f2", "#eef6fb"], sun: [0.75, 0.2, 0.03, "#ffffff"], clouds: 4, far: [["#c3d4e6", 0.42, 0.08, 6, 1], ["#e2ecf5", 0.5, 0.03, 10, 0]] },
       terrain(c, w, h) {
-        under(c, w, h, iceY, 0, 1, "ice");
-        under(c, w, h, (u) => 0.9 + 0.015 * Math.sin(u * 9), 0, 1, "rock");
-        hole(c, w, h, () => [0.31, 0.5, 0.69].forEach((u) => {
-          c.beginPath();
-          c.moveTo((u - 0.024) * w, (iceY(u - 0.024) - 0.02) * h);
-          c.lineTo((u + 0.024) * w, (iceY(u + 0.024) - 0.02) * h);
-          c.lineTo((u + 4e-3) * w, 0.97 * h);
-          c.lineTo((u - 4e-3) * w, 0.97 * h);
-          c.closePath();
-          c.fill();
-        }));
-      },
-      backTerrain(c, w, h) {
-        under(c, w, h, iceY, 0, 1, "ice");
-      }
-    },
-    factory: {
-      n: "\uD3D0\uACF5\uC7A5",
-      d: "\uBD80\uC11C\uC9C0\uC9C0 \uC54A\uB294 \uCCA0\uD310\uACFC \uCCA0\uACE8 \uB2E4\uB9AC\uAC00 \uC788\uB294 \uACF5\uC7A5 \uD130. \uAC00\uC6B4\uB370 \uC0B0\uC131 \uC6C5\uB369\uC774\uB294 \uB099\uC0AC.",
-      tags: ["\uCCA0\uD310\uC740 \uC548 \uBD80\uC11C\uC9D0", "\uC5C4\uD3D0\uBB3C", "\uB099\uC0AC \uC8FC\uC758"],
-      grav: 1,
-      windMax: 7,
-      liquid: { y: 0.93, type: "acid" },
-      spawn: [0.13, 0.87],
-      ev: { pillar: 0.2, lightning: 0.2 },
-      pal: { soil: ["#7a6a5a", "#3e342c"], crust: "#8f8f7a", rock: ["#a8664c", "#5e3426"], steel: "#9aa4b2" },
-      sky: {
-        stops: ["#4f4570", "#9f84a4", "#e3bba0"],
-        far: [["#4a4060", 0.62, 0, 1, 0]],
-        extra(c, w, h) {
-          c.fillStyle = "rgba(60,50,85,.8)";
-          [[0.1, 0.35, 0.03], [0.16, 0.28, 0.025], [0.82, 0.3, 0.03], [0.62, 0.4, 0.02]].forEach(([u, v, s]) => c.fillRect(u * w, v * h, s * w, h));
-          c.fillRect(0, 0.55 * h, w, h);
-        }
-      },
-      terrain(c, w, h) {
-        under(c, w, h, (u) => 0.8 + 0.015 * Math.sin(u * 13), 0, 0.4, "soil");
-        under(c, w, h, (u) => 0.8 + 0.015 * Math.sin(u * 13), 0.6, 1, "soil");
-        box(c, w, h, 0.06, 0.6, 0.14, 0.22, "rock");
-        box(c, w, h, 0.8, 0.56, 0.14, 0.26, "rock");
-        box(c, w, h, 0.05, 0.585, 0.16, 0.02, "steel");
-        box(c, w, h, 0.79, 0.545, 0.16, 0.02, "steel");
-        box(c, w, h, 0.37, 0.62, 0.26, 0.025, "steel");
-        box(c, w, h, 0.385, 0.645, 0.012, 0.3, "steel");
-        box(c, w, h, 0.603, 0.645, 0.012, 0.3, "steel");
-        box(c, w, h, 0.46, 0.4, 0.08, 0.015, "steel");
-        box(c, w, h, 0.495, 0.415, 0.01, 0.205, "steel");
-        box(c, w, h, 0.25, 0.66, 0.07, 0.14, "rock");
-        box(c, w, h, 0.68, 0.64, 0.06, 0.16, "rock");
-      }
-    },
-    shroom: {
-      n: "\uBC84\uC12F\uC232",
-      d: "\uAC70\uB300\uD55C \uBC84\uC12F \uAC13\uC774 \uCE35\uCE35\uC774 \uC788\uB294 \uC232. \uAC13 \uC704\uC5D0 \uC62C\uB77C\uC11C\uBA74 \uB192\uC740 \uC790\uB9AC.",
-      tags: ["\uC5EC\uB7EC \uCE35", "\uAC13\uC740 \uC798 \uBD80\uC11C\uC9D0"],
-      grav: 1,
-      windMax: 8,
-      liquid: null,
-      spawn: [0.12, 0.9],
-      ev: { tornado: 0.2, lightning: 0.15, meteors: 0.1 },
-      pal: { soil: ["#6a5a7a", "#342a40"], crust: "#7fd06c", wood: "#efe0c8", cap: "#e5487a", leaf: "#4f9e3c" },
-      sky: {
-        stops: ["#284a5a", "#5f9a9a", "#c4e4cc"],
-        far: [["#3f6f6a", 0.52, 0.06, 7, 0], ["#4f807a", 0.62, 0.05, 11, 1]],
-        extra(c, w, h) {
-          for (let i = 0; i < 30; i++) {
-            c.fillStyle = `rgba(230,255,160,${0.4 + hash(i) * 0.5})`;
-            circ(c, hash(i + 3) * w, (0.2 + hash(i + 7) * 0.5) * h, 1.5);
-            c.fill();
-          }
-        }
-      },
-      terrain(c, w, h) {
-        under(c, w, h, (u) => 0.84 + 0.02 * Math.sin(u * 9), 0, 1, "soil");
-        [[0.12, 0.58, 0.1], [0.32, 0.44, 0.085], [0.52, 0.62, 0.11], [0.72, 0.4, 0.1], [0.9, 0.6, 0.085]].forEach(([u, v, r]) => {
-          box(c, w, h, u - 0.014, v, 0.028, 0.86 - v, "wood");
-          c.fillStyle = MK.cap;
-          c.beginPath();
-          c.ellipse(u * w, v * h + 6, r * w, r * w * 0.55, 0, Math.PI, 0);
-          c.closePath();
-          c.fill();
-        });
-      }
-    },
-    volcano: {
-      n: "\uD654\uC0B0 \uC9C0\uB300",
-      d: "\uAC00\uC6B4\uB370 \uD654\uC0B0\uC774 \uBD88\uAE30\uB465\uC744 \uBFDC\uB294 \uB545. \uACF3\uACF3\uC758 \uC6A9\uC554 \uC6C5\uB369\uC774\uC5D0 \uBE60\uC9C0\uBA74 \uB099\uC0AC.",
-      tags: ["\uBD88\uAE30\uB465 \uC790\uC8FC", "\uC6A9\uC554 \uC6C5\uB369\uC774"],
-      grav: 1,
-      windMax: 9,
-      liquid: { y: 0.88, type: "lava" },
-      spawn: [0.12, 0.88],
-      ev: { pillar: 0.55, meteors: 0.25 },
-      pal: { soil: ["#6a5048", "#2a1c1c"], crust: "#8a7a6a", rock: ["#4a3a3a", "#1e1414"] },
-      sky: {
-        stops: ["#2a1420", "#7a2a2a", "#e0703a"],
-        far: [["#3a1a20", 0.58, 0.05, 5, 0]],
-        extra(c, w, h) {
-          for (let i = 0; i < 6; i++) {
-            c.fillStyle = `rgba(60,40,45,${0.35 - i * 0.04})`;
-            circ(c, (0.5 + i * 0.04) * w, (0.2 - i * 0.03) * h, (0.04 + i * 0.02) * w);
-            c.fill();
-          }
-        }
-      },
-      terrain(c, w, h) {
-        under(c, w, h, volY, 0, 1, "rock");
-        under(c, w, h, (u) => volY(u) + 0.03, 0, 0.3, "soil");
-        under(c, w, h, (u) => volY(u) + 0.03, 0.7, 1, "soil");
-        hole(c, w, h, () => [[0.25, 0.86], [0.75, 0.86]].forEach(([u, v]) => {
-          c.beginPath();
-          c.ellipse(u * w, v * h, 0.05 * w, 0.11 * h, 0, 0, TAU2);
-          c.fill();
-        }));
-      }
-    },
-    ships: {
-      n: "\uBC14\uB2E4 \uC704 \uACB0\uD22C",
-      d: "\uBC14\uB2E4 \uC704 \uB450 \uCC99\uC758 \uBC30\uAC00 \uB9C8\uC8FC \uBCF4\uACE0 \uC3DC\uB2E4. \uAC11\uD310\uC744 \uAE4E\uC544 \uB0B4\uBA74 \uBC30 \uBC11 \uBC14\uB2E4\uB85C \uB5A8\uC5B4\uC9C4\uB2E4.",
-      tags: ["\uBC30 \uAC11\uD310", "\uB099\uC0AC \uC8FC\uC758"],
-      grav: 1,
-      windMax: 10,
-      liquid: { y: 0.78, type: "water" },
-      spawn: [0.17, 0.83],
-      ev: { tornado: 0.35, lightning: 0.25 },
-      pal: { soil: ["#8a7a60", "#4a3e30"], crust: "#c8b890", rock: ["#7a7a80", "#44444a"], plank: "#9a6438", wood: "#5e3c22", leaf: "#f2eee2" },
-      sky: { stops: ["#4f86c8", "#9cc4ea", "#e2eef6"], sun: [0.5, 0.16, 0.03, "#ffffff"], clouds: 6 },
-      terrain(c, w, h) {
-        const ship = (f) => {
-          blob(c, w, h, f([[0.03, 0.58], [0.36, 0.58], [0.34, 0.72], [0.29, 0.86], [0.09, 0.86], [0.05, 0.72]]), "plank");
-          blob(c, w, h, f([[0.05, 0.48], [0.13, 0.48], [0.13, 0.58], [0.05, 0.58]]), "plank");
-          blob(c, w, h, f([[0.3, 0.52], [0.36, 0.52], [0.36, 0.58], [0.3, 0.58]]), "plank");
-          blob(c, w, h, f([[0.198, 0.18], [0.208, 0.18], [0.208, 0.58], [0.198, 0.58]]), "wood");
-          blob(c, w, h, f([[0.208, 0.2], [0.29, 0.27], [0.208, 0.44]]), "leaf");
-        };
-        ship((p) => p);
-        ship(mirror);
-        blob(c, w, h, [[0.46, 0.76], [0.48, 0.7], [0.52, 0.69], [0.54, 0.76], [0.55, 1.05], [0.45, 1.05]], "rock");
-      }
-    },
-    moon: {
-      n: "\uB2EC\uAE30\uC9C0",
-      d: "\uC911\uB825\uC774 \uC808\uBC18\uC778 \uB2EC. \uBC14\uB78C\uC774 \uC5C6\uACE0 \uD3EC\uD0C4\uC774 \uC544\uC8FC \uBA40\uB9AC \uB0A0\uC544\uAC04\uB2E4.",
-      tags: ["\uC911\uB825 50%", "\uBC14\uB78C \uC5C6\uC74C", "\uC6B4\uC11D \uC790\uC8FC"],
-      grav: 0.5,
-      windMax: 0,
-      liquid: null,
-      spawn: [0.12, 0.88],
-      ev: { meteors: 0.5 },
-      pal: { soil: ["#b8b8c0", "#6a6a78"], crust: "#dcdce4", steel: "#c8d0dc" },
-      sky: { stops: ["#05060f", "#0d1024", "#1a1d3a"], stars: true, planet: [0.78, 0.2, 0.06, "#4f98e0"], far: [["#2a2c40", 0.62, 0.04, 5, 0]] },
-      terrain(c, w, h) {
-        under(c, w, h, moonY, 0, 1, "soil");
-        c.globalCompositeOperation = "destination-out";
-        [[0.25, 30], [0.45, 22], [0.68, 34]].forEach(([u, r]) => {
-          c.beginPath();
-          c.ellipse(u * w, moonY(u) * h + 4, r * w / 960 * 1.6, r * w / 960 * 0.7, 0, 0, TAU2);
-          c.fill();
-        });
-        c.globalCompositeOperation = "source-over";
-        [[0.34, 26], [0.58, 20]].forEach(([u, r]) => {
-          c.fillStyle = MK.steel;
-          c.beginPath();
-          c.arc(u * w, moonY(u) * h + 3, r * w / 960, Math.PI, 0);
-          c.fill();
-        });
-      }
-    },
-    sky: {
-      n: "\uAD6C\uB984\uC12C",
-      d: "\uD558\uB298\uC5D0 \uB72C \uC12C\uB4E4. \uC544\uB798\uB294 \uB05D\uC5C6\uB294 \uD5C8\uACF5\uC774\uB77C \uBC00\uB824\uB098\uBA74 \uBC14\uB85C \uB099\uC0AC.",
-      tags: ["\uB099\uC0AC \uC8FC\uC758", "\uC12C \uC0AC\uC774 \uC774\uB3D9 \uBD88\uAC00"],
-      grav: 1,
-      windMax: 10,
-      liquid: { y: 1.02, type: "void" },
-      spawn: [0.13, 0.86],
-      ev: { tornado: 0.35, lightning: 0.3 },
-      pal: { soil: ["#9a7a58", "#5a4632"], crust: "#9ad66a", rock: ["#8b8aa0", "#55546a"], leaf: "#5aa84a", wood: "#7a4f2c" },
-      sky: { stops: ["#5fa8e8", "#9ccff2", "#d6ecf8"], sun: [0.85, 0.14, 0.035, "#ffffff"], clouds: 10 },
-      terrain(c, w, h) {
-        island(c, w, h, 0.03, 0.5, 0.21, 0.24);
-        island(c, w, h, 0.28, 0.63, 0.14, 0.17);
-        island(c, w, h, 0.44, 0.41, 0.13, 0.19);
-        island(c, w, h, 0.61, 0.6, 0.14, 0.16);
-        island(c, w, h, 0.77, 0.48, 0.2, 0.24);
-        tree(c, w, h, 0.07, 0.5, 0.7);
-        tree(c, w, h, 0.93, 0.48, 0.7);
-        tree(c, w, h, 0.5, 0.405, 0.65);
+        ground(c, w, h, snowY);
       }
     },
     demo: {
@@ -565,7 +99,6 @@
       }
     }
   };
-  MAPS.castle.backTerrain = MAPS.castle.terrainNoHole;
 
   // ../shared/sim/raster.js
   var TAU3 = Math.PI * 2;
@@ -1543,11 +1076,11 @@
       }
       return 0;
     };
-    const tree2 = (x) => [x - 7, x, x + 7].some((xx) => xx >= 0 && xx < sim.w && (top(xx) === MK.leaf || top(xx) === MK.wood));
+    const tree = (x) => [x - 7, x, x + 7].some((xx) => xx >= 0 && xx < sim.w && (top(xx) === MK.leaf || top(xx) === MK.wood));
     const cands = [];
     for (let x = 30; x < sim.w - 30; x += 6) {
       const g = sim.ground(x, 0);
-      if (g < sim.h - 10 && g < sim.liquidY - 20 && !tree2(x)) cands.push(x);
+      if (g < sim.h - 10 && g < sim.liquidY - 20 && !tree(x)) cands.push(x);
     }
     const used = [], pick = (target) => {
       let best = null, bd = 1e9;
