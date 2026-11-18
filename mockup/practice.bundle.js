@@ -12,75 +12,296 @@
     c.closePath();
     c.fill();
   }
-  var hillsY = (u) => 0.55 + 0.05 * Math.sin(u * 7 + 0.4) + 0.02 * Math.sin(u * 19 + 2);
-  var valleyY = (u) => 0.42 + 0.17 * Math.sin(Math.PI * u) + 0.012 * Math.sin(u * 23);
-  var dunesY = (u) => 0.5 + 0.045 * Math.sin(u * 10) + 0.015 * Math.sin(u * 27 + 1);
-  var snowY = (u) => 0.5 + 0.05 * Math.sin(u * 5) + 0.02 * Math.sin(u * 13 + 0.7);
-  var ground = (c, w, h, fn) => {
-    under(c, w, h, fn, 0, 1, "soil");
-    under(c, w, h, (u) => 0.9 + 0.012 * Math.sin(u * 9), 0, 1, "rock");
-    under(c, w, h, (u) => 0.965, 0, 1, "steel");
+  function blob(c, w, h, pts, mat) {
+    c.fillStyle = MK[mat];
+    c.beginPath();
+    pts.forEach(([u, v], i) => i ? c.lineTo(u * w, v * h) : c.moveTo(u * w, v * h));
+    c.closePath();
+    c.fill();
+  }
+  var ns = (u) => 6e-3 * Math.sin(u * 41) + 4e-3 * Math.sin(u * 97 + 1);
+  var path = (pts, n = 1) => (u) => {
+    let i = 0;
+    while (i < pts.length - 2 && u > pts[i + 1][0]) i++;
+    const [u0, v0] = pts[i], [u1, v1] = pts[i + 1], k = Math.min(1, Math.max(0, (u - u0) / (u1 - u0)));
+    return v0 + (v1 - v0) * k * k * (3 - 2 * k) + n * ns(u);
   };
+  var valleyY = path([[0, 0.3], [0.11, 0.31], [0.18, 0.42], [0.27, 0.43], [0.35, 0.55], [0.44, 0.57], [0.5, 0.6], [0.56, 0.57], [0.65, 0.55], [0.73, 0.43], [0.82, 0.42], [0.89, 0.31], [1, 0.3]]);
+  var templeY = path([[0, 0.5], [0.1, 0.5], [0.15, 0.42], [0.23, 0.42], [0.31, 0.55], [0.42, 0.56], [0.48, 0.5], [0.56, 0.5], [0.62, 0.56], [0.69, 0.56], [0.77, 0.44], [0.84, 0.43], [0.91, 0.33], [1, 0.33]]);
+  var bridgeY = path([[0, 0.4], [0.12, 0.38], [0.27, 0.42], [0.38, 0.6], [0.5, 0.64], [0.62, 0.6], [0.73, 0.42], [0.88, 0.38], [1, 0.4]]);
+  var caveY = path([[0, 0.36], [0.11, 0.37], [0.19, 0.5], [0.3, 0.51], [0.36, 0.6], [0.46, 0.6], [0.5, 0.55], [0.54, 0.6], [0.63, 0.6], [0.7, 0.5], [0.79, 0.49], [0.88, 0.35], [1, 0.35]]);
+  var cloudY = (u) => 0.78 + 0.012 * Math.sin(u * 31) + 8e-3 * Math.sin(u * 73 + 2);
+  var ISLES = [[0.1, 0.045, 0.58], [0.37, 0.045, 0.61], [0.63, 0.045, 0.58], [0.9, 0.045, 0.56]];
+  var isleY = (u) => ISLES.reduce((m, [cu, hw, top]) => Math.min(m, top + Math.max(0, Math.abs(u - cu) - hw) * 2.8 + 0.3 * ns(u)), 1);
+  var ground = (c, w, h, fn, rockAt = 0.9) => {
+    under(c, w, h, fn, 0, 1, "soil");
+    under(c, w, h, typeof rockAt === "function" ? rockAt : (u) => rockAt + 0.012 * Math.sin(u * 9), 0, 1, "rock");
+    under(c, w, h, () => 0.965, 0, 1, "steel");
+  };
+  var hr = (i) => {
+    const x = Math.sin(i * 127.1 + 311.7) * 43758.5453;
+    return x - Math.floor(x);
+  };
+  var poly = (c, w, h, pts, col) => {
+    c.fillStyle = col;
+    c.beginPath();
+    pts.forEach(([u, v], i) => i ? c.lineTo(u * w, v * h) : c.moveTo(u * w, v * h));
+    c.closePath();
+    c.fill();
+  };
+  var ball = (c, x, y, r, col) => {
+    c.fillStyle = col;
+    c.beginPath();
+    c.arc(x, y, r, 0, TAU2);
+    c.fill();
+  };
+  function bushTree(c, x, y, s, col) {
+    c.fillStyle = "#5a3a22";
+    c.fillRect(x - s * 0.08, y - s * 0.5, s * 0.16, s * 0.5);
+    [[0, -0.8, 0.42], [-0.28, -0.6, 0.3], [0.28, -0.6, 0.3]].forEach(([dx, dy, r]) => ball(c, x + dx * s, y + dy * s, r * s, col));
+  }
+  function pine(c, x, y, s, col) {
+    c.fillStyle = col;
+    c.beginPath();
+    c.moveTo(x, y - s);
+    c.lineTo(x + s * 0.32, y);
+    c.lineTo(x - s * 0.32, y);
+    c.closePath();
+    c.fill();
+  }
+  function palm(c, x, y, s) {
+    c.strokeStyle = "#8a6236";
+    c.lineWidth = s * 0.07;
+    c.beginPath();
+    c.moveTo(x, y);
+    c.quadraticCurveTo(x + s * 0.15, y - s * 0.5, x + s * 0.05, y - s);
+    c.stroke();
+    c.fillStyle = "#4f8f3a";
+    for (let i = 0; i < 6; i++) {
+      const a = -Math.PI / 2 + (i - 2.5) * 0.55;
+      c.beginPath();
+      c.ellipse(x + s * 0.05 + Math.cos(a) * s * 0.28, y - s + Math.sin(a) * s * 0.14 + s * 0.08, s * 0.3, s * 0.07, a, 0, TAU2);
+      c.fill();
+    }
+  }
+  function rockIsle(c, x, y, s, top, rock) {
+    c.fillStyle = rock;
+    c.beginPath();
+    c.moveTo(x - s, y);
+    c.lineTo(x + s, y);
+    c.lineTo(x + s * 0.2, y + s * 1.1);
+    c.lineTo(x - s * 0.3, y + s * 0.7);
+    c.closePath();
+    c.fill();
+    c.fillStyle = top;
+    c.fillRect(x - s, y - s * 0.12, s * 2, s * 0.2);
+  }
+  function valleyDeco(c, w, h) {
+    const peaks = [];
+    for (let i = 0; i <= 14; i++) peaks.push([i / 14, 0.36 - (i % 2 ? 0.08 + hr(i) * 0.07 : 0) - 0.04 * Math.sin(i)]);
+    poly(c, w, h, [[0, 0.6], ...peaks, [1, 0.6]], "#8fa6cc");
+    poly(c, w, h, [[0, 0.6], ...peaks.map(([u, v], i) => [u, v + 0.07 + 0.02 * hr(i + 3)]), [1, 0.6]], "#7a98b4");
+    c.fillStyle = "#9fd4ef";
+    c.beginPath();
+    for (let i = 0; i <= 20; i++) {
+      const k = i / 20, v = 0.42 + k * 0.3, u = 0.5 + 0.06 * Math.sin(k * 7), half = 4e-3 + k * 0.03;
+      c.lineTo((u - half) * w, v * h);
+    }
+    for (let i = 20; i >= 0; i--) {
+      const k = i / 20, v = 0.42 + k * 0.3, u = 0.5 + 0.06 * Math.sin(k * 7), half = 4e-3 + k * 0.03;
+      c.lineTo((u + half) * w, v * h);
+    }
+    c.fill();
+    poly(c, w, h, [[0, 0.14], [0.06, 0.12], [0.12, 0.2], [0.16, 0.45], [0, 0.45]], "#c2a06a");
+    poly(c, w, h, [[1, 0.12], [0.95, 0.1], [0.88, 0.19], [0.84, 0.45], [1, 0.45]], "#c2a06a");
+    poly(c, w, h, [[0, 0.14], [0.06, 0.12], [0.12, 0.2], [0.11, 0.23], [0, 0.18]], "#6fae4a");
+    poly(c, w, h, [[1, 0.12], [0.95, 0.1], [0.88, 0.19], [0.89, 0.22], [1, 0.17]], "#6fae4a");
+    for (let i = 0; i < 7; i++) {
+      bushTree(c, (0.01 + i * 0.018) * w, (0.15 + hr(i) * 0.03) * h, h * 0.07, "#4c8f3a");
+      bushTree(c, (0.99 - i * 0.018) * w, (0.13 + hr(i + 9) * 0.03) * h, h * 0.07, "#4c8f3a");
+    }
+  }
+  function templeDeco(c, w, h) {
+    const px = 0.44, base = 0.62, half = 0.17, top = 0.17;
+    poly(c, w, h, [[px - half, base], [px, top], [px + half, base]], "#e2bf7c");
+    poly(c, w, h, [[px, top], [px + half, base], [px + 0.02, base]], "#c99c5c");
+    c.strokeStyle = "rgba(120,80,40,.25)";
+    c.lineWidth = 1;
+    for (let v = top + 0.03; v < base; v += 0.028) {
+      const k = (v - top) / (base - top);
+      c.beginPath();
+      c.moveTo((px - half * k) * w, v * h);
+      c.lineTo((px + half * k) * w, v * h);
+      c.stroke();
+    }
+    const sx = 0.63, sy = 0.5;
+    c.fillStyle = "#d9b06c";
+    c.fillRect((sx - 0.09) * w, (sy - 0.08) * h, 0.16 * w, 0.08 * h);
+    c.fillRect((sx - 0.13) * w, (sy - 0.025) * h, 0.07 * w, 0.025 * h);
+    poly(c, w, h, [[sx + 0.035, sy - 0.08], [sx + 0.035, sy - 0.2], [sx + 0.055, sy - 0.25], [sx + 0.095, sy - 0.25], [sx + 0.115, sy - 0.2], [sx + 0.115, sy - 0.08]], "#d9b06c");
+    poly(c, w, h, [[sx + 0.028, sy - 0.21], [sx + 0.075, sy - 0.27], [sx + 0.122, sy - 0.21], [sx + 0.118, sy - 0.1], [sx + 0.1, sy - 0.1], [sx + 0.098, sy - 0.2], [sx + 0.052, sy - 0.2], [sx + 0.05, sy - 0.1], [sx + 0.032, sy - 0.1]], "#c29452");
+    c.fillStyle = "#b8874a";
+    c.fillRect((sx + 0.062) * w, (sy - 0.2) * h, 0.026 * w, 0.06 * h);
+    [[0.2, 0.52, 0.13], [0.27, 0.5, 0.1], [0.6, 0.56, 0.09], [0.95, 0.4, 0.12]].forEach(([u, v, s]) => palm(c, u * w, v * h, s * h));
+  }
+  function skyDeco(c, w, h) {
+    c.globalAlpha = 0.75;
+    rockIsle(c, 0.72 * w, 0.3 * h, 0.07 * w, "#b9c6e8", "#9aa6cf");
+    const cx = 0.72 * w, cy = 0.3 * h, s = w / 960;
+    c.fillStyle = "#c9d2f0";
+    [[-40, 30, 40], [-14, 18, 66], [10, 22, 52], [34, 16, 36]].forEach(([dx, bw, th]) => {
+      c.fillRect(cx + dx * s, cy - th * s, bw * s, th * s);
+      poly(c, 1, 1, [[cx + dx * s - 3 * s, cy - th * s], [cx + (dx + bw / 2) * s, cy - (th + 20) * s], [cx + (dx + bw + 3) * s, cy - th * s]], "#aab4dc");
+      c.fillStyle = "#c9d2f0";
+    });
+    c.globalAlpha = 1;
+    [[0.2, 0.18, 0.02], [0.3, 0.3, 0.014], [0.5, 0.16, 0.016], [0.56, 0.36, 0.012], [0.86, 0.22, 0.018], [0.44, 0.42, 0.01]].forEach(([u, v, s2]) => rockIsle(c, u * w, v * h, s2 * w, "#7cbf5a", "#9b8a74"));
+  }
+  function bridgeDeco(c, w, h) {
+    poly(c, w, h, [[0, 0.5], [0.1, 0.3], [0.2, 0.36], [0.32, 0.24], [0.45, 0.34], [0.58, 0.22], [0.7, 0.32], [0.82, 0.26], [1, 0.36], [1, 0.5]], "#9db8c8");
+    const g = c.createLinearGradient(0, 0.28 * h, 0, 0.9 * h);
+    g.addColorStop(0, "#e8f6ff");
+    g.addColorStop(1, "#bfe2f5");
+    c.fillStyle = g;
+    c.fillRect(0.58 * w, 0.28 * h, 0.05 * w, 0.62 * h);
+    c.fillRect(0.64 * w, 0.36 * h, 0.03 * w, 0.54 * h);
+    c.fillStyle = "rgba(255,255,255,.55)";
+    for (let i = 0; i < 8; i++) c.fillRect((0.585 + hr(i) * 0.04) * w, 0.28 * h, 2, 0.6 * h);
+    for (let i = 0; i < 9; i++) ball(c, (0.56 + hr(i + 3) * 0.14) * w, (0.84 + hr(i + 7) * 0.05) * h, (0.02 + hr(i) * 0.02) * w, "rgba(255,255,255,.6)");
+    poly(c, w, h, [[0.54, 0.28], [0.58, 0.28], [0.58, 0.9], [0.52, 0.9]], "#8c7a5a");
+    poly(c, w, h, [[0.67, 0.36], [0.72, 0.3], [0.74, 0.9], [0.67, 0.9]], "#8c7a5a");
+    for (let i = 0; i < 40; i++) pine(c, (i / 40 + hr(i) * 0.02) * w, (0.5 + hr(i + 1) * 0.05) * h, (0.12 + hr(i + 2) * 0.06) * h, "#3f7a52");
+    for (let i = 0; i < 30; i++) pine(c, (i / 30 + hr(i + 50) * 0.03) * w, (0.62 + hr(i + 51) * 0.06) * h, (0.16 + hr(i + 52) * 0.06) * h, "#2f6644");
+  }
+  function caveDeco(c, w, h) {
+    const g = c.createLinearGradient(0.6 * w, 0, 0.45 * w, h);
+    g.addColorStop(0, "rgba(255,220,140,.45)");
+    g.addColorStop(1, "rgba(255,220,140,0)");
+    c.fillStyle = g;
+    c.beginPath();
+    c.moveTo(0.58 * w, 0);
+    c.lineTo(0.7 * w, 0);
+    c.lineTo(0.6 * w, h);
+    c.lineTo(0.4 * w, h);
+    c.closePath();
+    c.fill();
+    for (let i = 0; i < 6; i++) {
+      const u = 0.08 + i * 0.17 + hr(i) * 0.05, top = 0.3 + hr(i + 4) * 0.2, bw = 0.05 + hr(i + 8) * 0.04;
+      poly(c, w, h, [[u - bw, 0.9], [u - bw * 0.6, top], [u + bw * 0.5, top - 0.02], [u + bw, 0.9]], "#4a3f78");
+    }
+    c.fillStyle = "#3d6fae";
+    c.fillRect(0, 0.7 * h, w, 0.3 * h);
+    c.fillStyle = "rgba(180,220,255,.5)";
+    for (let i = 0; i < 30; i++) c.fillRect(hr(i) * w, (0.71 + hr(i + 2) * 0.2) * h, 10 + hr(i + 3) * 30, 2);
+    c.fillStyle = "#2a2350";
+    c.fillRect(0, 0, w, 0.05 * h);
+    for (let i = 0; i < 46; i++) {
+      const u = i / 46 + hr(i) * 0.01, L = 0.06 + hr(i + 5) * (i % 3 ? 0.12 : 0.26), bw = 8e-3 + hr(i + 9) * 0.014;
+      poly(c, w, h, [[u - bw, 0.04], [u + bw, 0.04], [u + bw * 0.1, 0.04 + L]], i % 2 ? "#3a3168" : "#463b7c");
+    }
+    [[0.15, 0.62], [0.42, 0.55], [0.8, 0.6]].forEach(([u, v], i) => {
+      const x = u * w, y = v * h, s = h * 0.03;
+      c.fillStyle = "rgba(150,230,255,.35)";
+      c.beginPath();
+      c.arc(x, y, s * 2.2, 0, TAU2);
+      c.fill();
+      poly(c, 1, 1, [[x - s * 0.4, y + s], [x, y - s], [x + s * 0.4, y + s]], "#9ef0ff");
+    });
+  }
   var MAPS = {
-    hills: {
-      n: "\uCD08\uB85D\uC5B8\uB355",
-      d: "\uC644\uB9CC\uD55C \uC5B8\uB355\uC774 \uC774\uC5B4\uC9C4 \uAE30\uBCF8 \uB9F5. \uC5B4\uB514\uB4E0 \uAC78\uC5B4\uC11C \uAC08 \uC218 \uC788\uB2E4.",
-      tags: ["\uC785\uBB38", "\uC774\uC5B4\uC9C4 \uB545"],
-      grav: 1,
-      windMax: 8,
-      liquid: null,
-      spawn: [0.15, 0.85],
-      ev: { tornado: 0.25, lightning: 0.15, meteors: 0.1 },
-      pal: { soil: ["#b07a48", "#5e3a22"], crust: "#7cc25a", rock: ["#8a8478", "#55504a"], steel: "#4a4440" },
-      sky: { stops: ["#7ec8f0", "#bfe6f7", "#e8f6f0"], sun: [0.8, 0.18, 0.035, "#fff6c8"], clouds: 5, far: [["#a6d6b8", 0.5, 0.05, 6, 1], ["#86c49a", 0.56, 0.04, 9, 2]] },
-      terrain(c, w, h) {
-        ground(c, w, h, hillsY);
-      }
-    },
     valley: {
       n: "\uACE8\uC9DC\uAE30",
-      d: "\uC591\uCABD\uC774 \uB192\uACE0 \uAC00\uC6B4\uB370\uAC00 \uB0AE\uC740 \uB113\uC740 \uADF8\uB987 \uBAA8\uC591 \uACE8\uC9DC\uAE30. \uB192\uC740 \uCABD\uC774 \uC720\uB9AC\uD558\uC9C0\uB9CC \uB0B4\uB824\uAC00\uB294 \uAE38\uC774 \uB9C9\uD788\uC9C0 \uC54A\uB294\uB2E4.",
-      tags: ["\uACE0\uC800\uCC28", "\uAC15\uD55C \uBC14\uB78C"],
+      d: "\uC591\uCABD \uB192\uC740 \uC808\uBCBD\uC5D0\uC11C \uB2E8\uC744 \uB530\uB77C \uACE8\uC9DC\uAE30 \uC544\uB798\uAE4C\uC9C0 \uB0B4\uB824\uAC00\uB294 \uB9F5. \uB192\uC740 \uB2E8\uC774 \uC720\uB9AC\uD558\uC9C0\uB9CC \uBE44\uD0C8\uB85C \uC5B4\uB514\uB4E0 \uAC08 \uC218 \uC788\uB2E4.",
+      tags: ["\uAE30\uBCF8 \uB9F5", "\uB192\uC740 \uB2E8", "\uAC15\uD55C \uBC14\uB78C"],
       grav: 1,
       windMax: 10,
       liquid: null,
-      spawn: [0.15, 0.85],
+      spawn: [0.12, 0.88],
       ev: { tornado: 0.35, lightning: 0.2, meteors: 0.05 },
-      pal: { soil: ["#a87a4e", "#5a3c26"], crust: "#86c45e", rock: ["#a0958a", "#5c544e"], steel: "#4a4038" },
-      sky: { stops: ["#f0a070", "#f6cc98", "#fbe6c2"], sun: [0.5, 0.3, 0.05, "#fff0c0"], clouds: 3, far: [["#cf9f8c", 0.4, 0.09, 5, 0], ["#b08478", 0.48, 0.06, 8, 1.5]] },
+      pal: { soil: ["#b98a52", "#6a4628"], crust: "#6fbf4a", rock: ["#c7a46c", "#7c6040"], steel: "#4a4038" },
+      sky: { stops: ["#4f9de8", "#9fd0f5", "#e4f4fb"], clouds: 6, extra: valleyDeco, far: [["#6fae6a", 0.5, 0.03, 7, 1], ["#5c9e58", 0.56, 0.025, 11, 2]] },
       terrain(c, w, h) {
-        ground(c, w, h, valleyY);
+        ground(c, w, h, valleyY, (u) => valleyY(u) + 0.05);
       }
     },
-    dunes: {
-      n: "\uBAA8\uB798\uC5B8\uB355",
-      d: "\uB0AE\uC740 \uBAA8\uB798 \uB454\uB355\uC774 \uBB3C\uACB0\uCC98\uB7FC \uC774\uC5B4\uC9C4 \uC0AC\uB9C9. \uBC14\uB78C\uC774 \uC138\uACE0 \uBAA8\uB798 \uD68C\uC624\uB9AC\uAC00 \uC798 \uC778\uB2E4.",
-      tags: ["\uC794\uC794\uD55C \uB545", "\uBAA8\uB798 \uD68C\uC624\uB9AC"],
+    temple: {
+      n: "\uBAA8\uB798 \uC2E0\uC804",
+      d: "\uD53C\uB77C\uBBF8\uB4DC\uC640 \uB3CC \uC11D\uC0C1\uC774 \uBCF4\uC774\uB294 \uC0AC\uB9C9 \uC720\uC801. \uC0AC\uC554 \uB2E8\uC744 \uC624\uB974\uB0B4\uB9AC\uBA70 \uC2F8\uC6B4\uB2E4.",
+      tags: ["\uACC4\uB2E8 \uC9C0\uD615", "\uBAA8\uB798 \uD68C\uC624\uB9AC"],
       grav: 1,
       windMax: 10,
       liquid: null,
-      spawn: [0.15, 0.85],
+      spawn: [0.1, 0.9],
       ev: { tornado: 0.4, meteors: 0.1 },
-      pal: { soil: ["#e6b86e", "#9a6a3a"], crust: "#f6dca0", rock: ["#cf7e4e", "#7a3f26"], steel: "#5a3a26" },
-      sky: { stops: ["#f2b670", "#f9dca6", "#fdf0d0"], sun: [0.2, 0.2, 0.045, "#fff7d8"], far: [["#e7b48a", 0.46, 0.03, 4, 0]] },
+      pal: { soil: ["#f0cf86", "#c09a5a"], crust: "#f8e2a8", rock: ["#e2b46a", "#9a6e3a"], steel: "#6a4a2a" },
+      sky: { stops: ["#4a90e0", "#9cc8f2", "#f6e8c8"], clouds: 4, extra: templeDeco, far: [["#efd29a", 0.6, 0.02, 5, 0]] },
       terrain(c, w, h) {
-        ground(c, w, h, dunesY);
+        ground(c, w, h, templeY, (u) => templeY(u) + 0.03);
       }
     },
-    snow: {
-      n: "\uB208\uBC8C\uD310",
-      d: "\uB208 \uB36E\uC778 \uC644\uB9CC\uD55C \uBC8C\uD310. \uBC14\uB2E5\uC774 \uBBF8\uB044\uB7EC\uC6CC \uBA48\uCD98 \uB4A4\uC5D0\uB3C4 \uC870\uAE08 \uBBF8\uB044\uB7EC\uC9C4\uB2E4.",
-      tags: ["\uBBF8\uB044\uB7EC\uC6C0", "\uC774\uC5B4\uC9C4 \uB545"],
-      slip: true,
+    sky: {
+      n: "\uAD6C\uB984\uC12C",
+      d: "\uAD6C\uB984 \uC704\uC5D0 \uB5A0 \uC788\uB294 \uC12C\uB4E4. \uC12C \uC0AC\uC774\uB294 \uB450\uAEBC\uC6B4 \uAD6C\uB984 \uBC14\uB2E5\uC774\uB77C \uAC78\uC5B4\uC11C \uAC74\uB108\uAC08 \uC218 \uC788\uB2E4.",
+      tags: ["\uAD6C\uB984 \uBC14\uB2E5", "\uB192\uC740 \uC12C"],
+      grav: 1,
+      windMax: 10,
+      liquid: null,
+      spawn: [0.1, 0.9],
+      ev: { tornado: 0.35, lightning: 0.3 },
+      pal: { soil: ["#a07a52", "#6a4a30"], crust: "#7cc95a", rock: ["#9a8a74", "#5e5446"], ice: ["#ffffff", "#c8d6ee"], steel: "#9aa8c8" },
+      sky: { stops: ["#3f8ff0", "#8ec4f6", "#dcefff"], clouds: 9, extra: skyDeco },
+      terrain(c, w, h) {
+        under(c, w, h, cloudY, 0, 1, "ice");
+        ISLES.forEach(([cu, hw, top]) => {
+          const pts = [];
+          for (let u = Math.max(0, cu - hw - 0.2); u <= Math.min(1, cu + hw + 0.2); u += 2e-3) if (isleY(u) < cloudY(u)) pts.push([u, isleY(u)]);
+          if (!pts.length) return;
+          blob(c, w, h, [...pts, [pts[pts.length - 1][0], cloudY(pts[pts.length - 1][0]) + 0.02], [cu + hw * 0.3, top + 0.34], [cu - hw * 0.35, top + 0.3], [pts[0][0], cloudY(pts[0][0]) + 0.02]], "soil");
+          blob(c, w, h, [[cu - hw, top + 0.07], [cu + hw, top + 0.07], [cu + hw * 0.25, top + 0.32], [cu - hw * 0.3, top + 0.27]], "rock");
+        });
+        under(c, w, h, () => 0.965, 0, 1, "steel");
+      }
+    },
+    bridge: {
+      n: "\uD1B5\uB098\uBB34 \uB2E4\uB9AC",
+      d: "\uC232\uC18D \uD611\uACE1 \uC704\uC5D0 \uB193\uC778 \uAE34 \uD1B5\uB098\uBB34 \uB2E4\uB9AC. \uB2E4\uB9AC\uAC00 \uB04A\uC5B4\uC9C0\uBA74 \uD611\uACE1 \uBC14\uB2E5\uC73C\uB85C \uB5A8\uC5B4\uC838 \uB2E4\uCE58\uC9C0\uB9CC, \uBE44\uD0C8\uC744 \uC62C\uB77C \uB2E4\uC2DC \uB3CC\uC544\uC62C \uC218 \uC788\uB2E4.",
+      tags: ["\uB2E4\uB9AC \uB04A\uAE30", "\uB099\uD558 \uD53C\uD574"],
       grav: 1,
       windMax: 9,
       liquid: null,
-      spawn: [0.15, 0.85],
-      ev: { lightning: 0.25, tornado: 0.2 },
-      pal: { soil: ["#9fb6c8", "#5d7488"], crust: "#ffffff", rock: ["#7f8c98", "#4a5560"], steel: "#3e4650" },
-      sky: { stops: ["#9ab8dc", "#cfe2f2", "#eef6fb"], sun: [0.75, 0.2, 0.03, "#ffffff"], clouds: 4, far: [["#c3d4e6", 0.42, 0.08, 6, 1], ["#e2ecf5", 0.5, 0.03, 10, 0]] },
+      spawn: [0.12, 0.88],
+      ev: { tornado: 0.3, lightning: 0.2 },
+      pal: { soil: ["#9a7448", "#5a3e26"], crust: "#6cb84a", rock: ["#b89a6a", "#6e5636"], plank: "#9a6638", steel: "#4a4038" },
+      sky: { stops: ["#5aa0e6", "#a6d2f2", "#e6f4f2"], clouds: 5, extra: bridgeDeco },
       terrain(c, w, h) {
-        ground(c, w, h, snowY);
+        c.fillStyle = MK.plank;
+        c.beginPath();
+        for (let u = 0.255; u <= 0.745; u += 5e-3) {
+          const k = (u - 0.255) / 0.49;
+          c.lineTo(u * w, (0.418 + 0.022 * Math.sin(Math.PI * k)) * h);
+        }
+        for (let u = 0.745; u >= 0.255; u -= 5e-3) {
+          const k = (u - 0.255) / 0.49;
+          c.lineTo(u * w, (0.458 + 0.022 * Math.sin(Math.PI * k)) * h);
+        }
+        c.closePath();
+        c.fill();
+        ground(c, w, h, bridgeY, (u) => bridgeY(u) + 0.05);
+      }
+    },
+    cave: {
+      n: "\uC218\uC815 \uB3D9\uAD74",
+      d: "\uC885\uC720\uC11D\uC774 \uB298\uC5B4\uC9C4 \uCEE4\uB2E4\uB780 \uB3D9\uAD74 \uC18D \uBC14\uC704 \uB2E8. \uBC14\uB78C\uC774 \uC57D\uD574 \uC870\uC900\uC774 \uC27D\uB2E4.",
+      tags: ["\uC57D\uD55C \uBC14\uB78C", "\uB192\uC740 \uB2E8"],
+      grav: 1,
+      windMax: 4,
+      liquid: null,
+      spawn: [0.1, 0.9],
+      ev: { meteors: 0.3, pillar: 0.2 },
+      pal: { soil: ["#7a6aa8", "#43386e"], crust: "#9c8fd0", rock: ["#6a5c9c", "#3a3062"], steel: "#2e2850" },
+      sky: { stops: ["#231d48", "#3a2f6e", "#5a4c8e"], extra: caveDeco },
+      terrain(c, w, h) {
+        ground(c, w, h, caveY, (u) => caveY(u) + 0.025);
       }
     },
     demo: {
@@ -272,6 +493,7 @@
   var STEEL = MK.steel;
   var LEAF = MK.leaf;
   var WOOD = MK.wood;
+  var PLANK = MK.plank;
   var BASE = /* @__PURE__ */ new Map();
   function baseGrid(mapId, w, h) {
     const key = `${mapId}:${w}x${h}`;
@@ -346,13 +568,24 @@
       const m = this.grid[y * this.w + x];
       return m !== 0 && m !== LEAF && m !== WOOD;
     }
-    ground(x, from = 0) {
-      for (let y = Math.max(0, from | 0); y < this.h; y++) if (this.stand(x, y) || this.stand(x - 7, y) || this.stand(x + 7, y)) return y;
+    // 다리(널판)는 위에서만 밟힌다: feet(탱크 발 높이)를 주면, 발보다 위에 있는 널판 윗면과 널판 속은 무시한다.
+    // 그래서 다리가 끊어져 협곡에 떨어진 탱크가 다리 밑 비탈을 올라 빠져나올 때 널판에 막히지 않는다
+    ground(x, from = 0, feet = null) {
+      const mat = (xx, yy) => {
+        xx |= 0;
+        return xx < 0 || xx >= this.w || yy < 0 || yy >= this.h ? 0 : this.grid[yy * this.w + xx];
+      };
+      for (let y = Math.max(0, from | 0); y < this.h; y++) {
+        const hits = [x, x - 7, x + 7].filter((xx) => this.stand(xx, y));
+        if (!hits.length) continue;
+        if (feet != null && hits.every((xx) => mat(xx, y) === PLANK && (y < feet - 4 || mat(xx, y - 1) === PLANK))) continue;
+        return y;
+      }
       return this.h + 200;
     }
     applyOp(op) {
-      const poly = op.k === "rect" ? [[op.x, op.y], [op.x + op.w, op.y], [op.x + op.w, op.y + op.h], [op.x, op.y + op.h], [op.x, op.y]] : raggedPoly(op.x, op.y, op.r, op.ry);
-      fillPolys(this.grid, this.w, this.h, [poly], 0, STEEL);
+      const poly2 = op.k === "rect" ? [[op.x, op.y], [op.x + op.w, op.y], [op.x + op.w, op.y + op.h], [op.x, op.y + op.h], [op.x, op.y]] : raggedPoly(op.x, op.y, op.r, op.ry);
+      fillPolys(this.grid, this.w, this.h, [poly2], 0, STEEL);
     }
     carve(op) {
       this.applyOp(op);
@@ -427,7 +660,7 @@
     }
     // 기울기(도): 탱크 앞쪽이 내려가면 +. 각도 범위는 몸체를 따라 돌아가므로 내리막에선 아래로도 쏠 수 있다
     slope(t) {
-      const f = t.facing || 1, gF = this.ground(t.x + f * 12, t.y - 24), gB = this.ground(t.x - f * 12, t.y - 24);
+      const f = t.facing || 1, gF = this.ground(t.x + f * 12, t.y - 24, t.y), gB = this.ground(t.x - f * 12, t.y - 24, t.y);
       if (gF > this.h || gB > this.h) return t.tilt || 0;
       return Math.round(Math.max(-35, Math.min(35, Math.atan2(gF - gB, 24) * 180 / Math.PI)));
     }
@@ -494,9 +727,9 @@
       if (t.fuel <= 0 || !t.canMove || t.air || t.dead) return 0;
       const nx = t.x + dir * 50 * dt;
       if (nx < 12 || nx > this.w - 12) return 0;
-      const ny = this.ground(nx, t.y - 14);
+      const ny = this.ground(nx, t.y - 14, t.y);
       if (ny < t.y - 12) return 0;
-      const ahead = this.ground(t.x + dir * 6, t.y - 14);
+      const ahead = this.ground(t.x + dir * 6, t.y - 14, t.y);
       if (t.y - ahead > 8.5) return 0;
       t.moving = true;
       t.x = nx;
@@ -904,7 +1137,7 @@
         s.t += dt;
         return this.stepSpecial(s, dt);
       });
-      if (this.queued && !this.shells.length && !this.specials.length && !this.tanks.some((t) => !t.sunk && !t.left && (t.air || this.ground(t.x, t.y - 3) > t.y + 1))) {
+      if (this.queued && !this.shells.length && !this.specials.length && !this.tanks.some((t) => !t.sunk && !t.left && (t.air || this.ground(t.x, t.y - 3, t.y) > t.y + 1))) {
         this.queued.wait -= dt;
         if (this.queued.wait <= 0) {
           const q = this.queued;
@@ -920,7 +1153,7 @@
     }
     settle(t, dt) {
       if (t.sunk || t.left) return true;
-      const g = this.ground(t.x, t.y - 3);
+      const g = this.ground(t.x, t.y - 3, t.y);
       if (t.air || g > t.y + 1) {
         t.vy += 900 * dt;
         t.x += t.vx * dt;
@@ -930,7 +1163,7 @@
         }
         const ny = t.y + t.vy * dt;
         if (t.vy > 0) {
-          const land = this.ground(t.x, t.y - 3);
+          const land = this.ground(t.x, t.y - 3, t.y);
           if (ny >= land && land < this.h && land < this.liquidY + 6) {
             t.y = land;
             t.air = false;
@@ -985,7 +1218,7 @@
         t.slideV = 0;
         return;
       }
-      const ny = this.ground(nx, t.y - 14);
+      const ny = this.ground(nx, t.y - 14, t.y);
       if (ny < t.y - 6) {
         t.slideV = 0;
         return;
@@ -997,7 +1230,7 @@
       }
     }
     busy() {
-      return this.shells.length > 0 || this.pending.length > 0 || !!this.queued || this.specials.length > 0 || this.tanks.some((t) => !t.sunk && !t.left && (t.air || this.ground(t.x, t.y - 3) > t.y + 1)) || this.events.some((e) => e.type === "meteors" && e.t < 2.4 || e.type === "lightning" && e.t < 1.3 || e.type === "pillar" && e.t < 1.6);
+      return this.shells.length > 0 || this.pending.length > 0 || !!this.queued || this.specials.length > 0 || this.tanks.some((t) => !t.sunk && !t.left && (t.air || this.ground(t.x, t.y - 3, t.y) > t.y + 1)) || this.events.some((e) => e.type === "meteors" && e.t < 2.4 || e.type === "lightning" && e.t < 1.3 || e.type === "pillar" && e.t < 1.6);
     }
     /* ---------- 아이템 (즉시 효과는 여기서, 발사에 붙는 효과는 표시만) ---------- */
     useItem(t, id) {

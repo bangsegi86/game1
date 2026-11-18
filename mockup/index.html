@@ -303,10 +303,10 @@ td.red { color: var(--red); font-weight: 700; } td.blue { color: var(--blue); fo
         <table class="num">
           <thead><tr><th>번호</th><th>방 제목</th><th>모드</th><th>맵</th><th>인원</th><th>상태</th></tr></thead>
           <tbody>
-            <tr><td>001</td><td><a href="#room" style="color:inherit">금요일 밤 한판 ㄱㄱ</a></td><td>팀전 4:4</td><td>모래언덕</td><td>5/8</td><td><span class="pill wait">대기중</span></td></tr>
+            <tr><td>001</td><td><a href="#room" style="color:inherit">금요일 밤 한판 ㄱㄱ</a></td><td>팀전 4:4</td><td>모래 신전</td><td>5/8</td><td><span class="pill wait">대기중</span></td></tr>
             <tr><td>002</td><td>초보만 오세요</td><td>개인전</td><td>초록언덕</td><td>2/6</td><td><span class="pill wait">대기중</span></td></tr>
-            <tr><td>003</td><td>민수네 전용방</td><td>팀전 2:2</td><td>눈벌판</td><td>3/4</td><td><span class="pill lock">비밀방</span></td></tr>
-            <tr><td>004</td><td>초보 환영</td><td>개인전</td><td>초록언덕</td><td>4/4</td><td><span class="pill play">게임중</span></td></tr>
+            <tr><td>003</td><td>민수네 전용방</td><td>팀전 2:2</td><td>구름섬</td><td>3/4</td><td><span class="pill lock">비밀방</span></td></tr>
+            <tr><td>004</td><td>초보 환영</td><td>개인전</td><td>수정 동굴</td><td>4/4</td><td><span class="pill play">게임중</span></td></tr>
             <tr><td>005</td><td>복수전</td><td>팀전 3:3</td><td>골짜기</td><td>6/6</td><td><span class="pill play">게임중</span></td></tr>
           </tbody>
         </table>
@@ -373,7 +373,7 @@ td.red { color: var(--red); font-weight: 700; } td.blue { color: var(--blue); fo
         <h2>방 설정 <span style="font-family:var(--font-body);font-size:13px;color:var(--muted)">방장만 변경</span></h2>
         <div class="settings">
           <div class="field"><label for="setMap">맵</label>
-            <select id="setMap"><option>골짜기</option><option>초록언덕</option><option>모래언덕</option><option>눈벌판</option><option>무작위</option></select></div>
+            <select id="setMap"><option>골짜기</option><option>모래 신전</option><option>구름섬</option><option>통나무 다리</option><option>수정 동굴</option><option>무작위</option></select></div>
           <div class="field"><label for="setMode">모드</label>
             <select id="setMode"><option>팀전</option><option>개인전</option></select></div>
           <div class="field"><label for="setTurn">턴 시간</label>
@@ -453,7 +453,7 @@ td.red { color: var(--red); font-weight: 700; } td.blue { color: var(--blue); fo
   <!-- 결과 -->
   <section class="view" id="v-result" data-view="result" hidden>
     <div class="result-banner">
-      <span class="label">모래언덕 · 팀전 4:4 · 23턴</span>
+      <span class="label">모래 신전 · 팀전 4:4 · 23턴</span>
       <h1>레드팀 승리</h1>
       <p>전적이 저장되었습니다. 10초 뒤 대기방으로 돌아갑니다.</p>
     </div>

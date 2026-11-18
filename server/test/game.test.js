@@ -25,7 +25,7 @@ function run(mapId, tanks, mode = 'team') {
 }
 
 test('2인 팀전이 끝까지 진행되고 승패가 난다', () => {
-  const { g, sent, over } = run('hills', ['hammer', 'mole']);
+  const { g, sent, over } = run('valley', ['hammer', 'mole']);
   assert.equal(g.phase, 'over');
   assert.ok(over, 'onOver 호출');
   assert.ok(over.results.some(r => r.win), '이긴 사람이 있다');
@@ -36,19 +36,19 @@ test('2인 팀전이 끝까지 진행되고 승패가 난다', () => {
 });
 
 test('모든 맵·필살기에서 오류 없이 끝난다', () => {
-  const maps = ['demo', 'hills', 'valley', 'dunes', 'snow'];
+  const maps = ['demo', 'valley', 'temple', 'sky', 'bridge', 'cave'];
   const tanks = [['laser', 'whale'], ['cloud', 'magnet'], ['bee', 'shroom'], ['mole', 'hammer']];
   maps.forEach((m, i) => { const { g } = run(m, tanks[i % tanks.length]); assert.equal(g.phase, 'over', m); });
 });
 
 test('4인 개인전', () => {
-  const { g, over } = run('hills', ['hammer', 'mole', 'laser', 'bee'], 'solo');
+  const { g, over } = run('valley', ['hammer', 'mole', 'laser', 'bee'], 'solo');
   assert.equal(g.phase, 'over'); assert.ok(over.results.filter(r => r.win).length <= 1);
 });
 
 test('차례가 아닐 때 발사·아이템은 거절', () => {
   const sent = []; let clock = 0;
-  const g = new GameSession({ roomId: 1, mapId: 'hills', mode: 'team', turnSeconds: 20, players: [1, 2].map(i => ({ userId: i, nickname: 'p' + i, team: i === 1 ? 'red' : 'blue', tankId: 'hammer', items: ['repair'] })) }, { send: (e, d) => sent.push([e, d]), now: () => clock * 1000 });
+  const g = new GameSession({ roomId: 1, mapId: 'temple', mode: 'team', turnSeconds: 20, players: [1, 2].map(i => ({ userId: i, nickname: 'p' + i, team: i === 1 ? 'red' : 'blue', tankId: 'hammer', items: ['repair'] })) }, { send: (e, d) => sent.push([e, d]), now: () => clock * 1000 });
   while (g.phase !== 'aim') { clock += DT; g.tick(DT); }
   const other = g.players.find(p => p.uid !== g.cur.uid).uid;
   assert.throws(() => g.onFire(other, 0, 50), /차례/);
@@ -58,7 +58,7 @@ test('차례가 아닐 때 발사·아이템은 거절', () => {
 
 test('시간이 다 되면 턴이 넘어간다', () => {
   const sent = []; let clock = 0;
-  const g = new GameSession({ roomId: 1, mapId: 'hills', mode: 'team', turnSeconds: 10, players: [1, 2].map(i => ({ userId: i, nickname: 'p' + i, team: i === 1 ? 'red' : 'blue', tankId: 'hammer', items: [] })) }, { send: (e, d) => sent.push([e, d]), now: () => clock * 1000 });
+  const g = new GameSession({ roomId: 1, mapId: 'temple', mode: 'team', turnSeconds: 10, players: [1, 2].map(i => ({ userId: i, nickname: 'p' + i, team: i === 1 ? 'red' : 'blue', tankId: 'hammer', items: [] })) }, { send: (e, d) => sent.push([e, d]), now: () => clock * 1000 });
   while (g.phase !== 'aim') { clock += DT; g.tick(DT); }
   const first = g.cur.uid; for (let i = 0; i < 60 * 11; i++) { clock += DT; g.tick(DT); }
   assert.notEqual(g.cur.uid, first); assert.ok(sent.some(([e]) => e === 'game:timeout'));

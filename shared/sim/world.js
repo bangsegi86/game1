@@ -6,7 +6,7 @@ import { TANK_STATS, SHELL_STATS } from '../gamedata.js';
 
 // 맵은 화면(960×480)보다 넓은 1440×600. 화면은 카메라로 일부만 보여 준다
 export const G0 = 380, SPEED = 6.6, WINDK = 14, DT = 1 / 60, WORLD_W = 1440, WORLD_H = 600;
-const STEEL = MK.steel, LEAF = MK.leaf, WOOD = MK.wood;
+const STEEL = MK.steel, LEAF = MK.leaf, WOOD = MK.wood, PLANK = MK.plank;
 const BASE = new Map();
 export function baseGrid(mapId, w, h) {
   const key = `${mapId}:${w}x${h}`;
@@ -38,7 +38,17 @@ export class Sim {
   solid(x, y) { x |= 0; y |= 0; return x >= 0 && x < this.w && y >= 0 && y < this.h && this.grid[y * this.w + x] !== 0; }
   // 탱크가 설 수 있는 땅: 나무(잎·줄기)는 포탄은 막지만 탱크는 그 앞을 지나간다
   stand(x, y) { x |= 0; y |= 0; if (x < 0 || x >= this.w || y < 0 || y >= this.h) return false; const m = this.grid[y * this.w + x]; return m !== 0 && m !== LEAF && m !== WOOD; }
-  ground(x, from = 0) { for (let y = Math.max(0, from | 0); y < this.h; y++) if (this.stand(x, y) || this.stand(x - 7, y) || this.stand(x + 7, y)) return y; return this.h + 200; }
+  // 다리(널판)는 위에서만 밟힌다: feet(탱크 발 높이)를 주면, 발보다 위에 있는 널판 윗면과 널판 속은 무시한다.
+  // 그래서 다리가 끊어져 협곡에 떨어진 탱크가 다리 밑 비탈을 올라 빠져나올 때 널판에 막히지 않는다
+  ground(x, from = 0, feet = null) {
+    const mat = (xx, yy) => { xx |= 0; return xx < 0 || xx >= this.w || yy < 0 || yy >= this.h ? 0 : this.grid[yy * this.w + xx]; };
+    for (let y = Math.max(0, from | 0); y < this.h; y++) {
+      const hits = [x, x - 7, x + 7].filter(xx => this.stand(xx, y)); if (!hits.length) continue;
+      if (feet != null && hits.every(xx => mat(xx, y) === PLANK && (y < feet - 4 || mat(xx, y - 1) === PLANK))) continue;
+      return y;
+    }
+    return this.h + 200;
+  }
   applyOp(op) {
     const poly = op.k === 'rect' ? [[op.x, op.y], [op.x + op.w, op.y], [op.x + op.w, op.y + op.h], [op.x, op.y + op.h], [op.x, op.y]] : raggedPoly(op.x, op.y, op.r, op.ry);
     fillPolys(this.grid, this.w, this.h, [poly], 0, STEEL);
@@ -67,7 +77,7 @@ export class Sim {
   tankOf(uid) { return this.tanks.find(t => t.uid === uid); }
   // 기울기(도): 탱크 앞쪽이 내려가면 +. 각도 범위는 몸체를 따라 돌아가므로 내리막에선 아래로도 쏠 수 있다
   slope(t) {
-    const f = t.facing || 1, gF = this.ground(t.x + f * 12, t.y - 24), gB = this.ground(t.x - f * 12, t.y - 24);
+    const f = t.facing || 1, gF = this.ground(t.x + f * 12, t.y - 24, t.y), gB = this.ground(t.x - f * 12, t.y - 24, t.y);
     if (gF > this.h || gB > this.h) return t.tilt || 0;
     return Math.round(Math.max(-35, Math.min(35, Math.atan2(gF - gB, 24) * 180 / Math.PI)));
   }
@@ -109,9 +119,9 @@ export class Sim {
   move(t, dir, dt) {
     t.facing = dir; if (t.fuel <= 0 || !t.canMove || t.air || t.dead) return 0;
     const nx = t.x + dir * 50 * dt; if (nx < 12 || nx > this.w - 12) return 0;
-    const ny = this.ground(nx, t.y - 14); if (ny < t.y - 12) return 0;
+    const ny = this.ground(nx, t.y - 14, t.y); if (ny < t.y - 12) return 0;
     // 가파른 벽(약 55° 이상)은 못 오른다: 앞 6px 경사를 본다. 그래서 깊은 구덩이는 함정이 된다
-    const ahead = this.ground(t.x + dir * 6, t.y - 14); if (t.y - ahead > 8.5) return 0;
+    const ahead = this.ground(t.x + dir * 6, t.y - 14, t.y); if (t.y - ahead > 8.5) return 0;
     t.moving = true; t.x = nx; if (ny <= t.y + 2) { t.y = ny; t.fallFrom = ny; }
     if (this.map.slip) { t.slideV = dir * 55; t.lastMove = this.clock; }
     const used = 22 * dt * (ny < t.y ? 1.5 : 1); t.fuel = Math.max(0, t.fuel - used); return used;
@@ -288,7 +298,7 @@ export class Sim {
     }
     this.shells = this.shells.filter(s => !s.done);
     this.specials = this.specials.filter(s => { s.t += dt; return this.stepSpecial(s, dt); });
-    if (this.queued && !this.shells.length && !this.specials.length && !this.tanks.some(t => !t.sunk && !t.left && (t.air || this.ground(t.x, t.y - 3) > t.y + 1))) {
+    if (this.queued && !this.shells.length && !this.specials.length && !this.tanks.some(t => !t.sunk && !t.left && (t.air || this.ground(t.x, t.y - 3, t.y) > t.y + 1))) {
       this.queued.wait -= dt; if (this.queued.wait <= 0) { const q = this.queued; this.queued = null; q.fn(); }
     }
     this.stepEvents(dt);
@@ -296,12 +306,12 @@ export class Sim {
   }
   settle(t, dt) {
     if (t.sunk || t.left) return true;
-    const g = this.ground(t.x, t.y - 3);
+    const g = this.ground(t.x, t.y - 3, t.y);
     if (t.air || g > t.y + 1) {
       t.vy += 900 * dt; t.x += t.vx * dt;
       if (t.x < 10 || t.x > this.w - 10) { t.x = Math.max(10, Math.min(this.w - 10, t.x)); t.vx = 0; }
       const ny = t.y + t.vy * dt;
-      if (t.vy > 0) { const land = this.ground(t.x, t.y - 3); if (ny >= land && land < this.h && land < this.liquidY + 6) { t.y = land; t.air = false; t.vx = 0; const fall = t.y - t.fallFrom; if (fall > 40) this.damage(t, fall * 1.2, null, '낙하 '); t.vy = 0; t.fallFrom = t.y; t.tilt = this.slope(t); this.clampAngle(t); return true; } }
+      if (t.vy > 0) { const land = this.ground(t.x, t.y - 3, t.y); if (ny >= land && land < this.h && land < this.liquidY + 6) { t.y = land; t.air = false; t.vx = 0; const fall = t.y - t.fallFrom; if (fall > 40) this.damage(t, fall * 1.2, null, '낙하 '); t.vy = 0; t.fallFrom = t.y; t.tilt = this.slope(t); this.clampAngle(t); return true; } }
       t.y = ny;
       if (t.y > this.liquidY + 6 || t.y > this.h + 20) {
         t.sunk = true; this.float(t.x, Math.min(this.liquidY, this.h) - 30, '낙사!', '#c92a2a');
@@ -322,11 +332,11 @@ export class Sim {
     t.slideV = ((t.slideV || 0) + down * 160 * dt) * (1 - 1.6 * dt);
     if (Math.abs(t.slideV) < 2 && Math.abs(down) < .12) { t.slideV = 0; return; }
     const nx = t.x + t.slideV * dt; if (nx < 12 || nx > this.w - 12) { t.slideV = 0; return; }
-    const ny = this.ground(nx, t.y - 14); if (ny < t.y - 6) { t.slideV = 0; return; }
+    const ny = this.ground(nx, t.y - 14, t.y); if (ny < t.y - 6) { t.slideV = 0; return; }
     t.x = nx; if (ny <= t.y + 2) { t.y = ny; t.fallFrom = ny; }
   }
   busy() {
-    return this.shells.length > 0 || this.pending.length > 0 || !!this.queued || this.specials.length > 0 || this.tanks.some(t => !t.sunk && !t.left && (t.air || this.ground(t.x, t.y - 3) > t.y + 1))
+    return this.shells.length > 0 || this.pending.length > 0 || !!this.queued || this.specials.length > 0 || this.tanks.some(t => !t.sunk && !t.left && (t.air || this.ground(t.x, t.y - 3, t.y) > t.y + 1))
       || this.events.some(e => (e.type === 'meteors' && e.t < 2.4) || (e.type === 'lightning' && e.t < 1.3) || (e.type === 'pillar' && e.t < 1.6));
   }
 

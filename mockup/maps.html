@@ -4,7 +4,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jua&family=Noto+Sans+KR:wght@400;500;700&display=swap">
 <style>
-/* Layout: 맵 4종(살아 있는 지형, 눌러서 폭격) → 돌발 이벤트 4종 → 바람과 낙사. 탱크 도감과 같은 해질녘 팔레트. */
+/* Layout: 맵 5종(살아 있는 지형, 눌러서 폭격) → 돌발 이벤트 4종 → 바람과 낙사. 탱크 도감과 같은 해질녘 팔레트. */
 :root {
   --sky: #1f2d52;
   --panel: #283a66;
@@ -74,18 +74,18 @@ section > .lead { margin-bottom: 14px; }
   <header>
     <div class="eyebrow">포탄대결 · 아트 시안 v3</div>
     <h1>맵 도감</h1>
-    <p class="lead">맵 4종은 모두 끝에서 끝까지 이어진 땅이라 어디든 걸어서 갈 수 있고, 길을 막는 벽이나 낭떠러지가 없습니다. 바닥에 부서지지 않는 암반이 있어 포탄에 뚫려 떨어지지 않습니다. <b>맵을 누르면 그 자리에 포탄이 떨어져</b> 땅이 파이고, 파인 구덩이에 탱크가 빠질 수 있습니다.</p>
+    <p class="lead">맵 5종은 모두 끝에서 끝까지 걸어서 갈 수 있고, 떨어져 죽는 곳이 없습니다. 나무·피라미드·폭포·종유석은 배경 그림이라 탱크도 포탄도 막지 않습니다. 바닥에 부서지지 않는 암반이 있어 포탄에 뚫려 떨어지지 않습니다. <b>맵을 누르면 그 자리에 포탄이 떨어져</b> 땅이 파이고, 파인 구덩이에 탱크가 빠질 수 있습니다.</p>
   </header>
 
   <section>
-    <h2>맵 4종</h2>
+    <h2>맵 5종</h2>
     <p class="lead">탱크 두 대가 서로 쏘는 장면이 계속 반복됩니다. 바람(가운데 위 나침반)은 쏠 때마다 바뀝니다.</p>
     <div class="maps" id="maps"></div>
   </section>
 
   <section>
     <h2>돌발 이벤트</h2>
-    <p class="lead">게임 중 턴이 시작될 때 맵에 따라 갑자기 나타납니다. 맵마다 잘 나오는 이벤트가 다릅니다(화산섬은 불기둥, 달기지는 운석).</p>
+    <p class="lead">게임 중 턴이 시작될 때 맵에 따라 갑자기 나타납니다. 맵마다 잘 나오는 이벤트가 다릅니다(모래 신전은 회오리, 수정 동굴은 운석과 불기둥).</p>
     <div class="events" id="events"></div>
   </section>
 
@@ -182,7 +182,7 @@ Object.entries(EVENTS).forEach(([key, e], i) => {
   const el = document.createElement('div'); el.className = 'ev';
   el.innerHTML = `<canvas aria-label="${e.n}"></canvas><div class="body"><h3>${e.n}</h3><p>${e.d}</p></div>`;
   evEl.append(el);
-  const st = {}, map = ['valley', 'dunes', 'snow', 'hills'][i];
+  const st = {}, map = ['valley', 'temple', 'sky', 'cave'][i];
   const setup = () => { const W = st.W || (st.W = new World({ w: 400, h: 225, map: 'demo', labels: false })); W.reset(); W.addTank('hammer', 90, 1, 'red', ''); W.addTank('bee', 300, -1, 'blue', ''); st.t0 = W.clock; st.spawned = false; st.shot = false; };
   setup();
   addView(el.querySelector('canvas'), 400, 225, (c, w, h, t, dt) => {
@@ -212,7 +212,7 @@ addView(document.getElementById('traj'), trajW, trajH, (c, w, h, t) => {
   c.fillStyle = '#b98454'; c.fillRect(0, gy, w, h - gy); c.fillStyle = '#e8c27a'; c.fillRect(0, gy - 3, w, 5);
   c.strokeStyle = 'rgba(58,38,0,.35)'; c.lineWidth = 1; c.font = '12px "Noto Sans KR", sans-serif'; c.fillStyle = 'rgba(244,239,225,.85)'; c.textAlign = 'center';
   for (let d = Math.ceil((minX - sx) / 200) * 200; TX(sx + d) < w - 10; d += 200) { const x = TX(sx + d); c.beginPath(); c.moveTo(x, gy + 3); c.lineTo(x, gy + 10); c.stroke(); c.fillText((d > 0 ? '+' : '') + d + 'px', x, gy + 26); }
-  const k = (t % 4) / 3.2;
+  const k = (((t % 4) + 4) % 4) / 3.2;
   TR.forEach(r => {
     c.strokeStyle = r.col; c.lineWidth = 3; c.setLineDash([2, 5]); c.beginPath(); r.pts.forEach(([x, y], i) => i ? c.lineTo(TX(x), TY(y)) : c.moveTo(TX(x), TY(y))); c.stroke(); c.setLineDash([]);
     const n = Math.min(r.pts.length - 1, Math.floor(k * r.pts.length)); if (k <= 1) { const [x, y] = r.pts[n]; circ(c, TX(x), TY(y), 6); fs(c, r.col, 2); }

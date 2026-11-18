@@ -61,9 +61,9 @@ test('방장이 나가면 넘겨주고, 다 나가면 방이 없어진다', () =
 test('강퇴와 설정은 방장만', () => {
   const m = new RoomManager(); const r = m.create(U(1)); m.join(U(2), r.id);
   assert.throws(() => m.kick(2, 1), /방장만/);
-  assert.throws(() => m.settings(2, { mapId: 'snow' }), /방장만/);
-  m.settings(1, { mapId: 'snow', turnSeconds: 30, mode: 'solo' });
-  assert.equal(r.mapId, 'snow'); assert.equal(r.mode, 'solo');
+  assert.throws(() => m.settings(2, { mapId: 'cave' }), /방장만/);
+  m.settings(1, { mapId: 'cave', turnSeconds: 30, mode: 'solo' });
+  assert.equal(r.mapId, 'cave'); assert.equal(r.mode, 'solo');
   m.kick(1, 2); assert.equal(m.roomOf(2), null);
 });
 

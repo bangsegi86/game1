@@ -1,8 +1,8 @@
 // 서버와 클라이언트가 함께 쓰는 게임 기본 데이터 (그림 데이터는 mockup/art.js)
 export const TANK_IDS = ['mole', 'hammer', 'cloud', 'bee', 'magnet', 'shroom', 'whale', 'laser'];
 export const TANK_NAMES = { mole: '두더지', hammer: '망치', cloud: '구름열차', bee: '불꽃벌', magnet: '자석포', shroom: '버섯포', whale: '얼음고래', laser: '레이저로봇', random: '랜덤' };
-export const MAP_IDS = ['hills', 'valley', 'dunes', 'snow'];
-export const MAP_NAMES = { hills: '초록언덕', valley: '골짜기', dunes: '모래언덕', snow: '눈벌판', random: '무작위' };
+export const MAP_IDS = ['valley', 'temple', 'sky', 'bridge', 'cave'];
+export const MAP_NAMES = { valley: '골짜기', temple: '모래 신전', sky: '구름섬', bridge: '통나무 다리', cave: '수정 동굴', random: '무작위' };
 export const ITEM_SIZES = { double: 2, power: 1, repair: 1, teamrepair: 2, teleport: 2, calm: 1, shield: 1, fuel: 1 };
 export const BAG_CELLS = 6;
 export const TURN_SECONDS = [10, 20, 30];
