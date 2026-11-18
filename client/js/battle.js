@@ -9,7 +9,7 @@ const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;'
 const VW = 960, VH = 480; // 화면(카메라) 크기. 맵은 이보다 넓다
 const MM = { w: 216, h: 90, x: VW - 226, y: 10 }; // 미니맵
 
-export function createBattle({ socket, me, toast, onExit }) {
+export function createBattle({ socket, me, toast, onExit, onQuit }) {
   const cv = $('field'); cv.width = VW * DPR; cv.height = VH * DPR; const ctx = cv.getContext('2d');
   let cam = { x: 0, y: 0 }, camHold = 0, chatLines = [];
   let sim = null, ren = null, start = null, bag = [], ssUsed = false, turn = null, deadline = 0, phase = 'idle', order = [];
@@ -239,6 +239,14 @@ export function createBattle({ socket, me, toast, onExit }) {
   $('passBtn').onclick = pass;
   const muteBtn = $('muteBtn'); const muteLabel = () => muteBtn.textContent = isMuted() ? '소리 켜기' : '소리 끄기'; muteLabel();
   muteBtn.onclick = () => { setMuted(!isMuted()); muteLabel(); };
+  // 게임 나가기: 실수로 누르지 않게 두 번 눌러야 나간다. 나가면 내 탱크는 탈락한다
+  let quitArm = 0; const quitBtn = $('quitBtn');
+  quitBtn.onclick = () => {
+    if (phase === 'over' || phase === 'idle') return;
+    if (performance.now() - quitArm > 3000) { quitArm = performance.now(); quitBtn.textContent = '한 번 더 누르면 나가요'; setTimeout(() => quitBtn.textContent = '게임 나가기', 3000); return; }
+    phase = 'idle'; quitBtn.textContent = '게임 나가기';
+    socket().emit('room:leave', {}, () => (onQuit || onExit)());
+  };
   $('gameChat').addEventListener('submit', e => { e.preventDefault(); const i = $('gameMsg'); if (!i.value.trim()) { i.blur(); return; } socket().emit('room:chat', { text: i.value }, r => { if (r && !r.ok) toast(r.error, true); }); i.value = ''; i.blur(); });
   function startCharge() { if (mine() && !charging) { charging = true; power = 0; } }
   function release() {

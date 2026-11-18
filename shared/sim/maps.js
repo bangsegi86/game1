@@ -63,7 +63,7 @@ export const MAPS = {
     },
   },
   ice: {
-    n: '얼음호수', d: '얼어붙은 호수 위 얼음 섬들. 섬 사이 물에 빠지면 낙사.', tags: ['낙사 주의', '얼음 섬'],
+    n: '얼음호수', d: '얼어붙은 호수 위 얼음 섬들. 섬 사이 물에 빠지면 낙사.', tags: ['낙사 주의', '얼음 섬', '미끄러움'], slip: true,
     grav: 1, windMax: 9, liquid: { y: .76, type: 'water' }, spawn: [.13, .86], ev: { lightning: .25, tornado: .2 },
     pal: { soil: ['#9fb6c8', '#5d7488'], crust: '#ffffff', ice: ['#d8f2ff', '#78b8dc'] },
     sky: { stops: ['#9ab8dc', '#cfe2f2', '#eef6fb'], sun: [.75, .2, .03, '#ffffff'], clouds: 4, far: [['#c3d4e6', .55, .07, 6, 1], ['#e2ecf5', .66, .03, 10, 0]] },

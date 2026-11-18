@@ -1,6 +1,7 @@
 // 한 방의 전투 진행: 턴 순서(딜레이), 타이머, 발사·아이템 검증, 서버 판정, 승패와 전적
 import { Sim, spawnPositions, opsHash } from '../../shared/sim/world.js';
 export { opsHash };
+import { botTurn } from './bot.js';
 import { SHELL_STATS, SLOT_DELAY, ITEM_INFO, TURN_BASE_DELAY, SUDDEN_DEATH_TURN } from '../../shared/gamedata.js';
 
 const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
@@ -15,7 +16,7 @@ export class GameSession {
       const facing = p.team === 'blue' ? -1 : p.team === 'red' ? 1 : (pos[p.userId] < this.sim.w / 2 ? 1 : -1);
       const t = this.sim.addTank({ uid: p.userId, tankId: p.tankId, x: pos[p.userId], facing, team: p.team, name: p.nickname });
       t.delay = i; // 첫 턴 순서는 무작위
-      return { uid: p.userId, nickname: p.nickname, team: p.team, tankId: p.tankId, x: t.x, facing, items: p.items.map(id => ({ id, used: false })), ssUsed: false, flags: {} };
+      return { uid: p.userId, nickname: p.nickname, team: p.team, tankId: p.tankId, x: t.x, facing, items: p.items.map(id => ({ id, used: false })), ssUsed: false, flags: {}, bot: !!p.bot };
     });
     this.turnNo = 0; this.cur = null; this.phase = 'starting'; this.moveDir = 0; this.lastPos = 0; this.dirty = false; this.wait = 1.5;
     this.sim.wind = Sim.nextWind({ ang: 180, str: 3 }, this.sim.map.windMax);
@@ -23,7 +24,7 @@ export class GameSession {
   player(uid) { return this.players.find(p => p.uid === uid); }
   startInfo() {
     return { roomId: this.setup.roomId, mapId: this.setup.mapId, mode: this.setup.mode, turnSeconds: this.setup.turnSeconds,
-      players: this.players.map(p => ({ uid: p.uid, nickname: p.nickname, team: p.team, tankId: p.tankId, x: p.x, facing: p.facing, items: p.items.map(i => i.id) })) };
+      players: this.players.map(p => ({ uid: p.uid, nickname: p.nickname, team: p.team, tankId: p.tankId, x: p.x, facing: p.facing, items: p.items.map(i => i.id), bot: p.bot })) };
   }
   fullState(uid) {
     const me = this.player(uid);
@@ -35,12 +36,14 @@ export class GameSession {
   tick(dt) {
     if (this.phase === 'over') return;
     const sim = this.sim;
+    if (this.phase === 'aim' && this.cur?.bot) { this.botWait -= dt; if (this.botWait <= 0) { this.botWait = Infinity; try { botTurn(this, this.cur.uid); } catch (e) { try { this.onPass(this.cur.uid); } catch {} } } }
     if (this.phase === 'aim' && this.moveDir) { const t = sim.tankOf(this.cur.uid); const used = sim.move(t, this.moveDir, dt); if (used) { this.moveUsed += used; this.dirty = true; } }
     sim.step(dt); sim.fxq.length = 0;
     if (this.phase === 'aim') {
       const t = sim.tankOf(this.cur.uid);
       if (t.dead) return this.endTurn();
-      if (this.dirty && this.now() - this.lastPos > 50) { this.lastPos = this.now(); this.dirty = false; this.send('game:pos', { uid: t.uid, x: t.x, y: t.y, facing: t.facing, fuel: t.fuel, angle: t.angle, tilt: t.tilt, moving: !!this.moveDir }); }
+      if (Math.abs(t.x - (this.sentX ?? t.x)) > .5 || Math.abs(t.y - (this.sentY ?? t.y)) > .5) this.dirty = true;
+      if (this.dirty && this.now() - this.lastPos > 50) { this.sentX = t.x; this.sentY = t.y; this.lastPos = this.now(); this.dirty = false; this.send('game:pos', { uid: t.uid, x: t.x, y: t.y, facing: t.facing, fuel: t.fuel, angle: t.angle, tilt: t.tilt, moving: !!this.moveDir }); }
       if (this.now() > this.deadline) { this.send('game:timeout', { uid: t.uid }); t.delay += TURN_BASE_DELAY + this.turnState.itemDelay + Math.round(this.moveUsed); this.endTurn(); }
     } else if (this.phase === 'resolve') {
       if (!sim.busy()) { this.phase = 'between'; this.wait = .5; }
@@ -72,7 +75,7 @@ export class GameSession {
     sim.fxq.length = 0;
     this.turnState = { itemUsed: false, flags: {}, itemDelay: 0 }; this.moveUsed = 0; this.moveDir = 0;
     this.deadline = this.now() + this.setup.turnSeconds * 1000 + 500;
-    this.phase = 'aim';
+    this.phase = 'aim'; this.botWait = 1.4;
     this.send('game:turn', { turnNo: this.turnNo, uid: t.uid, seconds: this.setup.turnSeconds, wind: sim.wind, event, sd, snapshot: sim.snapshot(), order: this.order(), flags: this.cur.flags });
     if (t.dead) this.endTurn(); // 독·화상으로 턴 시작에 쓰러진 경우
   }

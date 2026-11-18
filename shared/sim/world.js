@@ -112,6 +112,7 @@ export class Sim {
     // 가파른 벽(약 55° 이상)은 못 오른다: 앞 6px 경사를 본다. 그래서 깊은 구덩이는 함정이 된다
     const ahead = this.ground(t.x + dir * 6, t.y - 14); if (t.y - ahead > 8.5) return 0;
     t.moving = true; t.x = nx; if (ny <= t.y + 2) { t.y = ny; t.fallFrom = ny; }
+    if (this.map.slip) { t.slideV = dir * 55; t.lastMove = this.clock; }
     const used = 22 * dt * (ny < t.y ? 1.5 : 1); t.fuel = Math.max(0, t.fuel - used); return used;
   }
 
@@ -309,9 +310,19 @@ export class Sim {
       return false;
     }
     t.y = g; t.vy = 0; t.fallFrom = t.y;
+    if (this.map.slip && !t.dead && this.clock - (t.lastMove ?? -9) > dt * 1.5) this.slide(t, dt);
     if (!t.dead) { const tl = this.slope(t); if (tl !== t.tilt) { t.tilt = tl; this.clampAngle(t); } }
     if (t.y > this.liquidY + 6 && !t.dead) { t.sunk = true; this.float(t.x, this.liquidY - 30, '낙사!', '#c92a2a'); this.kill(t, null); }
     return true;
+  }
+  // 얼음: 멈춘 뒤에도 미끄러지고, 비탈에서는 아래로 밀린다
+  slide(t, dt) {
+    const down = Math.sin((t.tilt || 0) * Math.PI / 180) * (t.facing || 1); // +면 오른쪽이 내리막
+    t.slideV = ((t.slideV || 0) + down * 160 * dt) * (1 - 1.6 * dt);
+    if (Math.abs(t.slideV) < 2 && Math.abs(down) < .12) { t.slideV = 0; return; }
+    const nx = t.x + t.slideV * dt; if (nx < 12 || nx > this.w - 12) { t.slideV = 0; return; }
+    const ny = this.ground(nx, t.y - 14); if (ny < t.y - 6) { t.slideV = 0; return; }
+    t.x = nx; if (ny <= t.y + 2) { t.y = ny; t.fallFrom = ny; }
   }
   busy() {
     return this.shells.length > 0 || this.pending.length > 0 || !!this.queued || this.specials.length > 0 || this.tanks.some(t => !t.sunk && !t.left && (t.air || this.ground(t.x, t.y - 3) > t.y + 1))

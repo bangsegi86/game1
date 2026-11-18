@@ -6,7 +6,7 @@ const fail = msg => { throw new RoomError(msg); };
 const clean = (s, max) => String(s ?? '').replace(/\s+/g, ' ').trim().slice(0, max);
 
 export class RoomManager {
-  constructor() { this.rooms = new Map(); this.nextId = 1; this.where = new Map(); }
+  constructor() { this.rooms = new Map(); this.nextId = 1; this.where = new Map(); this.botId = -1; }
 
   teamOf(room, slot) { return room.mode === 'team' ? (slot < 4 ? 'red' : 'blue') : 'solo'; }
   players(room) { return room.slots.map((p, i) => p && { ...p, slot: i, team: this.teamOf(room, i) }).filter(Boolean); }
@@ -49,6 +49,15 @@ export class RoomManager {
     room.slots[slot] = { userId: user.id, nickname: user.nickname, tankId: 'random', items: [...DEFAULT_BAG], ready: false };
     this.where.set(user.id, room.id);
   }
+  addBot(hostId) {
+    const room = this.roomOf(hostId); if (!room) fail('방에 있지 않아요.');
+    if (room.hostId !== hostId) fail('방장만 컴퓨터를 넣을 수 있어요.');
+    if (room.status !== 'waiting') fail('게임 중에는 넣을 수 없어요.');
+    const slot = this._freeSlot(room); if (slot < 0) fail('빈 자리가 없어요.');
+    const n = room.slots.filter(s => s?.bot).length + 1;
+    room.slots[slot] = { userId: this.botId--, nickname: `컴퓨터${n}`, tankId: 'random', items: ['repair', 'power', 'double', 'shield'], ready: true, bot: true };
+    return room;
+  }
   roomOf(userId) { const id = this.where.get(userId); return id ? this.rooms.get(id) : null; }
   slotOf(room, userId) { return room.slots.findIndex(s => s && s.userId === userId); }
 
@@ -56,9 +65,9 @@ export class RoomManager {
     const room = this.roomOf(userId); if (!room) return null;
     const i = this.slotOf(room, userId); if (i >= 0) room.slots[i] = null;
     this.where.delete(userId);
-    const left = this.players(room);
+    const left = this.players(room).filter(p => !p.bot);
     if (!left.length) { this.rooms.delete(room.id); return { room, deleted: true }; }
-    if (room.hostId === userId) { room.hostId = left[0].userId; left[0] && (room.slots[left[0].slot].ready = false); }
+    if (room.hostId === userId) { room.hostId = left[0].userId; room.slots[left[0].slot].ready = false; }
     return { room, deleted: false };
   }
   update(userId, o = {}) {
@@ -89,15 +98,16 @@ export class RoomManager {
     if (o.mapId !== undefined) { if (!MAP_IDS.includes(o.mapId) && o.mapId !== 'random') fail('없는 맵이에요.'); room.mapId = o.mapId; }
     if (o.turnSeconds !== undefined) { if (!TURN_SECONDS.includes(+o.turnSeconds)) fail('턴 시간은 10, 20, 30초 중에서 골라 주세요.'); room.turnSeconds = +o.turnSeconds; }
     if (o.mode !== undefined && o.mode !== room.mode) { if (!['team', 'solo'].includes(o.mode)) fail('없는 모드예요.'); room.mode = o.mode; }
-    room.slots.forEach(s => s && s.userId !== room.hostId && (s.ready = false));
+    room.slots.forEach(s => s && s.userId !== room.hostId && !s.bot && (s.ready = false));
     return room;
   }
   kick(hostId, targetId) {
     const room = this.roomOf(hostId); if (!room) fail('방에 있지 않아요.');
     if (room.hostId !== hostId) fail('방장만 내보낼 수 있어요.');
     if (hostId === targetId) fail('자기 자신은 내보낼 수 없어요.');
-    if (this.roomOf(targetId) !== room) fail('이 방에 없는 사람이에요.');
     if (room.status !== 'waiting') fail('게임 중에는 내보낼 수 없어요.');
+    const bi = room.slots.findIndex(s => s && s.bot && s.userId === targetId); if (bi >= 0) { room.slots[bi] = null; return room; }
+    if (this.roomOf(targetId) !== room) fail('이 방에 없는 사람이에요.');
     this.leave(targetId); return room;
   }
   start(userId) {
@@ -106,17 +116,17 @@ export class RoomManager {
     if (room.status !== 'waiting') fail('이미 게임 중이에요.');
     const ps = this.players(room);
     if (ps.length < 2) fail('2명 이상 있어야 시작할 수 있어요.');
-    const notReady = ps.filter(p => p.userId !== room.hostId && !p.ready);
+    const notReady = ps.filter(p => p.userId !== room.hostId && !p.ready && !p.bot);
     if (notReady.length) fail(`아직 준비 안 한 사람이 있어요: ${notReady.map(p => p.nickname).join(', ')}`);
     if (room.mode === 'team' && (!ps.some(p => p.team === 'red') || !ps.some(p => p.team === 'blue'))) fail('양쪽 팀에 한 명 이상 있어야 해요.');
     room.status = 'playing';
     const mapId = room.mapId === 'random' ? MAP_IDS[Math.floor(Math.random() * MAP_IDS.length)] : room.mapId;
-    const players = ps.map(p => ({ userId: p.userId, nickname: p.nickname, slot: p.slot, team: p.team, items: p.items, tankId: p.tankId === 'random' ? TANK_IDS[Math.floor(Math.random() * TANK_IDS.length)] : p.tankId }));
+    const players = ps.map(p => ({ userId: p.userId, nickname: p.nickname, slot: p.slot, team: p.team, items: p.items, bot: !!p.bot, tankId: p.tankId === 'random' ? TANK_IDS[Math.floor(Math.random() * TANK_IDS.length)] : p.tankId }));
     return { room, setup: { roomId: room.id, mapId, mode: room.mode, turnSeconds: room.turnSeconds, players } };
   }
   finish(roomId) {
     const room = this.rooms.get(roomId); if (!room) return null;
-    room.status = 'waiting'; room.slots.forEach(s => s && (s.ready = false)); return room;
+    room.status = 'waiting'; room.slots.forEach(s => s && !s.bot && (s.ready = false)); return room;
   }
   summary(room) {
     const ps = this.players(room), host = ps.find(p => p.userId === room.hostId);

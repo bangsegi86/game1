@@ -127,6 +127,7 @@ export function createServer({ port = 3000, dataDir = path.join(ROOT, 'server', 
       io.to(`room:${room.id}`).emit('room:chat', { from: user.nickname, text: t, at: Date.now() });
     });
     handle('room:update', o => { pushRoom(rooms.update(user.id, o)); });
+    handle('room:addBot', () => { const room = rooms.addBot(user.id); system(room.id, '컴퓨터가 들어왔어요.'); pushRoom(room); pushLobby(); });
     handle('room:ready', ({ ready }) => { pushRoom(rooms.setReady(user.id, ready)); });
     handle('room:settings', o => { const room = rooms.settings(user.id, o); pushRoom(room); pushLobby(); });
     handle('room:kick', ({ userId }) => {
@@ -141,7 +142,7 @@ export function createServer({ port = 3000, dataDir = path.join(ROOT, 'server', 
       const g = new GameSession(setup, {
         send: (ev, data) => io.to(key).emit(ev, data),
         onOver: ({ winnerTeam, results, mapId, mode }) => {
-          try { db.recordMatch(mapId, mode, winnerTeam, results.map(r => ({ userId: r.uid, win: r.win, kills: r.kills, damage: r.dealt }))); } catch (e) { console.error('기록 실패', e); }
+          try { db.recordMatch(mapId, mode, winnerTeam, results.filter(r => r.uid > 0).map(r => ({ userId: r.uid, win: r.win, kills: r.kills, damage: r.dealt }))); } catch (e) { console.error('기록 실패', e); }
           setTimeout(() => { if (games.get(room.id) === g) games.delete(room.id); }, 2000).unref?.();
           rooms.finish(room.id); pushRoom(room); pushLobby();
           for (const r of results) { const o = online.get(r.uid); if (o) o.socket.emit('stats', db.getStats(r.uid)); }

@@ -23,6 +23,7 @@ const fakeSocket = {
       if (ev === 'game:fire') session.onFire(ME, data.slot, data.power);
       if (ev === 'game:item') session.onItem(ME, data.index);
       if (ev === 'game:pass') session.onPass(ME);
+      if (ev === 'room:leave') { session.playerLeft(ME); clearInterval(timer); }
       if (ev === 'room:chat') { const text = String(data.text || '').slice(0, 200); queueMicrotask(() => battle.on['room:chat']({ from: '포탄왕', text })); if (Math.random() < .5) setTimeout(() => battle.on['room:chat']({ from: '연습 상대', text: ['ㅋㅋ 바람 잘 봐', '이번엔 맞힌다', '좋은 샷인데?', '구덩이 조심해라'][Math.floor(Math.random() * 4)] }), 900); }
       reply({ ok: true });
     } catch (e) { reply({ ok: false, error: e.message }); }
@@ -56,12 +57,11 @@ function start(cfg) {
   const foeTank = cfg.tank === 'laser' ? 'hammer' : 'laser';
   session = new GameSession({ roomId: 1, mapId: cfg.map, mode: 'team', turnSeconds: 20, players: [
     { userId: ME, nickname: '포탄왕', team: 'red', tankId: cfg.tank, items: cfg.bag },
-    { userId: AI, nickname: '연습 상대', team: 'blue', tankId: foeTank, items: ['repair', 'power', 'double', 'shield'] },
+    { userId: AI, nickname: '연습 상대', team: 'blue', tankId: foeTank, items: ['repair', 'power', 'double', 'shield'], bot: true },
   ] }, {
     now,
     send: (ev, d) => {
       queueMicrotask(() => battle.on[ev]?.(JSON.parse(JSON.stringify(d))));
-      if (ev === 'game:turn' && d.uid === AI) { clearTimeout(aiTimer); aiTimer = setTimeout(() => { try { aiTurn(); } catch (e) { console.error(e); } }, 1300); }
     },
     onOver: () => {},
   });

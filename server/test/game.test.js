@@ -79,3 +79,10 @@ test('파워업은 쏘기 전까지 남고, 다음 턴 더블과 함께 나간�
   assert.equal(shot.opts.boost, 1.3); assert.equal(shot.opts.double, true);
   assert.deepEqual(g.player(a).flags, {}, '쏘면 효과가 사라진다');
 });
+
+test('컴퓨터끼리 끝까지 싸운다', () => {
+  let clock = 0, over = null;
+  const g = new GameSession({ roomId: 1, mapId: 'valley', mode: 'team', turnSeconds: 20, players: [-1, -2, -3].map((id, i) => ({ userId: id, nickname: 'bot' + i, team: i % 2 ? 'blue' : 'red', tankId: ['hammer', 'laser', 'bee'][i], items: ['repair', 'power', 'double', 'shield'], bot: true })) }, { send: () => {}, onOver: r => over = r, now: () => clock * 1000 });
+  for (let i = 0; i < 60 * 60 * 30 && g.phase !== 'over'; i++) { clock += 1 / 60; g.tick(1 / 60); }
+  assert.equal(g.phase, 'over'); assert.ok(over.results.some(r => r.win));
+});

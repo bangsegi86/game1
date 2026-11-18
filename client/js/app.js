@@ -61,7 +61,7 @@ $('logoutBtn').onclick = () => { store.set('sc_token', null); state.token = null
 })();
 
 /* ---------- 전투 ---------- */
-const battle = createBattle({ socket: () => state.socket, me: () => state.user?.id, toast, onExit: () => { if (state.room) { renderRoom(); show('room'); } else show('lobby'); } });
+const battle = createBattle({ socket: () => state.socket, me: () => state.user?.id, toast, onExit: () => { if (state.room) { renderRoom(); show('room'); } else show('lobby'); }, onQuit: () => { state.room = null; show('lobby'); } });
 
 /* ---------- 연결 ---------- */
 function connect() {
@@ -124,6 +124,7 @@ function renderRoom() {
   $('roomNo').textContent = String(r.id).padStart(3, '0'); $('roomTitle').textContent = r.title + (r.hasPassword ? ' (비밀방)' : '');
   $('roomInfo').textContent = `${r.mode === 'team' ? '팀전' : '개인전'} · ${MAP_NAMES[r.mapId]} · 턴 ${r.turnSeconds}초`;
   const rb = $('readyBtn');
+  $('addBotBtn').hidden = !host || r.status !== 'waiting';
   if (host) { rb.textContent = '게임 시작'; rb.className = 'btn primary'; } else { rb.textContent = me?.ready ? '준비 취소' : '준비'; rb.className = me?.ready ? 'btn' : 'btn primary'; }
   // 자리
   const el = $('slots'); el.innerHTML = '';
@@ -132,7 +133,7 @@ function renderRoom() {
     if (!s) { d.className = 'slot empty ' + (r.mode === 'team' ? (i < 4 ? 'red' : 'blue') : ''); d.textContent = '빈 자리'; d.tabIndex = 0; d.onclick = () => act('room:update', { slot: i }); return d; }
     d.className = `slot ${s.team === 'solo' ? '' : s.team} ${s.userId === state.user.id ? 'me' : ''}`;
     d.append(tankCanvas(s.tankId, 96, 72, .52));
-    d.insertAdjacentHTML('beforeend', `<div class="nick">${esc(s.nickname)}</div><div class="tname">${TANK_NAMES[s.tankId]}</div>` + (s.userId === r.hostId ? '<div class="host">방장</div>' : s.ready ? '<div class="ready">준비 완료</div>' : '<div class="tname">준비 중</div>'));
+    d.insertAdjacentHTML('beforeend', `<div class="nick">${esc(s.nickname)}</div><div class="tname">${TANK_NAMES[s.tankId]}</div>` + (s.bot ? '<div class="ready">컴퓨터</div>' : s.userId === r.hostId ? '<div class="host">방장</div>' : s.ready ? '<div class="ready">준비 완료</div>' : '<div class="tname">준비 중</div>'));
     if (host && s.userId !== state.user.id && r.status === 'waiting') { const k = document.createElement('button'); k.className = 'kick'; k.textContent = '내보내기'; k.onclick = () => act('room:kick', { userId: s.userId }); d.append(k); }
     return d;
   };
@@ -158,6 +159,7 @@ function renderRoom() {
   $('hostOnly').textContent = host ? '내가 방장' : '방장만 변경';
 }
 $('readyBtn').onclick = () => isHost() ? act('room:start') : act('room:ready', { ready: !meSlot()?.ready });
+$('addBotBtn').onclick = () => act('room:addBot');
 $('leaveBtn').onclick = async () => { await act('room:leave'); state.room = null; show('lobby'); };
 [['setMap', 'mapId'], ['setMode', 'mode'], ['setTurn', 'turnSeconds']].forEach(([id, key]) => $(id).addEventListener('change', e => act('room:settings', { [key]: key === 'turnSeconds' ? +e.target.value : e.target.value })));
 $('setTitle').addEventListener('change', e => act('room:settings', { title: e.target.value }));

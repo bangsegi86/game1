@@ -66,3 +66,14 @@ test('강퇴와 설정은 방장만', () => {
   assert.equal(r.mapId, 'moon'); assert.equal(r.mode, 'solo');
   m.kick(1, 2); assert.equal(m.roomOf(2), null);
 });
+
+test('컴퓨터 넣기·빼기와 시작', () => {
+  const m = new RoomManager(); const r = m.create(U(1), { mode: 'team' });
+  assert.throws(() => m.addBot(2), /방에 있지/);
+  m.addBot(1);
+  const bot = r.slots.find(s => s?.bot);
+  assert.ok(bot && bot.ready && bot.userId < 0);
+  const { setup } = m.start(1); assert.ok(setup.players.some(p => p.bot));
+  m.finish(r.id); m.kick(1, bot.userId); assert.ok(!r.slots.some(s => s?.bot));
+  m.addBot(1); const res = m.leave(1); assert.ok(res.deleted, '사람이 모두 나가면 방이 없어진다');
+});

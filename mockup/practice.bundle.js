@@ -125,7 +125,8 @@
     ice: {
       n: "\uC5BC\uC74C\uD638\uC218",
       d: "\uC5BC\uC5B4\uBD99\uC740 \uD638\uC218 \uC704 \uC5BC\uC74C \uC12C\uB4E4. \uC12C \uC0AC\uC774 \uBB3C\uC5D0 \uBE60\uC9C0\uBA74 \uB099\uC0AC.",
-      tags: ["\uB099\uC0AC \uC8FC\uC758", "\uC5BC\uC74C \uC12C"],
+      tags: ["\uB099\uC0AC \uC8FC\uC758", "\uC5BC\uC74C \uC12C", "\uBBF8\uB044\uB7EC\uC6C0"],
+      slip: true,
       grav: 1,
       windMax: 9,
       liquid: { y: 0.76, type: "water" },
@@ -699,6 +700,10 @@
         t.y = ny;
         t.fallFrom = ny;
       }
+      if (this.map.slip) {
+        t.slideV = dir * 55;
+        t.lastMove = this.clock;
+      }
       const used = 22 * dt * (ny < t.y ? 1.5 : 1);
       t.fuel = Math.max(0, t.fuel - used);
       return used;
@@ -1148,6 +1153,7 @@
       t.y = g;
       t.vy = 0;
       t.fallFrom = t.y;
+      if (this.map.slip && !t.dead && this.clock - (t.lastMove ?? -9) > dt * 1.5) this.slide(t, dt);
       if (!t.dead) {
         const tl = this.slope(t);
         if (tl !== t.tilt) {
@@ -1161,6 +1167,30 @@
         this.kill(t, null);
       }
       return true;
+    }
+    // 얼음: 멈춘 뒤에도 미끄러지고, 비탈에서는 아래로 밀린다
+    slide(t, dt) {
+      const down = Math.sin((t.tilt || 0) * Math.PI / 180) * (t.facing || 1);
+      t.slideV = ((t.slideV || 0) + down * 160 * dt) * (1 - 1.6 * dt);
+      if (Math.abs(t.slideV) < 2 && Math.abs(down) < 0.12) {
+        t.slideV = 0;
+        return;
+      }
+      const nx = t.x + t.slideV * dt;
+      if (nx < 12 || nx > this.w - 12) {
+        t.slideV = 0;
+        return;
+      }
+      const ny = this.ground(nx, t.y - 14);
+      if (ny < t.y - 6) {
+        t.slideV = 0;
+        return;
+      }
+      t.x = nx;
+      if (ny <= t.y + 2) {
+        t.y = ny;
+        t.fallFrom = ny;
+      }
     }
     busy() {
       return this.shells.length > 0 || this.pending.length > 0 || !!this.queued || this.specials.length > 0 || this.tanks.some((t) => !t.sunk && !t.left && (t.air || this.ground(t.x, t.y - 3) > t.y + 1)) || this.events.some((e) => e.type === "meteors" && e.t < 2.4 || e.type === "lightning" && e.t < 1.3 || e.type === "pillar" && e.t < 1.6);
@@ -1274,6 +1304,34 @@
     return out;
   }
 
+  // src/bot.js
+  function botTurn(g, uid, rnd = Math.random) {
+    const sim = g.sim, me = sim.tankOf(uid), p = g.player(uid);
+    const foes = sim.tanks.filter((t) => !t.dead && sim.enemies(me, t)).sort((a, b) => Math.abs(a.x - me.x) - Math.abs(b.x - me.x));
+    const foe = foes[0];
+    if (!foe) return g.onPass(uid);
+    const pick = (id) => p.items.findIndex((i) => !i.used && i.id === id);
+    let k = -1;
+    if (me.hp < me.max * 0.55) k = pick("repair") >= 0 ? pick("repair") : pick("teamrepair");
+    if (k < 0 && rnd() < 0.3) k = p.items.findIndex((i) => !i.used && ["power", "double", "shield"].includes(i.id) && !p.flags[i.id]);
+    if (k >= 0) {
+      try {
+        g.onItem(uid, k);
+      } catch {
+      }
+    }
+    me.facing = Math.sign(foe.x - me.x) || me.facing;
+    const slot = !p.ssUsed && me.hp <= me.max / 2 && rnd() < 0.6 ? 2 : rnd() < 0.7 ? 0 : 1, sh = SHELL_STATS[me.tankId][slot];
+    if (sh.shape === "line") {
+      g.onAim(uid, Math.atan2(me.y - 20 - (foe.y - 18), Math.abs(foe.x - me.x)) * 180 / Math.PI);
+      return g.onFire(uid, slot, 60);
+    }
+    const [lo, hi] = sim.angleRange(me);
+    g.onAim(uid, Math.max(lo, Math.min(hi, 40 + rnd() * 12)));
+    const pw = sim.solvePower(me, slot, foe.x, true) + (rnd() * 10 - 5);
+    g.onFire(uid, slot, Math.max(10, Math.min(100, pw)));
+  }
+
   // src/game.js
   var shuffle = (a) => {
     for (let i = a.length - 1; i > 0; i--) {
@@ -1295,7 +1353,7 @@
         const facing = p.team === "blue" ? -1 : p.team === "red" ? 1 : pos[p.userId] < this.sim.w / 2 ? 1 : -1;
         const t = this.sim.addTank({ uid: p.userId, tankId: p.tankId, x: pos[p.userId], facing, team: p.team, name: p.nickname });
         t.delay = i;
-        return { uid: p.userId, nickname: p.nickname, team: p.team, tankId: p.tankId, x: t.x, facing, items: p.items.map((id) => ({ id, used: false })), ssUsed: false, flags: {} };
+        return { uid: p.userId, nickname: p.nickname, team: p.team, tankId: p.tankId, x: t.x, facing, items: p.items.map((id) => ({ id, used: false })), ssUsed: false, flags: {}, bot: !!p.bot };
       });
       this.turnNo = 0;
       this.cur = null;
@@ -1315,7 +1373,7 @@
         mapId: this.setup.mapId,
         mode: this.setup.mode,
         turnSeconds: this.setup.turnSeconds,
-        players: this.players.map((p) => ({ uid: p.uid, nickname: p.nickname, team: p.team, tankId: p.tankId, x: p.x, facing: p.facing, items: p.items.map((i) => i.id) }))
+        players: this.players.map((p) => ({ uid: p.uid, nickname: p.nickname, team: p.team, tankId: p.tankId, x: p.x, facing: p.facing, items: p.items.map((i) => i.id), bot: p.bot }))
       };
     }
     fullState(uid) {
@@ -1329,6 +1387,20 @@
     tick(dt) {
       if (this.phase === "over") return;
       const sim = this.sim;
+      if (this.phase === "aim" && this.cur?.bot) {
+        this.botWait -= dt;
+        if (this.botWait <= 0) {
+          this.botWait = Infinity;
+          try {
+            botTurn(this, this.cur.uid);
+          } catch (e) {
+            try {
+              this.onPass(this.cur.uid);
+            } catch {
+            }
+          }
+        }
+      }
       if (this.phase === "aim" && this.moveDir) {
         const t = sim.tankOf(this.cur.uid);
         const used = sim.move(t, this.moveDir, dt);
@@ -1342,7 +1414,10 @@
       if (this.phase === "aim") {
         const t = sim.tankOf(this.cur.uid);
         if (t.dead) return this.endTurn();
+        if (Math.abs(t.x - (this.sentX ?? t.x)) > 0.5 || Math.abs(t.y - (this.sentY ?? t.y)) > 0.5) this.dirty = true;
         if (this.dirty && this.now() - this.lastPos > 50) {
+          this.sentX = t.x;
+          this.sentY = t.y;
           this.lastPos = this.now();
           this.dirty = false;
           this.send("game:pos", { uid: t.uid, x: t.x, y: t.y, facing: t.facing, fuel: t.fuel, angle: t.angle, tilt: t.tilt, moving: !!this.moveDir });
@@ -1405,6 +1480,7 @@
       this.moveDir = 0;
       this.deadline = this.now() + this.setup.turnSeconds * 1e3 + 500;
       this.phase = "aim";
+      this.botWait = 1.4;
       this.send("game:turn", { turnNo: this.turnNo, uid: t.uid, seconds: this.setup.turnSeconds, wind: sim.wind, event, sd, snapshot: sim.snapshot(), order: this.order(), flags: this.cur.flags });
       if (t.dead) this.endTurn();
     }
@@ -2638,7 +2714,7 @@
   var VW = 960;
   var VH = 480;
   var MM = { w: 216, h: 90, x: VW - 226, y: 10 };
-  function createBattle({ socket, me, toast: toast2, onExit }) {
+  function createBattle({ socket, me, toast: toast2, onExit, onQuit }) {
     const cv = $("field");
     cv.width = VW * DPR;
     cv.height = VH * DPR;
@@ -3156,6 +3232,20 @@
       setMuted(!isMuted());
       muteLabel();
     };
+    let quitArm = 0;
+    const quitBtn = $("quitBtn");
+    quitBtn.onclick = () => {
+      if (phase === "over" || phase === "idle") return;
+      if (performance.now() - quitArm > 3e3) {
+        quitArm = performance.now();
+        quitBtn.textContent = "\uD55C \uBC88 \uB354 \uB204\uB974\uBA74 \uB098\uAC00\uC694";
+        setTimeout(() => quitBtn.textContent = "\uAC8C\uC784 \uB098\uAC00\uAE30", 3e3);
+        return;
+      }
+      phase = "idle";
+      quitBtn.textContent = "\uAC8C\uC784 \uB098\uAC00\uAE30";
+      socket().emit("room:leave", {}, () => (onQuit || onExit)());
+    };
     $("gameChat").addEventListener("submit", (e) => {
       e.preventDefault();
       const i = $("gameMsg");
@@ -3276,6 +3366,10 @@
         if (ev === "game:fire") session.onFire(ME, data.slot, data.power);
         if (ev === "game:item") session.onItem(ME, data.index);
         if (ev === "game:pass") session.onPass(ME);
+        if (ev === "room:leave") {
+          session.playerLeft(ME);
+          clearInterval(timer);
+        }
         if (ev === "room:chat") {
           const text = String(data.text || "").slice(0, 200);
           queueMicrotask(() => battle.on["room:chat"]({ from: "\uD3EC\uD0C4\uC655", text }));
@@ -3303,50 +3397,17 @@
     clearTimeout(t._h);
     t._h = setTimeout(() => t.hidden = true, 2400);
   }
-  function aiTurn() {
-    const s = session, sim = s.sim, me = sim.tankOf(AI), foe = sim.tankOf(ME);
-    if (!me || !foe || foe.dead) return;
-    const p = s.player(AI);
-    const k = p.items.findIndex((i) => !i.used);
-    if (k >= 0 && Math.random() < 0.35) {
-      try {
-        s.onItem(AI, k);
-      } catch {
-      }
-    }
-    me.facing = Math.sign(foe.x - me.x) || -1;
-    const slot = !p.ssUsed && me.hp <= me.max / 2 && Math.random() < 0.6 ? 2 : Math.random() < 0.7 ? 0 : 1;
-    const sh = SHELL_STATS[me.tankId][slot];
-    if (sh.shape === "line") {
-      s.onAim(AI, Math.atan2(me.y - 20 - (foe.y - 18), Math.abs(foe.x - me.x)) * 180 / Math.PI);
-      s.onFire(AI, slot, 60);
-      return;
-    }
-    s.onAim(AI, 40 + Math.random() * 12);
-    const pw = Math.max(15, Math.min(100, sim.solvePower(me, slot, foe.x, true) + (Math.random() * 10 - 5)));
-    s.onFire(AI, slot, pw);
-  }
   function start(cfg) {
     clearInterval(timer);
     clearTimeout(aiTimer);
     const foeTank = cfg.tank === "laser" ? "hammer" : "laser";
     session = new GameSession({ roomId: 1, mapId: cfg.map, mode: "team", turnSeconds: 20, players: [
       { userId: ME, nickname: "\uD3EC\uD0C4\uC655", team: "red", tankId: cfg.tank, items: cfg.bag },
-      { userId: AI, nickname: "\uC5F0\uC2B5 \uC0C1\uB300", team: "blue", tankId: foeTank, items: ["repair", "power", "double", "shield"] }
+      { userId: AI, nickname: "\uC5F0\uC2B5 \uC0C1\uB300", team: "blue", tankId: foeTank, items: ["repair", "power", "double", "shield"], bot: true }
     ] }, {
       now,
       send: (ev, d) => {
         queueMicrotask(() => battle.on[ev]?.(JSON.parse(JSON.stringify(d))));
-        if (ev === "game:turn" && d.uid === AI) {
-          clearTimeout(aiTimer);
-          aiTimer = setTimeout(() => {
-            try {
-              aiTurn();
-            } catch (e) {
-              console.error(e);
-            }
-          }, 1300);
-        }
       },
       onOver: () => {
       }
