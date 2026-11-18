@@ -1,0 +1,913 @@
+<title>포탄대결 화면 시안</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jua&family=Noto+Sans+KR:wght@400;500;700&display=swap">
+<style>
+/* Layout: 상단 탭 바 + 화면 하나씩 보여주는 무대. 해질녘 전장 하늘색 패널 위에 호박색 포인트 하나. */
+:root {
+  --sky: #1f2d52;
+  --panel: #283a66;
+  --panel-2: #324779;
+  --line: #45598e;
+  --ink: #f4efe1;
+  --muted: #aab5d3;
+  --amber: #ffb703;
+  --amber-ink: #3a2600;
+  --red: #ef6a55;
+  --blue: #55aef0;
+  --good: #7fd06c;
+  --bad: #ff7a7a;
+  --font-display: "Jua", "Noto Sans KR", system-ui, sans-serif;
+  --font-body: "Noto Sans KR", system-ui, -apple-system, "Malgun Gothic", sans-serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body {
+  background: var(--sky);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.5;
+}
+button { font: inherit; color: inherit; cursor: pointer; }
+button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+input, select {
+  font: inherit; color: var(--ink); background: var(--sky);
+  border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; width: 100%;
+}
+h1, h2, h3 { font-family: var(--font-display); font-weight: 400; margin: 0; text-wrap: balance; letter-spacing: .01em; }
+.wrap { max-width: 1120px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+
+/* top bar */
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--sky); }
+.topbar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--sky); border-bottom: 1px solid var(--line); }
+.topbar .wrap { display: flex; align-items: center; gap: 16px; padding-block: 10px; flex-wrap: wrap; }
+.brand { font-family: var(--font-display); font-size: 24px; color: var(--amber); display: flex; align-items: center; gap: 8px; }
+.brand small { font-family: var(--font-body); font-size: 11px; color: var(--muted); letter-spacing: .08em; }
+.tabs { display: flex; gap: 4px; flex-wrap: wrap; margin-left: auto; }
+.tabs a { color: var(--muted); text-decoration: none; padding: 6px 12px; border-radius: 999px; font-weight: 500; }
+.tabs a[aria-current="page"] { background: var(--amber); color: var(--amber-ink); }
+.note { font-size: 12px; color: var(--muted); padding-block: 8px; }
+
+main { padding-block: 20px 48px; }
+.view { display: grid; gap: 16px; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px; min-width: 0; }
+.panel h2 { font-size: 20px; margin-bottom: 12px; }
+.label { font-size: 11px; letter-spacing: .08em; color: var(--muted); text-transform: uppercase; }
+.btn { border: 0; border-radius: 10px; padding: 10px 16px; background: var(--panel-2); font-weight: 700; }
+.btn.primary { background: var(--amber); color: var(--amber-ink); }
+.btn:disabled { opacity: .4; cursor: not-allowed; }
+.row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.num { font-variant-numeric: tabular-nums; }
+
+/* login */
+.login-stage { position: relative; border-radius: 16px; overflow: hidden; min-height: 520px; display: grid; place-items: center; padding: 24px 16px; border: 1px solid var(--line); }
+.login-stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+.login-card { position: relative; width: min(380px, 100%); background: color-mix(in srgb, var(--panel) 94%, transparent); border: 1px solid var(--line); border-radius: 16px; padding: 24px; display: grid; gap: 14px; }
+.login-card h1 { font-size: 40px; color: var(--amber); text-align: center; line-height: 1.1; }
+.login-card .sub { text-align: center; color: var(--muted); margin-top: -8px; }
+.seg { display: grid; grid-template-columns: 1fr 1fr; background: var(--sky); border-radius: 10px; padding: 4px; }
+.seg button { border: 0; background: none; padding: 8px; border-radius: 8px; color: var(--muted); }
+.seg button[aria-pressed="true"] { background: var(--panel-2); color: var(--ink); font-weight: 700; }
+.field { display: grid; gap: 4px; }
+.field .hint { font-size: 12px; color: var(--muted); }
+.server { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); justify-content: center; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--good); box-shadow: 0 0 0 3px color-mix(in srgb, var(--good) 25%, transparent); }
+
+/* lobby */
+.lobby { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
+.me-bar { grid-column: 1 / -1; display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+.me-bar .stats { display: flex; gap: 20px; margin-left: auto; flex-wrap: wrap; }
+.stat b { font-family: var(--font-display); font-size: 20px; font-weight: 400; display: block; line-height: 1; }
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; }
+th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th { font-size: 12px; color: var(--muted); font-weight: 500; }
+tbody tr:hover { background: var(--panel-2); }
+.pill { display: inline-block; font-size: 12px; padding: 2px 10px; border-radius: 999px; font-weight: 700; }
+.pill.wait { background: color-mix(in srgb, var(--good) 22%, transparent); color: var(--good); }
+.pill.play { background: color-mix(in srgb, var(--muted) 18%, transparent); color: var(--muted); }
+.pill.lock { background: color-mix(in srgb, var(--amber) 18%, transparent); color: var(--amber); }
+.users { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.users li { display: flex; justify-content: space-between; gap: 8px; }
+.users .where { color: var(--muted); font-size: 12px; }
+.chat { display: grid; grid-template-rows: 1fr auto; gap: 8px; min-height: 220px; }
+.chat .log { background: var(--sky); border-radius: 8px; padding: 10px; font-size: 13px; display: grid; align-content: end; gap: 4px; max-height: 240px; overflow-y: auto; }
+.chat .log b { color: var(--amber); font-weight: 500; }
+.chat .sys { color: var(--muted); }
+.side { display: grid; gap: 16px; align-content: start; }
+
+/* room */
+.room { grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); }
+.room-head { grid-column: 1 / -1; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.room-head h2 { font-size: 24px; margin: 0; }
+.slots { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.team-label { grid-column: 1 / -1; font-family: var(--font-display); font-size: 16px; }
+.team-label.red { color: var(--red); } .team-label.blue { color: var(--blue); }
+.slot { border: 2px solid var(--line); border-radius: 12px; padding: 8px; text-align: center; background: var(--sky); min-width: 0; }
+.slot.red { border-color: color-mix(in srgb, var(--red) 70%, var(--line)); }
+.slot.blue { border-color: color-mix(in srgb, var(--blue) 70%, var(--line)); }
+.slot.me { box-shadow: 0 0 0 2px var(--amber); }
+.slot.empty { border-style: dashed; color: var(--muted); display: grid; place-items: center; min-height: 112px; }
+.slot svg { width: 64px; height: 48px; display: block; margin: 0 auto; }
+.slot .nick { font-weight: 700; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.slot .tname { font-size: 12px; color: var(--muted); }
+.slot .ready { font-size: 11px; font-weight: 700; color: var(--good); }
+.slot .host { font-size: 11px; font-weight: 700; color: var(--amber); }
+.picker { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.pick { border: 1px solid var(--line); background: var(--sky); border-radius: 10px; padding: 8px 4px; text-align: center; }
+.pick svg { width: 56px; height: 42px; display: block; margin: 0 auto; }
+.pick[aria-pressed="true"] { border-color: var(--amber); background: color-mix(in srgb, var(--amber) 12%, var(--sky)); }
+.pick span { font-size: 13px; font-weight: 700; }
+.tank-info { margin-top: 12px; display: grid; gap: 4px; font-size: 13px; }
+.tank-info dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; margin: 0; }
+.tank-info dt { color: var(--muted); }
+.tank-info dd { margin: 0; }
+.itembar { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; }
+.item { background: var(--sky); border: 1px solid var(--line); border-radius: 8px; padding: 8px 4px; font-size: 12px; text-align: center; min-height: 52px; display: grid; place-items: center; }
+.item.w2 { grid-column: span 2; }
+.item b { display: block; font-size: 13px; }
+.item small { color: var(--muted); }
+.settings { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
+
+/* game */
+.game { gap: 12px; }
+.game-top { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.turn-chip { font-family: var(--font-display); font-size: 18px; padding: 4px 14px; border-radius: 999px; background: var(--panel-2); }
+.turn-chip.mine { background: var(--amber); color: var(--amber-ink); }
+.order { display: flex; gap: 6px; font-size: 12px; color: var(--muted); align-items: center; flex-wrap: wrap; }
+.order span { padding: 2px 8px; border-radius: 6px; background: var(--panel); }
+.timer { margin-left: auto; font-family: var(--font-display); font-size: 22px; }
+.field-wrap { position: relative; border-radius: 12px; overflow: hidden; border: 1px solid var(--line); background: var(--sky); }
+#field { display: block; width: 100%; height: auto; aspect-ratio: 2 / 1; max-width: 100%; touch-action: none; }
+.overlay { position: absolute; inset: 0; display: grid; place-items: center; background: color-mix(in srgb, var(--sky) 70%, transparent); }
+.overlay .box { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 24px; text-align: center; display: grid; gap: 12px; }
+.overlay h3 { font-size: 40px; color: var(--amber); }
+.hud { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; align-items: stretch; }
+.dial { display: grid; justify-items: center; gap: 2px; min-width: 120px; }
+.dial svg { width: 112px; height: 64px; }
+.dial .deg { font-family: var(--font-display); font-size: 24px; line-height: 1; }
+.gauges { display: grid; gap: 10px; align-content: center; }
+.gauge { position: relative; height: 22px; border-radius: 6px; background: var(--sky); overflow: hidden; border: 1px solid var(--line); }
+.gauge .fill { position: absolute; inset: 0 auto 0 0; width: 0; background: linear-gradient(90deg, #ffd166, var(--amber) 60%, var(--red)); }
+.gauge.fuel { height: 12px; }
+.gauge.fuel .fill { background: var(--good); }
+.gauge .last { position: absolute; top: -2px; bottom: -2px; width: 3px; background: var(--ink); left: 0; }
+.gauge .ticks { position: absolute; inset: 0; background: repeating-linear-gradient(90deg, transparent 0 calc(10% - 1px), color-mix(in srgb, var(--ink) 25%, transparent) calc(10% - 1px) 10%); }
+.gauge-row { display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px; gap: 8px; align-items: center; font-size: 12px; color: var(--muted); }
+.gauge-row .num { color: var(--ink); text-align: right; }
+.weapons { display: grid; gap: 6px; align-content: center; }
+.weapons button { border: 1px solid var(--line); background: var(--sky); border-radius: 8px; padding: 6px 12px; text-align: left; min-width: 150px; }
+.weapons button[aria-pressed="true"] { border-color: var(--amber); background: color-mix(in srgb, var(--amber) 14%, var(--sky)); }
+.weapons kbd { font-family: var(--font-display); color: var(--amber); margin-right: 6px; }
+.weapons small { color: var(--muted); }
+.game-bottom { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: center; }
+.game .itembar .item { cursor: pointer; }
+.game .itembar .item:disabled { opacity: .35; cursor: not-allowed; text-decoration: line-through; }
+.pad { display: grid; grid-template-columns: repeat(4, 44px) 112px; gap: 6px; }
+.pad button { border: 1px solid var(--line); background: var(--panel-2); border-radius: 10px; height: 44px; font-size: 18px; user-select: none; -webkit-user-select: none; touch-action: none; }
+.pad .fire { background: var(--amber); color: var(--amber-ink); font-family: var(--font-display); font-size: 18px; border: 0; }
+.keys { font-size: 12px; color: var(--muted); }
+.keys kbd { background: var(--panel-2); border-radius: 4px; padding: 0 6px; color: var(--ink); font-family: var(--font-body); }
+
+/* result */
+.result-banner { text-align: center; padding: 28px 16px; border-radius: 16px; background: linear-gradient(180deg, color-mix(in srgb, var(--red) 35%, var(--panel)), var(--panel)); border: 1px solid var(--line); display: grid; gap: 6px; }
+.result-banner h1 { font-size: 48px; color: var(--amber); }
+.result-banner p { margin: 0; color: var(--muted); }
+td.red { color: var(--red); font-weight: 700; } td.blue { color: var(--blue); font-weight: 700; }
+.mvp { color: var(--amber); font-weight: 700; font-size: 12px; margin-left: 6px; }
+
+@media (max-width: 860px) {
+  .lobby, .room { grid-template-columns: minmax(0, 1fr); }
+  .hud { grid-template-columns: minmax(0, 1fr); }
+  .dial { grid-template-columns: auto auto; align-items: center; justify-content: start; }
+  .weapons { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .weapons button { min-width: 0; }
+  .game-bottom { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 520px) {
+  .slots, .picker { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .itembar { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .weapons small { display: none; }
+  .pad { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .pad .fire { grid-column: 1 / -1; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+
+<header class="topbar">
+  <div class="wrap">
+    <div class="brand">포탄대결 <small>SHELL CLASH · 시안</small></div>
+    <nav class="tabs" aria-label="화면">
+      <a href="#login">로그인</a>
+      <a href="#lobby">로비</a>
+      <a href="#room">대기방</a>
+      <a href="#game">게임</a>
+      <a href="#result">결과</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <p class="note">화면 목업입니다. 서버 연결 없이 동작하며, <b>게임</b> 탭에서는 연습 상대와 실제로 포격을 주고받을 수 있습니다.</p>
+
+  <!-- 로그인 -->
+  <section class="view" id="v-login" data-view="login">
+    <div class="login-stage">
+      <canvas id="loginBg" width="1100" height="520" aria-hidden="true"></canvas>
+      <form class="login-card" id="loginForm" novalidate>
+        <h1>포탄대결</h1>
+        <p class="sub">친구들과 하는 턴제 포격 대전</p>
+        <div class="seg" role="group" aria-label="로그인 또는 회원가입">
+          <button type="button" id="segLogin" aria-pressed="true">로그인</button>
+          <button type="button" id="segJoin" aria-pressed="false">회원가입</button>
+        </div>
+        <div class="field">
+          <label for="uid">아이디</label>
+          <input id="uid" autocomplete="username" value="shellking">
+          <span class="hint" data-join hidden>영문·숫자 4~16자</span>
+        </div>
+        <div class="field">
+          <label for="upw">비밀번호</label>
+          <input id="upw" type="password" autocomplete="current-password" value="password1">
+          <span class="hint" data-join hidden>8자 이상</span>
+        </div>
+        <div class="field" data-join hidden>
+          <label for="unick">닉네임</label>
+          <input id="unick" value="포탄왕">
+          <span class="hint">2~10자, 다른 사람과 겹치면 안 됩니다</span>
+        </div>
+        <button class="btn primary" id="loginBtn" type="submit">로그인</button>
+        <div class="server"><span class="dot"></span>서버 192.168.0.10:3000 연결됨 · 접속 5명</div>
+      </form>
+    </div>
+  </section>
+
+  <!-- 로비 -->
+  <section class="view lobby" id="v-lobby" data-view="lobby" hidden>
+    <div class="panel me-bar">
+      <div id="meTank"></div>
+      <div>
+        <div class="label">내 정보</div>
+        <h2 style="margin:0">포탄왕 <span style="font-family:var(--font-body);font-size:13px;color:var(--muted)">shellking</span></h2>
+      </div>
+      <div class="stats num">
+        <div class="stat"><span class="label">판수</span><b>42</b></div>
+        <div class="stat"><span class="label">승</span><b style="color:var(--good)">25</b></div>
+        <div class="stat"><span class="label">패</span><b style="color:var(--bad)">17</b></div>
+        <div class="stat"><span class="label">승률</span><b>60%</b></div>
+        <div class="stat"><span class="label">킬</span><b>71</b></div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="row" style="justify-content:space-between;margin-bottom:8px">
+        <h2 style="margin:0">방 목록</h2>
+        <div class="row">
+          <button class="btn">빠른 입장</button>
+          <a class="btn primary" href="#room" style="text-decoration:none">방 만들기</a>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table class="num">
+          <thead><tr><th>번호</th><th>방 제목</th><th>모드</th><th>맵</th><th>인원</th><th>상태</th></tr></thead>
+          <tbody>
+            <tr><td>001</td><td><a href="#room" style="color:inherit">금요일 밤 한판 ㄱㄱ</a></td><td>팀전 4:4</td><td>모래협곡</td><td>5/8</td><td><span class="pill wait">대기중</span></td></tr>
+            <tr><td>002</td><td>초보만 오세요</td><td>개인전</td><td>초록언덕</td><td>2/6</td><td><span class="pill wait">대기중</span></td></tr>
+            <tr><td>003</td><td>민수네 전용방</td><td>팀전 2:2</td><td>구름섬</td><td>3/4</td><td><span class="pill lock">비밀방</span></td></tr>
+            <tr><td>004</td><td>달기지 저중력 실험</td><td>개인전</td><td>달기지</td><td>4/4</td><td><span class="pill play">게임중</span></td></tr>
+            <tr><td>005</td><td>복수전</td><td>팀전 3:3</td><td>화산섬</td><td>6/6</td><td><span class="pill play">게임중</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="side">
+      <div class="panel">
+        <h2>접속자 <span class="num" style="color:var(--muted);font-size:14px">5명</span></h2>
+        <ul class="users">
+          <li><span>포탄왕 (나)</span><span class="where">로비</span></li>
+          <li><span>각도장인</span><span class="where">001번 방</span></li>
+          <li><span>바람읽는자</span><span class="where">001번 방</span></li>
+          <li><span>민수</span><span class="where">003번 방</span></li>
+          <li><span>두더지러버</span><span class="where">004번 방</span></li>
+        </ul>
+      </div>
+      <div class="panel chat">
+        <div class="log" id="lobbyLog">
+          <div class="sys">포탄왕 님이 로비에 들어왔습니다.</div>
+          <div><b>각도장인</b> 1번방 한 자리 남음</div>
+          <div><b>바람읽는자</b> 바람 10이면 그냥 기도함</div>
+        </div>
+        <form class="row" id="lobbyChat"><label for="lobbyMsg" class="label" hidden>채팅</label><input id="lobbyMsg" placeholder="Enter로 채팅" style="flex:1;min-width:0"><button class="btn">전송</button></form>
+      </div>
+    </div>
+  </section>
+
+  <!-- 대기방 -->
+  <section class="view room" id="v-room" data-view="room" hidden>
+    <div class="panel room-head">
+      <span class="pill wait">001</span>
+      <h2>금요일 밤 한판 ㄱㄱ</h2>
+      <span style="color:var(--muted)">팀전 4:4 · 모래협곡 · 턴 20초</span>
+      <div class="row" style="margin-left:auto">
+        <a class="btn" href="#lobby" style="text-decoration:none">나가기</a>
+        <a class="btn primary" href="#game" style="text-decoration:none">게임 시작</a>
+      </div>
+    </div>
+    <div class="side">
+      <div class="panel">
+        <div class="slots" id="slots"></div>
+      </div>
+      <div class="panel">
+        <h2>아이템 <span style="font-family:var(--font-body);font-size:13px;color:var(--muted)">6칸 · 모두 무료</span></h2>
+        <div class="itembar">
+          <div class="item w2"><div><b>연발탄</b><small>2칸</small></div></div>
+          <div class="item"><div><b>강화탄</b><small>1칸</small></div></div>
+          <div class="item"><div><b>수리킷</b><small>1칸</small></div></div>
+          <div class="item"><div><b>바람정지</b><small>1칸</small></div></div>
+          <div class="item"><div><b>보호막</b><small>1칸</small></div></div>
+        </div>
+        <p class="keys" style="margin:10px 0 0">보유 아이템: 연발탄, 강화탄, 수리킷, 팀 수리킷, 순간이동탄, 바람정지, 보호막, 연료통 · 클릭해서 칸에 넣기</p>
+      </div>
+      <div class="panel chat">
+        <div class="log">
+          <div class="sys">바람읽는자 님이 들어왔습니다.</div>
+          <div><b>각도장인</b> 레드팀 두더지 2개 괜찮?</div>
+          <div><b>포탄왕</b> ㅇㅋ 난 망치할게</div>
+        </div>
+        <form class="row" onsubmit="event.preventDefault()"><label for="roomMsg" class="label" hidden>채팅</label><input id="roomMsg" placeholder="Enter로 채팅" style="flex:1;min-width:0"><button class="btn">전송</button></form>
+      </div>
+    </div>
+    <div class="side">
+      <div class="panel">
+        <h2>탱크 선택</h2>
+        <div class="picker" id="picker"></div>
+        <div class="tank-info" id="tankInfo"></div>
+      </div>
+      <div class="panel">
+        <h2>방 설정 <span style="font-family:var(--font-body);font-size:13px;color:var(--muted)">방장만 변경</span></h2>
+        <div class="settings">
+          <div class="field"><label for="setMap">맵</label>
+            <select id="setMap"><option>모래협곡</option><option>초록언덕</option><option>얼음호수</option><option>구름섬</option><option>폐공장</option><option>버섯숲</option><option>화산섬</option><option>달기지</option><option>무작위</option></select></div>
+          <div class="field"><label for="setMode">모드</label>
+            <select id="setMode"><option>팀전</option><option>개인전</option></select></div>
+          <div class="field"><label for="setTurn">턴 시간</label>
+            <select id="setTurn"><option>10초</option><option selected>20초</option><option>30초</option></select></div>
+          <div class="field"><label for="setPw">방 비밀번호</label>
+            <input id="setPw" placeholder="없음"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 게임 -->
+  <section class="view game" id="v-game" data-view="game" hidden>
+    <div class="game-top">
+      <span class="turn-chip mine" id="turnChip">내 차례</span>
+      <div class="order" id="order"></div>
+      <div class="timer num" id="timer">20</div>
+    </div>
+    <div class="field-wrap">
+      <canvas id="field" width="960" height="480" aria-label="전장. 왼쪽 빨간 탱크가 나, 오른쪽 파란 탱크가 연습 상대"></canvas>
+      <div class="overlay" id="overlay" hidden>
+        <div class="box">
+          <h3 id="overTitle">승리!</h3>
+          <p id="overText" style="margin:0;color:var(--muted)"></p>
+          <div class="row" style="justify-content:center">
+            <button class="btn" id="againBtn">다시 하기</button>
+            <a class="btn primary" href="#result" style="text-decoration:none">결과 화면</a>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="panel hud">
+      <div class="dial">
+        <svg viewBox="0 0 112 64" aria-hidden="true">
+          <path d="M8 58 A48 48 0 0 1 104 58" fill="none" stroke="#45598e" stroke-width="8" stroke-linecap="round"/>
+          <path id="dialRange" d="" fill="none" stroke="#7fd06c" stroke-opacity=".5" stroke-width="8" stroke-linecap="round"/>
+          <line id="needle" x1="56" y1="58" x2="100" y2="58" stroke="#ffb703" stroke-width="3" stroke-linecap="round"/>
+          <circle cx="56" cy="58" r="5" fill="#f4efe1"/>
+        </svg>
+        <div><div class="deg num" id="deg">45°</div><div class="keys" id="degRange">허용 0~70°</div></div>
+      </div>
+      <div class="gauges">
+        <div class="gauge-row"><span>파워</span><div class="gauge"><div class="fill" id="powFill"></div><div class="ticks"></div><div class="last" id="powLast" title="직전 파워"></div></div><span class="num" id="powNum">0</span></div>
+        <div class="gauge-row"><span>연료</span><div class="gauge fuel"><div class="fill" id="fuelFill"></div></div><span class="num" id="fuelNum">100</span></div>
+        <div class="gauge-row"><span>체력</span><div class="gauge fuel"><div class="fill" id="hpFill" style="background:var(--red)"></div></div><span class="num" id="hpNum">1000</span></div>
+      </div>
+      <div class="weapons" id="weapons"></div>
+    </div>
+    <div class="game-bottom">
+      <div class="itembar" id="gameItems"></div>
+      <div class="pad" aria-label="터치 조작">
+        <button data-hold="left" aria-label="왼쪽 이동">◀</button>
+        <button data-hold="right" aria-label="오른쪽 이동">▶</button>
+        <button data-hold="up" aria-label="각도 올리기">▲</button>
+        <button data-hold="down" aria-label="각도 내리기">▼</button>
+        <button class="fire" id="fireBtn">눌러서 발사</button>
+      </div>
+    </div>
+    <p class="keys"><kbd>←</kbd><kbd>→</kbd> 이동 · <kbd>↑</kbd><kbd>↓</kbd> 각도 · <kbd>Space</kbd> 누르고 있다가 떼면 발사 · <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> 포탄 · 아이템은 턴당 1개</p>
+  </section>
+
+  <!-- 결과 -->
+  <section class="view" id="v-result" data-view="result" hidden>
+    <div class="result-banner">
+      <span class="label">모래협곡 · 팀전 4:4 · 23턴</span>
+      <h1>레드팀 승리</h1>
+      <p>전적이 저장되었습니다. 10초 뒤 대기방으로 돌아갑니다.</p>
+    </div>
+    <div class="panel">
+      <div class="table-wrap">
+        <table class="num">
+          <thead><tr><th>팀</th><th>닉네임</th><th>탱크</th><th>킬</th><th>준 피해</th><th>명중률</th><th>생존</th></tr></thead>
+          <tbody>
+            <tr><td class="red">레드</td><td>포탄왕<span class="mvp">MVP</span></td><td>망치</td><td>3</td><td>2,840</td><td>71%</td><td>생존</td></tr>
+            <tr><td class="red">레드</td><td>각도장인</td><td>두더지</td><td>1</td><td>1,920</td><td>58%</td><td>생존</td></tr>
+            <tr><td class="red">레드</td><td>민수</td><td>얼음고래</td><td>0</td><td>1,105</td><td>44%</td><td>탈락</td></tr>
+            <tr><td class="red">레드</td><td>두더지러버</td><td>두더지</td><td>0</td><td>760</td><td>39%</td><td>탈락</td></tr>
+            <tr><td class="blue">블루</td><td>바람읽는자</td><td>레이저로봇</td><td>2</td><td>2,310</td><td>66%</td><td>탈락</td></tr>
+            <tr><td class="blue">블루</td><td>지형파괴범</td><td>버섯포</td><td>1</td><td>1,540</td><td>52%</td><td>탈락</td></tr>
+            <tr><td class="blue">블루</td><td>구름위산책</td><td>구름열차</td><td>0</td><td>980</td><td>47%</td><td>탈락</td></tr>
+            <tr><td class="blue">블루</td><td>낙하주의</td><td>불꽃벌</td><td>0</td><td>420</td><td>31%</td><td>탈락(낙하)</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="row" style="justify-content:flex-end;margin-top:12px">
+        <a class="btn" href="#lobby" style="text-decoration:none">로비로</a>
+        <a class="btn primary" href="#room" style="text-decoration:none">방으로 돌아가기</a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+/* ---------- 탱크 데이터 & 그림 ---------- */
+const TANKS = [
+  { id:'mole', name:'두더지', color:'#ef6a55', hp:1000, amin:0, amax:70, w1:{n:'돌탄',d:200,r:34}, w2:{n:'파편탄',d:110,r:24,s:[-4,0,4]}, ss:{n:'땅굴 폭탄',d:380,r:60}, desc:'무한궤도에 드릴. 다루기 쉬운 입문용.' },
+  { id:'hammer', name:'망치', color:'#d9925b', hp:1200, amin:20, amax:60, w1:{n:'철구',d:260,r:30}, w2:{n:'지진탄',d:230,r:44}, ss:{n:'메테오',d:480,r:56}, desc:'거대한 해머포. 느리지만 단단하다.' },
+  { id:'cloud', name:'구름열차', color:'#9fc7ea', hp:900, amin:30, amax:90, w1:{n:'물방울',d:180,r:30}, w2:{n:'번개구름',d:210,r:30}, ss:{n:'폭풍',d:300,r:70}, desc:'열기구로 떠다니는 호버 탱크.' },
+  { id:'bee', name:'불꽃벌', color:'#f4c430', hp:950, amin:0, amax:80, w1:{n:'불씨',d:190,r:30}, w2:{n:'화염병',d:160,r:36}, ss:{n:'불사조',d:420,r:50}, desc:'날개 달린 곤충형. 바닥에 불을 남긴다.' },
+  { id:'magnet', name:'자석포', color:'#b07ad9', hp:1000, amin:10, amax:70, w1:{n:'자기탄',d:190,r:30}, w2:{n:'끌어당김탄',d:220,r:30}, ss:{n:'자기폭풍',d:340,r:64}, desc:'코일 포탑. 포탄이 가까운 탱크로 휜다.' },
+  { id:'shroom', name:'버섯포', color:'#e57fa8', hp:1050, amin:25, amax:85, w1:{n:'포자',d:170,r:30}, w2:{n:'포자비',d:70,r:20,s:[-8,-4,0,4,8]}, ss:{n:'독버섯밭',d:240,r:60}, desc:'포자를 뿌리는 생물형.' },
+  { id:'whale', name:'얼음고래', color:'#6fd3d0', hp:1100, amin:5, amax:65, w1:{n:'얼음덩이',d:200,r:32}, w2:{n:'빙결탄',d:150,r:32}, ss:{n:'해일',d:400,r:62}, desc:'수륙양용 고래. 맞은 적을 얼린다.' },
+  { id:'laser', name:'레이저로봇', color:'#8fe08a', hp:850, amin:0, amax:45, w1:{n:'빔탄',d:210,r:28}, w2:{n:'관통 레이저',d:170,r:22}, ss:{n:'궁극 빔',d:500,r:44}, desc:'고수용. 낮은 각도에서 강하다.' },
+];
+const byId = id => TANKS.find(t => t.id === id);
+
+function tankSVG(kind, color, opts = {}) {
+  const dark = '#2a2f3d';
+  const acc = {
+    mole: `<path d="M51 31 L63 28 L51 24 Z" fill="#cfd4dd"/><path d="M54 29.5 L58 28 M55 26.5 L59 27.5" stroke="#8a90a0" stroke-width="1"/>`,
+    hammer: `<rect x="3" y="22" width="9" height="12" rx="2" fill="#8a90a0"/>`,
+    cloud: `<line x1="32" y1="18" x2="32" y2="12" stroke="#ddd" stroke-width="1"/><ellipse cx="32" cy="7" rx="10" ry="7" fill="#f4efe1"/>`,
+    bee: `<ellipse cx="22" cy="14" rx="9" ry="5" fill="#f4efe1" opacity=".85" transform="rotate(-25 22 14)"/><path d="M20 24 h24 M22 29 h20" stroke="${dark}" stroke-width="2.5"/>`,
+    magnet: `<path d="M24 18 v-8 a8 8 0 0 1 16 0 v8" fill="none" stroke="#e05555" stroke-width="5"/><path d="M24 14 v4 M40 14 v4" stroke="#cfd4dd" stroke-width="5"/>`,
+    shroom: `<path d="M12 26 Q14 8 32 8 Q50 8 52 26 Z" fill="#f4efe1"/><circle cx="24" cy="16" r="3" fill="${color}"/><circle cx="38" cy="14" r="2.5" fill="${color}"/><circle cx="44" cy="21" r="2" fill="${color}"/>`,
+    whale: `<path d="M12 28 Q2 26 3 16 Q8 22 12 22 Z" fill="${color}"/><circle cx="44" cy="25" r="2" fill="${dark}"/>`,
+    laser: `<line x1="22" y1="20" x2="18" y2="6" stroke="#cfd4dd" stroke-width="2"/><circle cx="18" cy="5" r="3.5" fill="#ff5d5d"/><rect x="34" y="23" width="12" height="4" rx="2" fill="#2fe0ff"/>`,
+  }[kind] || '';
+  const barrel = opts.noBarrel ? '' :
+    `<rect x="31" y="17" width="${kind === 'hammer' ? 26 : 24}" height="${kind === 'hammer' ? 8 : 5}" rx="2" fill="${dark}" transform="rotate(-30 32 20)"/>`;
+  const behind = kind === 'shroom' ? '' : acc;
+  const front = kind === 'shroom' ? acc : '';
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 48" aria-hidden="true">${barrel}${behind}
+    <path d="M12 35 Q13 18 32 18 Q51 18 52 35 Z" fill="${color}" stroke="${dark}" stroke-width="1.5"/>${front}
+    <rect x="8" y="34" width="48" height="10" rx="5" fill="${dark}"/>
+    <circle cx="15" cy="39" r="3" fill="#6b7287"/><circle cx="25" cy="39" r="3" fill="#6b7287"/><circle cx="39" cy="39" r="3" fill="#6b7287"/><circle cx="49" cy="39" r="3" fill="#6b7287"/></svg>`;
+}
+
+/* ---------- 화면 전환 ---------- */
+const views = ['login','lobby','room','game','result'];
+function route() {
+  const v = views.includes(location.hash.slice(1)) ? location.hash.slice(1) : 'login';
+  document.querySelectorAll('[data-view]').forEach(s => s.hidden = s.dataset.view !== v);
+  document.querySelectorAll('.tabs a').forEach(a => a.toggleAttribute('aria-current', a.getAttribute('href') === '#' + v));
+  document.querySelectorAll('.tabs a[aria-current]').forEach(a => a.setAttribute('aria-current','page'));
+  current = v;
+}
+let current = 'login';
+addEventListener('hashchange', route);
+
+/* ---------- 로그인 ---------- */
+(function login() {
+  const segL = document.getElementById('segLogin'), segJ = document.getElementById('segJoin'), btn = document.getElementById('loginBtn');
+  const set = join => {
+    segL.setAttribute('aria-pressed', !join); segJ.setAttribute('aria-pressed', join);
+    document.querySelectorAll('[data-join]').forEach(e => e.hidden = !join);
+    btn.textContent = join ? '가입하고 시작하기' : '로그인';
+  };
+  segL.onclick = () => set(false); segJ.onclick = () => set(true);
+  document.getElementById('loginForm').addEventListener('submit', e => { e.preventDefault(); location.hash = 'lobby'; });
+
+  const c = document.getElementById('loginBg'), g = c.getContext('2d');
+  const sky = g.createLinearGradient(0, 0, 0, 520);
+  sky.addColorStop(0, '#1f2d52'); sky.addColorStop(.6, '#6a4f7a'); sky.addColorStop(1, '#e09a6a');
+  g.fillStyle = sky; g.fillRect(0, 0, 1100, 520);
+  g.fillStyle = '#ffd98a'; g.beginPath(); g.arc(820, 330, 60, 0, 7); g.fill();
+  const hills = (base, amp, f, col) => { g.fillStyle = col; g.beginPath(); g.moveTo(0, 520);
+    for (let x = 0; x <= 1100; x += 10) g.lineTo(x, base + amp * Math.sin(x / f) + amp * .5 * Math.sin(x / (f * .37) + 1));
+    g.lineTo(1100, 520); g.fill(); };
+  hills(380, 26, 130, '#4b3f6b'); hills(430, 22, 90, '#33335a'); hills(470, 16, 70, '#26365e');
+})();
+
+/* ---------- 로비 ---------- */
+document.getElementById('meTank').innerHTML = `<div style="width:64px">${tankSVG('hammer', '#d9925b')}</div>`;
+document.getElementById('lobbyChat').addEventListener('submit', e => {
+  e.preventDefault(); const i = document.getElementById('lobbyMsg'); if (!i.value.trim()) return;
+  const d = document.createElement('div'); d.innerHTML = '<b>포탄왕</b> '; d.append(i.value); document.getElementById('lobbyLog').append(d); i.value = '';
+});
+
+/* ---------- 대기방 ---------- */
+let myTank = 'hammer';
+const slotData = [
+  { team:'red', nick:'포탄왕', tank:'hammer', me:true, host:true },
+  { team:'red', nick:'각도장인', tank:'mole', ready:true },
+  { team:'red', nick:'민수', tank:'whale', ready:true },
+  { team:'red', nick:'두더지러버', tank:'mole' },
+  { team:'blue', nick:'바람읽는자', tank:'laser', ready:true },
+  { team:'blue', nick:'지형파괴범', tank:'shroom', ready:true },
+  { team:'blue' }, { team:'blue' },
+];
+function renderSlots() {
+  const el = document.getElementById('slots');
+  el.innerHTML = '<div class="team-label red">레드팀</div>' + slotData.slice(0,4).map(slotHTML).join('') +
+                 '<div class="team-label blue">블루팀</div>' + slotData.slice(4).map(slotHTML).join('');
+}
+function slotHTML(s) {
+  if (!s.nick) return `<div class="slot empty ${s.team}">빈 자리</div>`;
+  const t = byId(s.me ? myTank : s.tank);
+  const tag = s.host ? '<div class="host">방장</div>' : s.ready ? '<div class="ready">준비 완료</div>' : '<div class="tname">준비 중</div>';
+  return `<div class="slot ${s.team} ${s.me ? 'me' : ''}">${tankSVG(t.id, t.color)}<div class="nick">${s.nick}</div><div class="tname">${t.name}</div>${tag}</div>`;
+}
+function renderPicker() {
+  document.getElementById('picker').innerHTML = TANKS.map(t =>
+    `<button class="pick" data-id="${t.id}" aria-pressed="${t.id === myTank}">${tankSVG(t.id, t.color)}<span>${t.name}</span></button>`).join('') +
+    '';
+  const t = byId(myTank);
+  document.getElementById('tankInfo').innerHTML = `<p style="margin:0">${t.desc}</p><dl class="num">
+    <dt>체력</dt><dd>${t.hp}</dd><dt>각도</dt><dd>${t.amin}~${t.amax}°</dd>
+    <dt>주무기 1</dt><dd>${t.w1.n} · 피해 ${t.w1.d}</dd><dt>주무기 2</dt><dd>${t.w2.n} · 피해 ${t.w2.d}${t.w2.s ? ' × ' + t.w2.s.length + '발' : ''}</dd>
+    <dt>필살기 SS</dt><dd>${t.ss.n} · 피해 ${t.ss.d} (체력 50% 이하)</dd></dl>`;
+}
+document.getElementById('picker').addEventListener('click', e => {
+  const b = e.target.closest('.pick'); if (!b) return;
+  myTank = b.dataset.id; renderPicker(); renderSlots(); resetGame();
+});
+
+/* ---------- 게임 (연습 모드) ---------- */
+const W = 960, H = 480, G = 380, SPEED = 5.6;
+const cv = document.getElementById('field'), ctx = cv.getContext('2d');
+const tc = document.createElement('canvas'); tc.width = W; tc.height = H;
+const tctx = tc.getContext('2d', { willReadFrequently: true });
+const bg = document.createElement('canvas'); bg.width = W; bg.height = H;
+let mask = new Uint8Array(W * H);
+
+(function drawBg() {
+  const g = bg.getContext('2d');
+  const s = g.createLinearGradient(0, 0, 0, H);
+  s.addColorStop(0, '#f2b880'); s.addColorStop(.55, '#f7d9a8'); s.addColorStop(1, '#f9e7c4');
+  g.fillStyle = s; g.fillRect(0, 0, W, H);
+  g.fillStyle = '#fff3d6'; g.beginPath(); g.arc(760, 120, 46, 0, 7); g.fill();
+  g.fillStyle = 'rgba(190,120,90,.35)'; g.beginPath(); g.moveTo(0, H);
+  for (let x = 0; x <= W; x += 8) g.lineTo(x, 250 + 40 * Math.sin(x / 90) + 20 * Math.sin(x / 33));
+  g.lineTo(W, H); g.fill();
+  g.fillStyle = 'rgba(255,255,255,.7)';
+  [[140, 70, 1], [420, 50, .8], [620, 90, 1.1]].forEach(([x, y, k]) => {
+    g.beginPath(); g.ellipse(x, y, 40 * k, 12 * k, 0, 0, 7); g.ellipse(x + 26 * k, y - 8 * k, 26 * k, 12 * k, 0, 0, 7); g.fill();
+  });
+})();
+
+function groundY(x) {
+  const canyon = (x > 400 && x < 560) ? -90 * Math.sin((x - 400) / 160 * Math.PI) : 0;
+  return 310 + 40 * Math.sin(x / 150 + .4) + 18 * Math.sin(x / 47 + 2) - canyon;
+}
+function buildTerrain() {
+  tctx.globalCompositeOperation = 'source-over';
+  tctx.clearRect(0, 0, W, H);
+  const g = tctx.createLinearGradient(0, 220, 0, H);
+  g.addColorStop(0, '#c98b4f'); g.addColorStop(1, '#7a4b2c');
+  tctx.beginPath(); tctx.moveTo(0, H);
+  for (let x = 0; x <= W; x += 4) tctx.lineTo(x, groundY(x));
+  tctx.lineTo(W, H); tctx.closePath(); tctx.fillStyle = g; tctx.fill();
+  tctx.fillStyle = 'rgba(90,55,30,.35)';
+  for (let i = 0; i < 40; i++) { const x = (i * 97) % W, y = groundY(x) + 30 + (i * 53) % 120; tctx.beginPath(); tctx.ellipse(x, y, 14, 6, 0, 0, 7); tctx.fill(); }
+  tctx.beginPath(); for (let x = 0; x <= W; x += 4) { const y = groundY(x) + 2; x ? tctx.lineTo(x, y) : tctx.moveTo(x, y); }
+  tctx.lineWidth = 8; tctx.strokeStyle = '#e8c27a'; tctx.stroke();
+  refreshMask();
+}
+function refreshMask() {
+  const d = tctx.getImageData(0, 0, W, H).data;
+  for (let i = 0; i < W * H; i++) mask[i] = d[i * 4 + 3] > 60 ? 1 : 0;
+}
+const solid = (x, y) => { x |= 0; y |= 0; return x >= 0 && x < W && y >= 0 && y < H && mask[y * W + x] === 1; };
+function surfaceY(x, from) {
+  for (let y = Math.max(0, from | 0); y < H; y++) if (solid(x, y) || solid(x - 7, y) || solid(x + 7, y)) return y;
+  return H + 200;
+}
+function carve(x, y, r) {
+  tctx.save();
+  tctx.globalCompositeOperation = 'destination-out';
+  tctx.beginPath(); tctx.arc(x, y, r, 0, 7); tctx.fill();
+  tctx.globalCompositeOperation = 'source-atop';
+  tctx.strokeStyle = 'rgba(60,35,20,.55)'; tctx.lineWidth = 7;
+  tctx.beginPath(); tctx.arc(x, y, r + 3, 0, 7); tctx.stroke();
+  tctx.restore();
+  refreshMask();
+}
+
+const imgCache = {};
+function tankImg(kind, color) {
+  const k = kind + color;
+  if (!imgCache[k]) { const i = new Image(); i.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(tankSVG(kind, color, { noBarrel: true })); imgCache[k] = i; }
+  return imgCache[k];
+}
+
+let tanks, me, foe, turn, phase, wind, power, charging, lastPower, timeLeft, weapon, shells, parts, floats, pending, thinkT, boost, itemUsed, items, keys = {}, turnNo;
+function resetGame() {
+  buildTerrain();
+  const mt = byId(myTank);
+  me = { name:'포탄왕', kind:mt.id, color:mt.color, data:mt, x:170, hp:mt.hp, max:mt.hp, angle:45, facing:1, fuel:100, vy:0, team:'red' };
+  foe = { name:'연습 상대', kind:'laser', color:'#55aef0', data:byId('laser'), x:800, hp:850, max:850, angle:40, facing:-1, fuel:100, vy:0, team:'blue' };
+  me.angle = Math.min(Math.max(45, mt.amin), mt.amax);
+  tanks = [me, foe];
+  tanks.forEach(t => { t.y = surfaceY(t.x, 0); t.fallFrom = t.y; t.shield = false; t.dead = false; });
+  shells = []; parts = []; floats = []; pending = [];
+  lastPower = null; power = 0; charging = false; weapon = 'w1'; turnNo = 1;
+  items = [
+    { id:'double', n:'연발탄', size:2, used:false, tip:'이번 턴 두 번 발사' },
+    { id:'power', n:'강화탄', size:1, used:false, tip:'피해 +30%' },
+    { id:'repair', n:'수리킷', size:1, used:false, tip:'체력 +250' },
+    { id:'calm', n:'바람정지', size:1, used:false, tip:'바람 0' },
+    { id:'shield', n:'보호막', size:1, used:false, tip:'받는 피해 -50%' },
+  ];
+  document.getElementById('overlay').hidden = true;
+  startTurn(me);
+  renderWeapons(); renderItems();
+}
+function newWind() { wind = Math.round((Math.random() * 2 - 1) * 10); }
+function startTurn(t) {
+  turn = t; newWind(); t.fuel = 100; timeLeft = 20; boost = 1; itemUsed = false; t.doubleShot = false;
+  t.shield = false;
+  phase = t === me ? 'aim' : 'think'; thinkT = 1.1;
+  power = 0; charging = false;
+  renderItems(); renderWeapons();
+}
+function renderWeapons() {
+  const t = me.data, ssOn = me.hp <= me.max / 2;
+  const list = [['w1','1',t.w1], ['w2','2',t.w2], ['ss','3',t.ss]];
+  document.getElementById('weapons').innerHTML = list.map(([k, key, w]) =>
+    `<button data-w="${k}" aria-pressed="${weapon === k}" ${k === 'ss' && !ssOn ? 'disabled' : ''}><kbd>${key === '3' ? 'SS' : key}</kbd>${w.n} <small>${w.d}${w.s ? '×' + w.s.length : ''}</small></button>`).join('');
+}
+document.getElementById('weapons').addEventListener('click', e => { const b = e.target.closest('button'); if (b && !b.disabled) { weapon = b.dataset.w; renderWeapons(); } });
+function renderItems() {
+  document.getElementById('gameItems').innerHTML = items.map((it, i) =>
+    `<button class="item ${it.size === 2 ? 'w2' : ''}" data-i="${i}" ${it.used || itemUsed || phase !== 'aim' ? 'disabled' : ''} title="${it.tip}"><div><b>${it.n}</b><small>${it.tip}</small></div></button>`).join('');
+}
+document.getElementById('gameItems').addEventListener('click', e => {
+  const b = e.target.closest('.item'); if (!b || b.disabled) return;
+  const it = items[+b.dataset.i]; it.used = true; itemUsed = true;
+  if (it.id === 'repair') { me.hp = Math.min(me.max, me.hp + 250); floatText(me.x, me.y - 50, '+250', '#2f9e44'); }
+  if (it.id === 'calm') wind = 0;
+  if (it.id === 'power') boost = 1.3;
+  if (it.id === 'shield') me.shield = true;
+  if (it.id === 'double') me.doubleShot = true;
+  floatText(me.x, me.y - 66, it.n, '#3a2600');
+  renderItems();
+});
+
+function fire(t, w, p) {
+  t.lastPower = p;
+  const spread = w.s || [0];
+  const spawn = () => spread.forEach(da => {
+    const a = (t.angle + da) * Math.PI / 180, v = p * SPEED;
+    const dx = Math.cos(a) * t.facing, dy = -Math.sin(a);
+    shells.push({ x: t.x + dx * 22, y: t.y - 18 + dy * 22, vx: dx * v, vy: dy * v, w, owner: t, age: 0, trail: [] });
+  });
+  spawn();
+  if (t.doubleShot) pending.push({ at: .45, fn: spawn });
+  phase = 'flying';
+  renderItems();
+}
+function explode(x, y, w, owner) {
+  carve(x, y, w.r);
+  for (let i = 0; i < 26; i++) { const a = Math.random() * 7, s = 60 + Math.random() * 200; parts.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s - 80, life: .6 + Math.random() * .5, c: i % 3 ? '#ffb703' : '#7a4b2c' }); }
+  tanks.forEach(t => {
+    if (t.dead) return;
+    const d = Math.hypot(t.x - x, t.y - 12 - y), reach = w.r + 16;
+    if (d < reach) {
+      let dmg = Math.round(w.d * (owner === me ? boost : 1) * (1 - .6 * d / reach));
+      if (t.shield) dmg = Math.round(dmg / 2);
+      t.hp = Math.max(0, t.hp - dmg);
+      floatText(t.x, t.y - 50, '-' + dmg, '#c92a2a');
+    }
+  });
+}
+function floatText(x, y, s, c) { floats.push({ x, y, s, c, life: 1.2 }); }
+
+function aiShoot() {
+  const dx = me.x - foe.x; foe.facing = Math.sign(dx) || -1;
+  const a = Math.min(foe.data.amax, 42 + Math.random() * 3);
+  foe.angle = Math.round(a);
+  const v = Math.sqrt(Math.abs(dx) * G / Math.sin(2 * a * Math.PI / 180));
+  const windFix = -wind * foe.facing * 1.4;
+  const p = Math.max(20, Math.min(100, v / SPEED + windFix + (Math.random() * 10 - 5)));
+  fire(foe, Math.random() < .6 ? foe.data.w1 : foe.data.w2, p);
+}
+
+function settle(t, dt) {
+  if (t.dead) return true;
+  const ground = surfaceY(t.x, t.y - 3);
+  if (ground > t.y + 1) {
+    t.vy += 900 * dt; t.y = Math.min(ground, t.y + t.vy * dt);
+    if (t.y > H + 40) { t.dead = true; t.hp = 0; floatText(t.x, H - 30, '낙하!', '#c92a2a'); return true; }
+    return false;
+  }
+  if (t.vy > 0) {
+    const fall = t.y - t.fallFrom;
+    if (fall > 40) { const d = Math.round(fall * 1.2); t.hp = Math.max(0, t.hp - d); floatText(t.x, t.y - 50, '낙하 -' + d, '#c92a2a'); }
+  }
+  t.y = ground; t.vy = 0; t.fallFrom = t.y; return true;
+}
+
+function moveTank(t, dir, dt) {
+  if (t.fuel <= 0) return;
+  t.facing = dir;
+  const nx = t.x + dir * 50 * dt;
+  if (nx < 12 || nx > W - 12) return;
+  const ny = surfaceY(nx, t.y - 14);
+  if (ny < t.y - 12) return;
+  t.x = nx; if (ny <= t.y + 2) { t.y = ny; t.fallFrom = ny; }
+  t.fuel = Math.max(0, t.fuel - 22 * dt * (ny < t.y ? 1.5 : 1));
+}
+
+let last = performance.now();
+function loop(now) {
+  const dt = Math.min(.05, (now - last) / 1000); last = now;
+  if (current === 'game' && phase) update(dt);
+  if (current === 'game' && phase) draw();
+  requestAnimationFrame(loop);
+}
+function update(dt) {
+  if (phase === 'aim') {
+    timeLeft -= dt;
+    if (keys.left) moveTank(me, -1, dt);
+    if (keys.right) moveTank(me, 1, dt);
+    if (keys.up) aimStep(1, dt);
+    if (keys.down) aimStep(-1, dt);
+    if (charging) power = Math.min(100, power + 55 * dt);
+    if (timeLeft <= 0) { charging = false; phase = 'settle'; floatText(me.x, me.y - 60, '시간 초과', '#3a2600'); }
+  } else if (phase === 'think') {
+    thinkT -= dt; if (thinkT <= 0) aiShoot();
+  }
+  for (const p of pending) p.at -= dt;
+  pending = pending.filter(p => { if (p.at <= 0) { p.fn(); return false; } return true; });
+
+  for (const s of shells) {
+    for (let k = 0; k < 4 && !s.done; k++) {
+      const h = dt / 4; s.age += h;
+      s.vx += wind * 14 * h; s.vy += G * h; s.x += s.vx * h; s.y += s.vy * h;
+      if (s.x < -300 || s.x > W + 300 || s.y > H + 40) { s.done = true; continue; }
+      const hitT = tanks.find(t => !t.dead && (t !== s.owner || s.age > .2) && Math.hypot(t.x - s.x, t.y - 12 - s.y) < 16);
+      if (hitT || solid(s.x, s.y)) { explode(s.x, s.y, s.w, s.owner); s.done = true; }
+    }
+    s.trail.push([s.x, s.y]); if (s.trail.length > 24) s.trail.shift();
+  }
+  shells = shells.filter(s => !s.done);
+  parts.forEach(p => { p.vy += 500 * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.life -= dt; });
+  parts = parts.filter(p => p.life > 0);
+  floats.forEach(f => { f.y -= 30 * dt; f.life -= dt; });
+  floats = floats.filter(f => f.life > 0);
+  const still = tanks.map(t => settle(t, dt)).every(Boolean);
+  tanks.forEach(t => { if (t.hp <= 0) t.dead = true; });
+
+  if ((phase === 'flying' || phase === 'settle') && !shells.length && !pending.length && still) {
+    if (me.dead || foe.dead) return gameOver();
+    turnNo++;
+    startTurn(turn === me ? foe : me);
+  }
+  hud();
+}
+function aimStep(dir, dt) {
+  aimAcc = (aimAcc || 0) + 30 * dt;
+  while (aimAcc >= 1) { aimAcc--; me.angle = Math.max(me.data.amin, Math.min(me.data.amax, me.angle + dir)); }
+}
+let aimAcc = 0;
+
+function gameOver() {
+  phase = 'over';
+  const win = foe.dead && !me.dead;
+  document.getElementById('overTitle').textContent = win ? '승리!' : (me.dead && foe.dead ? '무승부' : '패배');
+  document.getElementById('overText').textContent = `${turnNo}턴 만에 끝났습니다.`;
+  document.getElementById('overlay').hidden = false;
+}
+document.getElementById('againBtn').onclick = resetGame;
+
+function hud() {
+  const t = me;
+  document.getElementById('deg').textContent = t.angle + '°';
+  document.getElementById('degRange').textContent = `허용 ${t.data.amin}~${t.data.amax}°`;
+  const a = t.angle * Math.PI / 180;
+  const n = document.getElementById('needle'); n.setAttribute('x2', 56 + 44 * Math.cos(a)); n.setAttribute('y2', 58 - 44 * Math.sin(a));
+  const arc = deg => [56 + 48 * Math.cos(deg * Math.PI / 180), 58 - 48 * Math.sin(deg * Math.PI / 180)];
+  const [x1, y1] = arc(t.data.amin), [x2, y2] = arc(t.data.amax);
+  document.getElementById('dialRange').setAttribute('d', `M${x2} ${y2} A48 48 0 0 1 ${x1} ${y1}`);
+  document.getElementById('powFill').style.width = power + '%';
+  document.getElementById('powNum').textContent = Math.round(power);
+  const lp = document.getElementById('powLast'); lp.hidden = me.lastPower == null; lp.style.left = (me.lastPower || 0) + '%';
+  document.getElementById('fuelFill').style.width = t.fuel + '%';
+  document.getElementById('fuelNum').textContent = Math.round(t.fuel);
+  document.getElementById('hpFill').style.width = (t.hp / t.max * 100) + '%';
+  document.getElementById('hpNum').textContent = t.hp;
+  const mine = turn === me;
+  const chip = document.getElementById('turnChip');
+  chip.textContent = phase === 'over' ? '게임 끝' : mine ? '내 차례' : '연습 상대 차례';
+  chip.classList.toggle('mine', mine && phase !== 'over');
+  document.getElementById('timer').textContent = mine && phase === 'aim' ? Math.ceil(Math.max(0, timeLeft)) : '–';
+  document.getElementById('order').innerHTML = `턴 ${turnNo} · 다음 순서 <span>${mine ? '연습 상대' : '포탄왕'}</span><span>${mine ? '포탄왕' : '연습 상대'}</span>`;
+  const ssOn = me.hp <= me.max / 2, ssBtn = document.querySelector('[data-w="ss"]');
+  if (ssBtn && ssBtn.disabled === ssOn) renderWeapons();
+}
+
+function draw() {
+  ctx.drawImage(bg, 0, 0);
+  ctx.drawImage(tc, 0, 0);
+  // 바람
+  ctx.save();
+  ctx.fillStyle = 'rgba(31,45,82,.85)'; roundRect(ctx, W / 2 - 90, 12, 180, 34, 17); ctx.fill();
+  ctx.fillStyle = '#f4efe1'; ctx.font = '600 15px "Noto Sans KR", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  const arrows = wind === 0 ? '·' : (wind < 0 ? '◀'.repeat(Math.ceil(-wind / 3)) : '▶'.repeat(Math.ceil(wind / 3)));
+  ctx.fillText(`바람 ${arrows} ${Math.abs(wind)}`, W / 2, 30);
+  ctx.restore();
+  // 탱크
+  tanks.forEach(t => { if (!t.dead) drawTank(t); });
+  // 포탄
+  shells.forEach(s => {
+    ctx.strokeStyle = 'rgba(58,38,0,.35)'; ctx.lineWidth = 2; ctx.beginPath();
+    s.trail.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); ctx.stroke();
+    ctx.fillStyle = '#2a2f3d'; ctx.beginPath(); ctx.arc(s.x, s.y, 5, 0, 7); ctx.fill();
+    if (s.y < 0) { ctx.fillStyle = '#c92a2a'; ctx.beginPath(); ctx.moveTo(s.x, 4); ctx.lineTo(s.x - 6, 14); ctx.lineTo(s.x + 6, 14); ctx.fill(); }
+  });
+  parts.forEach(p => { ctx.globalAlpha = Math.max(0, p.life); ctx.fillStyle = p.c; ctx.fillRect(p.x - 2, p.y - 2, 4, 4); });
+  ctx.globalAlpha = 1;
+  floats.forEach(f => { ctx.globalAlpha = Math.min(1, f.life); ctx.fillStyle = f.c; ctx.font = '22px Jua, sans-serif'; ctx.textAlign = 'center'; ctx.fillText(f.s, f.x, f.y); });
+  ctx.globalAlpha = 1;
+}
+function drawTank(t) {
+  const active = turn === t && phase !== 'over';
+  // 포신
+  const a = t.angle * Math.PI / 180, px = t.x, py = t.y - 19;
+  ctx.strokeStyle = '#2a2f3d'; ctx.lineWidth = t.kind === 'hammer' ? 7 : 5; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(px + Math.cos(a) * 22 * t.facing, py - Math.sin(a) * 22); ctx.stroke();
+  if (active && t === me && phase === 'aim') {
+    ctx.setLineDash([3, 6]); ctx.strokeStyle = 'rgba(42,47,61,.5)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(px + Math.cos(a) * 26 * t.facing, py - Math.sin(a) * 26); ctx.lineTo(px + Math.cos(a) * 70 * t.facing, py - Math.sin(a) * 70); ctx.stroke(); ctx.setLineDash([]);
+  }
+  // 몸체
+  const img = tankImg(t.kind, t.color);
+  ctx.save(); ctx.translate(t.x, t.y - 34); if (t.facing < 0) ctx.scale(-1, 1);
+  if (img.complete && img.naturalWidth) ctx.drawImage(img, -24, 0, 48, 36); else { ctx.fillStyle = t.color; ctx.fillRect(-18, 14, 36, 20); }
+  ctx.restore();
+  if (t.shield) { ctx.strokeStyle = 'rgba(85,174,240,.8)'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(t.x, t.y - 16, 30, 0, 7); ctx.stroke(); }
+  // 이름 + 체력
+  ctx.textAlign = 'center'; ctx.font = '600 12px "Noto Sans KR", sans-serif';
+  ctx.fillStyle = t.team === 'red' ? '#b8321f' : '#1f6fae'; ctx.fillText(t.name, t.x, t.y - 54);
+  ctx.fillStyle = 'rgba(31,45,82,.6)'; ctx.fillRect(t.x - 22, t.y - 48, 44, 6);
+  ctx.fillStyle = t.hp / t.max > .5 ? '#3fae4a' : t.hp / t.max > .25 ? '#f0a020' : '#d63c3c';
+  ctx.fillRect(t.x - 22, t.y - 48, 44 * t.hp / t.max, 6);
+  if (active) { ctx.fillStyle = '#ffb703'; ctx.beginPath(); ctx.moveTo(t.x, t.y - 62 - 8); ctx.lineTo(t.x - 7, t.y - 80); ctx.lineTo(t.x + 7, t.y - 80); ctx.fill(); }
+}
+function roundRect(c, x, y, w, h, r) { c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); }
+
+/* 입력 */
+const canAct = () => current === 'game' && phase === 'aim';
+function startCharge() { if (canAct() && !charging) { charging = true; power = 0; } }
+function release() { if (charging && canAct()) { charging = false; fire(me, me.data[weapon], Math.max(1, power)); } }
+addEventListener('keydown', e => {
+  if (current !== 'game' || e.target.matches('input, select')) return;
+  const k = { ArrowLeft:'left', ArrowRight:'right', ArrowUp:'up', ArrowDown:'down' }[e.key];
+  if (k) { keys[k] = true; e.preventDefault(); }
+  if (e.code === 'Space') { e.preventDefault(); if (!e.repeat) startCharge(); }
+  if (e.key === '1') { weapon = 'w1'; renderWeapons(); }
+  if (e.key === '2') { weapon = 'w2'; renderWeapons(); }
+  if (e.key === '3' && me.hp <= me.max / 2) { weapon = 'ss'; renderWeapons(); }
+});
+addEventListener('keyup', e => {
+  const k = { ArrowLeft:'left', ArrowRight:'right', ArrowUp:'up', ArrowDown:'down' }[e.key];
+  if (k) keys[k] = false;
+  if (e.code === 'Space') { e.preventDefault(); release(); }
+});
+document.querySelectorAll('[data-hold]').forEach(b => {
+  const k = b.dataset.hold;
+  b.addEventListener('pointerdown', e => { e.preventDefault(); keys[k] = true; b.setPointerCapture(e.pointerId); });
+  ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(ev => b.addEventListener(ev, () => keys[k] = false));
+});
+const fb = document.getElementById('fireBtn');
+fb.addEventListener('pointerdown', e => { e.preventDefault(); fb.setPointerCapture(e.pointerId); startCharge(); });
+fb.addEventListener('pointerup', release);
+fb.addEventListener('pointercancel', release);
+
+/* 시작 */
+renderSlots(); renderPicker(); route(); resetGame(); hud(); draw();
+requestAnimationFrame(loop);
+</script>
