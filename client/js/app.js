@@ -1,4 +1,5 @@
 // 포탄대결 클라이언트: 로그인 → 로비 → 대기방. 그림은 /art/art.js(전역)를 쓴다.
+import { createBattle } from './battle.js';
 import { TANK_IDS, TANK_NAMES, MAP_IDS, MAP_NAMES, ITEM_SIZES, BAG_CELLS, bagSize, RULES, checkNickname } from '/shared/gamedata.js';
 
 const $ = id => document.getElementById(id);
@@ -59,6 +60,9 @@ $('logoutBtn').onclick = () => { store.set('sc_token', null); state.token = null
   [['hammer', 160, 412, .9, 1], ['mole', 300, 400, .8, 1], ['cloud', 930, 420, .8, -1], ['bee', 1010, 432, .75, -1]].forEach(([id, x, y, s, f]) => renderTank(c, 1100, 520, tankById(id), 'idle', 1, x, y, s, { flip: f }));
 })();
 
+/* ---------- 전투 ---------- */
+const battle = createBattle({ socket: () => state.socket, me: () => state.user?.id, toast, onExit: () => { if (state.room) { renderRoom(); show('room'); } else show('lobby'); } });
+
 /* ---------- 연결 ---------- */
 function connect() {
   state.socket?.disconnect();
@@ -76,8 +80,8 @@ function connect() {
   s.on('room:state', room => { const first = !state.room || state.room.id !== room.id; state.room = room; if (first) $('roomLog').innerHTML = ''; if (!state.user) return; renderRoom(); if (!$('s-lobby').hidden || !$('s-login').hidden) show(room.status === 'playing' ? 'game' : 'room'); });
   s.on('room:chat', m => logLine($('roomLog'), m));
   s.on('room:kicked', ({ reason }) => { state.room = null; show('lobby'); toast(reason, true); });
-  s.on('game:start', setup => { const me = setup.players.find(p => p.userId === state.user.id); $('gameTitle').textContent = `${MAP_NAMES[setup.mapId]}에서 게임 시작!`; $('gameInfo').textContent = `${setup.players.length}명 · ${setup.mode === 'team' ? '팀전' : '개인전'} · 내 탱크: ${TANK_NAMES[me?.tankId] || '-'}`; $('finishBtn').hidden = state.room?.hostId !== state.user.id; show('game'); });
-  s.on('game:end', () => show('room'));
+  Object.entries(battle.on).forEach(([ev, fn]) => s.on(ev, d => { if (ev === 'game:start' || ev === 'game:state') show('game'); fn(d); }));
+  s.on('stats', st => { state.stats = st; renderMe(); });
 }
 
 /* ---------- 로비 ---------- */
@@ -155,7 +159,6 @@ function renderRoom() {
 }
 $('readyBtn').onclick = () => isHost() ? act('room:start') : act('room:ready', { ready: !meSlot()?.ready });
 $('leaveBtn').onclick = async () => { await act('room:leave'); state.room = null; show('lobby'); };
-$('finishBtn').onclick = () => act('game:finish');
 [['setMap', 'mapId'], ['setMode', 'mode'], ['setTurn', 'turnSeconds']].forEach(([id, key]) => $(id).addEventListener('change', e => act('room:settings', { [key]: key === 'turnSeconds' ? +e.target.value : e.target.value })));
 $('setTitle').addEventListener('change', e => act('room:settings', { title: e.target.value }));
 $('setPw').addEventListener('change', e => { act('room:settings', { password: e.target.value }, e.target.value ? '비밀번호를 걸었어요.' : '비밀번호를 풀었어요.'); e.target.value = ''; });

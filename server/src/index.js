@@ -8,6 +8,8 @@ import { Server } from 'socket.io';
 import { openDb } from './db.js';
 import { makeAuth, loadSecret, AuthError } from './auth.js';
 import { RoomManager, RoomError } from './rooms.js';
+import { GameSession } from './game.js';
+import { DT } from '../../shared/sim/world.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 
@@ -15,6 +17,13 @@ export function createServer({ port = 3000, dataDir = path.join(ROOT, 'server', 
   const db = openDb(dbFile || path.join(dataDir, 'shellclash.db'));
   const auth = makeAuth(db, loadSecret(dataDir));
   const rooms = new RoomManager();
+  const games = new Map(); // roomId -> GameSession
+  let lastTick = Date.now(), acc = 0;
+  const ticker = setInterval(() => {
+    const now = Date.now(); acc = Math.min(acc + (now - lastTick) / 1000, .25); lastTick = now;
+    while (acc >= DT) { acc -= DT; for (const g of games.values()) { try { g.tick(DT); } catch (e) { console.error('game tick', e); } } }
+  }, 1000 / 60);
+  ticker.unref();
   const app = express();
   app.disable('x-powered-by');
   app.use(express.json({ limit: '16kb' }));
@@ -76,7 +85,7 @@ export function createServer({ port = 3000, dataDir = path.join(ROOT, 'server', 
     if (away.has(user.id)) { clearTimeout(away.get(user.id)); away.delete(user.id); }
     if (prev) { prev.socket.emit('session:kicked', { reason: '다른 곳에서 같은 아이디로 접속했어요.' }); prev.socket.disconnect(true); }
     socket.emit('hello', { user, stats: db.getStats(user.id) });
-    const r0 = rooms.roomOf(user.id); if (r0) { socket.join(`room:${r0.id}`); socket.emit('room:state', rooms.view(r0)); }
+    const r0 = rooms.roomOf(user.id); if (r0) { socket.join(`room:${r0.id}`); socket.emit('room:state', rooms.view(r0)); const g = games.get(r0.id); if (g && g.phase !== 'over') socket.emit('game:state', g.fullState(user.id)); }
     pushLobby();
 
     // 활동 기록: 무엇이든 하면 1시간 타이머를 다시 시작하고, 5분마다 새 토큰을 준다
@@ -97,6 +106,7 @@ export function createServer({ port = 3000, dataDir = path.join(ROOT, 'server', 
     });
     const enter = room => { socket.join(`room:${room.id}`); pushRoom(room); pushLobby(); return { room: rooms.view(room) }; };
     const leaveRoom = () => {
+      const r = rooms.roomOf(user.id); if (r && games.has(r.id)) games.get(r.id).playerLeft(user.id);
       const res = rooms.leave(user.id); if (!res) return;
       socket.leave(`room:${res.room.id}`);
       if (!res.deleted) { system(res.room.id, `${user.nickname} 님이 나갔어요.`); pushRoom(res.room); }
@@ -127,14 +137,27 @@ export function createServer({ port = 3000, dataDir = path.join(ROOT, 'server', 
     });
     handle('room:start', () => {
       const { room, setup } = rooms.start(user.id);
-      io.to(`room:${room.id}`).emit('game:start', setup);
+      const key = `room:${room.id}`;
+      const g = new GameSession(setup, {
+        send: (ev, data) => io.to(key).emit(ev, data),
+        onOver: ({ winnerTeam, results, mapId, mode }) => {
+          try { db.recordMatch(mapId, mode, winnerTeam, results.map(r => ({ userId: r.uid, win: r.win, kills: r.kills, damage: r.dealt }))); } catch (e) { console.error('기록 실패', e); }
+          setTimeout(() => { if (games.get(room.id) === g) games.delete(room.id); }, 2000).unref?.();
+          rooms.finish(room.id); pushRoom(room); pushLobby();
+          for (const r of results) { const o = online.get(r.uid); if (o) o.socket.emit('stats', db.getStats(r.uid)); }
+        },
+      });
+      games.set(room.id, g);
+      io.to(key).emit('game:start', g.startInfo());
       system(room.id, '게임을 시작합니다!'); pushRoom(room); pushLobby();
     });
-    // 전투는 3단계에서 서버 판정으로 붙는다. 지금은 방장이 끝내면 대기방으로 돌아간다.
-    handle('game:finish', () => {
-      const room = rooms.roomOf(user.id); if (!room || room.hostId !== user.id) throw new RoomError('방장만 끝낼 수 있어요.');
-      rooms.finish(room.id); io.to(`room:${room.id}`).emit('game:end', { roomId: room.id }); pushRoom(room); pushLobby();
-    });
+    const game = () => { const r = rooms.roomOf(user.id); const g = r && games.get(r.id); if (!g || g.phase === 'over') throw new RoomError('진행 중인 게임이 없어요.'); return g; };
+    const gameErr = fn => p => { try { return fn(p); } catch (e) { if (e instanceof RoomError) throw e; throw new RoomError(e.message); } };
+    handle('game:state', () => ({ state: game().fullState(user.id) }));
+    handle('game:move', gameErr(({ dir }) => { game().onMove(user.id, dir); }));
+    handle('game:aim', gameErr(({ angle }) => { game().onAim(user.id, angle); }));
+    handle('game:fire', gameErr(({ slot, power }) => { game().onFire(user.id, slot, power); }));
+    handle('game:item', gameErr(({ index }) => { game().onItem(user.id, index); }));
 
     socket.on('disconnect', () => {
       if (online.get(user.id)?.socket === socket) {
@@ -146,9 +169,9 @@ export function createServer({ port = 3000, dataDir = path.join(ROOT, 'server', 
   });
 
   return {
-    app, server, io, db, rooms,
+    app, server, io, db, rooms, games,
     listen: () => new Promise(res => server.listen(port, () => res(server.address().port))),
-    close: () => new Promise(res => { away.forEach(t => clearTimeout(t)); server.closeAllConnections?.(); io.close(() => { db.close(); res(); }); }),
+    close: () => new Promise(res => { clearInterval(ticker); away.forEach(t => clearTimeout(t)); server.closeAllConnections?.(); io.close(() => { db.close(); res(); }); }),
   };
 }
 

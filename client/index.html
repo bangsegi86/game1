@@ -103,14 +103,52 @@
     </div>
   </section>
 
-  <!-- 게임 (3단계에서 전투 연결) -->
-  <section class="screen" id="s-game" hidden>
-    <div class="panel game-wait">
-      <h2 id="gameTitle">게임 시작!</h2>
-      <p id="gameInfo" style="color:var(--muted);margin:0"></p>
-      <p class="keys">전투 화면은 3단계에서 서버 판정과 함께 연결됩니다. 지금은 시작 처리와 탱크 배정까지 동작해요.</p>
-      <button class="btn primary" id="finishBtn">방으로 돌아가기 (방장)</button>
+  <!-- 전투 -->
+  <section class="screen game" id="s-game" hidden>
+    <div class="game-top">
+      <span class="turn-chip" id="turnChip">준비 중</span>
+      <div class="order" id="order"></div>
+      <div class="timer num" id="timer">–</div>
     </div>
+    <div class="field-wrap">
+      <canvas id="field" aria-label="전장"></canvas>
+      <div class="overlay" id="resultBox" hidden>
+        <div class="box" style="min-width:min(560px,100%)">
+          <h3 id="resultTitle">승리!</h3>
+          <p id="resultSub" style="margin:0;color:var(--muted)"></p>
+          <div class="table-wrap"><table class="num"><thead><tr><th>팀</th><th>닉네임</th><th>탱크</th><th>킬</th><th>준 피해</th><th>결과</th></tr></thead><tbody id="resultRows"></tbody></table></div>
+          <div class="row" style="justify-content:center"><button class="btn primary" id="toRoomBtn">방으로 돌아가기</button></div>
+        </div>
+      </div>
+    </div>
+    <div class="panel hud">
+      <div class="dial">
+        <svg viewBox="0 0 112 64" aria-hidden="true">
+          <path d="M8 58 A48 48 0 0 1 104 58" fill="none" stroke="#45598e" stroke-width="8" stroke-linecap="round"/>
+          <path id="dialRange" d="" fill="none" stroke="#7fd06c" stroke-opacity=".5" stroke-width="8" stroke-linecap="round"/>
+          <line id="needle" x1="56" y1="58" x2="100" y2="58" stroke="#ffb703" stroke-width="3" stroke-linecap="round"/>
+          <circle cx="56" cy="58" r="5" fill="#f4efe1"/>
+        </svg>
+        <div><div class="deg num" id="deg">45°</div><div class="keys" id="degRange"></div></div>
+      </div>
+      <div class="gauges">
+        <div class="gauge-row"><span>파워</span><div class="gauge"><div class="fill" id="powFill"></div><div class="ticks"></div><div class="last" id="powLast"></div></div><span class="num" id="powNum">0</span></div>
+        <div class="gauge-row"><span>연료</span><div class="gauge fuel"><div class="fill" id="fuelFill"></div></div><span class="num" id="fuelNum">100</span></div>
+        <div class="gauge-row"><span>체력</span><div class="gauge fuel"><div class="fill" id="hpFill" style="background:var(--red)"></div></div><span class="num" id="hpNum">0</span></div>
+      </div>
+      <div class="weapons" id="weapons"></div>
+    </div>
+    <div class="game-bottom">
+      <div class="itembar" id="gameItems"></div>
+      <div class="pad" aria-label="터치 조작">
+        <button data-hold="left" aria-label="왼쪽 이동">◀</button>
+        <button data-hold="right" aria-label="오른쪽 이동">▶</button>
+        <button data-hold="up" aria-label="각도 올리기">▲</button>
+        <button data-hold="down" aria-label="각도 내리기">▼</button>
+        <button class="fire" id="fireBtn">눌러서 발사</button>
+      </div>
+    </div>
+    <p class="keys"><kbd>←</kbd><kbd>→</kbd> 이동 · <kbd>↑</kbd><kbd>↓</kbd> 각도 · <kbd>Space</kbd> 누르고 있다가 떼면 발사 · <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> 포탄 · <kbd>Q</kbd>~<kbd>Y</kbd> 아이템(턴당 1개) · 가운데 위 나침반이 바람</p>
   </section>
 </main>
 

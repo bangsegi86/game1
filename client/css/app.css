@@ -140,7 +140,7 @@ tbody tr:hover { background: var(--panel-2); }
 .order span { padding: 2px 8px; border-radius: 6px; background: var(--panel); }
 .timer { margin-left: auto; font-family: var(--font-display); font-size: 22px; }
 .field-wrap { position: relative; border-radius: 12px; overflow: hidden; border: 1px solid var(--line); background: var(--sky); }
-#field { display: block; width: 100%; height: auto; aspect-ratio: 2 / 1; max-width: 100%; touch-action: none; }
+#field { display: block; width: 100%; height: auto; aspect-ratio: 2 / 1; max-width: 100%; touch-action: none; background: #1f2d52; }
 .overlay { position: absolute; inset: 0; display: grid; place-items: center; background: color-mix(in srgb, var(--sky) 70%, transparent); }
 .overlay .box { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 24px; text-align: center; display: grid; gap: 12px; }
 .overlay h3 { font-size: 40px; color: var(--amber); }
@@ -219,3 +219,10 @@ tbody tr.clickable { cursor: pointer; }
 .conn .dot.off { background: var(--bad); box-shadow: none; }
 .me-mini { display: flex; gap: 8px; align-items: center; font-weight: 700; }
 .game-wait { display: grid; place-items: center; text-align: center; gap: 12px; min-height: 340px; }
+
+.order span.cur { background: var(--amber); color: var(--amber-ink); }
+.order span.dead { text-decoration: line-through; opacity: .5; }
+.game .itembar .item:disabled { opacity: .4; cursor: not-allowed; }
+.game .itembar .item:not(:disabled) { border-color: var(--amber); cursor: pointer; }
+.game .itembar .item.used { opacity: .3; }
+td.win { color: var(--good); font-weight: 700; } td.lose { color: var(--muted); }

@@ -54,11 +54,24 @@ test('로비 채팅, 방 만들기·입장·준비·시작, 중복 접속', asyn
   assert.ok((await emit(sb, 'room:update', { tankId: 'laser', items: ['teleport', 'repair', 'shield', 'calm'] })).ok);
   assert.equal((await emit(sa, 'room:start')).ok, false, '준비 전에는 시작 불가');
   assert.ok((await emit(sb, 'room:ready', { ready: true })).ok);
-  const started = once(sb, 'game:start');
+  const started = once(sb, 'game:start'), firstTurn = once(sb, 'game:turn');
   assert.ok((await emit(sa, 'room:start')).ok);
   const setup = await started;
   assert.equal(setup.mapId, 'valley'); assert.equal(setup.players.find(p => p.nickname === '각도장인').tankId, 'laser');
-  assert.ok((await emit(sa, 'game:finish')).ok);
+  assert.ok(setup.players.every(p => typeof p.x === 'number'), '시작 위치가 정해진다');
+  const turn = await firstTurn;
+  const [cur, other] = turn.uid === a.user.id ? [sa, sb] : [sb, sa];
+  assert.equal((await emit(other, 'game:fire', { slot: 0, power: 50 })).ok, false, '차례가 아니면 못 쏜다');
+  const shot = once(other, 'game:shot');
+  assert.ok((await emit(cur, 'game:fire', { slot: 0, power: 60 })).ok);
+  assert.equal((await shot).slot, 0);
+  const st = await emit(other, 'game:state'); assert.ok(st.ok && st.state.start.players.length === 2, '진행 중 상태를 다시 받을 수 있다');
+  const over = once(sa, 'game:over');
+  await emit(sb, 'room:leave');
+  const res = await over; assert.ok(res.results.find(r => r.nickname === '포탄왕').win, '상대가 나가면 남은 쪽이 이긴다');
+  await new Promise(r => setTimeout(r, 100));
+  const me = await fetch(base + '/api/me', { headers: { authorization: 'Bearer ' + a.token } }).then(x => x.json());
+  assert.equal(me.stats.games, 1); assert.equal(me.stats.wins, 1);
 
   const kicked = once(sa, 'session:kicked');
   const sa2 = await sock(a.token);
