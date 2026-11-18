@@ -40,7 +40,7 @@ export class GameSession {
     if (this.phase === 'aim') {
       const t = sim.tankOf(this.cur.uid);
       if (t.dead) return this.endTurn();
-      if (this.dirty && this.now() - this.lastPos > 50) { this.lastPos = this.now(); this.dirty = false; this.send('game:pos', { uid: t.uid, x: t.x, y: t.y, facing: t.facing, fuel: t.fuel, angle: t.angle, moving: !!this.moveDir }); }
+      if (this.dirty && this.now() - this.lastPos > 50) { this.lastPos = this.now(); this.dirty = false; this.send('game:pos', { uid: t.uid, x: t.x, y: t.y, facing: t.facing, fuel: t.fuel, angle: t.angle, tilt: t.tilt, moving: !!this.moveDir }); }
       if (this.now() > this.deadline) { this.send('game:timeout', { uid: t.uid }); t.delay += TURN_BASE_DELAY + this.turnState.itemDelay + Math.round(this.moveUsed); this.endTurn(); }
     } else if (this.phase === 'resolve') {
       if (!sim.busy()) { this.phase = 'between'; this.wait = .5; }
@@ -83,7 +83,7 @@ export class GameSession {
   onMove(uid, dir) { if (!this.isTurn(uid)) return; this.moveDir = [-1, 0, 1].includes(dir) ? dir : 0; if (!this.moveDir) this.dirty = true; }
   onAim(uid, angle) {
     if (!this.isTurn(uid)) return; const t = this.sim.tankOf(uid); if (typeof angle !== 'number' || !isFinite(angle)) return;
-    t.angle = Math.round(Math.max(t.S.amin, Math.min(t.S.amax, angle))); this.dirty = true;
+    t.angle = Math.round(angle); this.sim.clampAngle(t); this.dirty = true;
   }
   onItem(uid, index) {
     if (!this.isTurn(uid)) throw new Error('지금은 내 차례가 아니에요.');

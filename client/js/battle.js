@@ -2,6 +2,7 @@
 import { Sim, DT, opsHash } from '../../shared/sim/world.js';
 import { SHELL_STATS, TANK_NAMES, ITEM_INFO } from '../../shared/gamedata.js';
 import { Renderer } from './render.js';
+import { play, setMuted, isMuted } from './sound.js';
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -10,7 +11,7 @@ const W = 960, H = 480;
 export function createBattle({ socket, me, toast, onExit }) {
   const cv = $('field'); cv.width = W * DPR; cv.height = H * DPR; const ctx = cv.getContext('2d');
   let sim = null, ren = null, start = null, bag = [], ssUsed = false, turn = null, deadline = 0, phase = 'idle', order = [];
-  let flags = {}, weapon = 0, power = 0, charging = false, turnItemUsed = false, keys = {}, sentDir = 0, lastAimSent = 0, aimDirty = false, acc = 0, last = 0, running = false;
+  let lastTick = 0, flags = {}, weapon = 0, power = 0, charging = false, turnItemUsed = false, keys = {}, sentDir = 0, lastAimSent = 0, aimDirty = false, acc = 0, last = 0, running = false;
   const myTank = () => sim?.tankOf(me());
   const mine = () => phase === 'aim' && turn?.uid === me();
 
@@ -20,6 +21,14 @@ export function createBattle({ socket, me, toast, onExit }) {
     const mp = s.players.find(p => p.uid === me());
     bag = (mp?.items || []).map(id => ({ id, used: false })); ssUsed = false; weapon = 0; power = 0; charging = false;
     ren = new Renderer(sim, { me: me() });
+    ren.onFx = f => {
+      if (f.type === 'fire') play('fire');
+      else if (f.type === 'boom') play(f.kind === 'electric' || f.kind === 'beam' ? 'zap' : 'boom', (f.R || 24) > 34);
+      else if (f.type === 'float' && /^[^+]*-\d/.test(f.text)) play('hit');
+      else if (f.type === 'splash') play('splash');
+      else if (f.type === 'banner') play('banner');
+      else if (f.type === 'item') play('item');
+    };
     phase = 'wait'; turn = null; order = [];
     $('resultBox').hidden = true;
     renderWeapons(); renderItems();
@@ -47,15 +56,15 @@ export function createBattle({ socket, me, toast, onExit }) {
       sim.restore(d.snapshot);
       turn = { uid: d.uid, turnNo: d.turnNo }; deadline = performance.now() + d.seconds * 1000; order = d.order;
       phase = 'aim'; power = 0; charging = false; turnItemUsed = false; sentDir = 0;
-      if (d.uid === me()) { flags = { ...(d.flags || {}) }; const f = Object.keys(flags).map(k => ITEM_INFO[k].n); toast(f.length ? `내 차례예요! 걸려 있는 효과: ${f.join(', ')}` : '내 차례예요!'); if (weapon === 2 && !ssReady()) weapon = 0; }
+      if (d.uid === me()) { play('turn'); flags = { ...(d.flags || {}) }; const f = Object.keys(flags).map(k => ITEM_INFO[k].n); toast(f.length ? `내 차례예요! 걸려 있는 효과: ${f.join(', ')}` : '내 차례예요!'); if (weapon === 2 && !ssReady()) weapon = 0; }
       renderWeapons(); renderItems();
     },
-    'game:pos': d => { const t = sim?.tankOf(d.uid); if (!t) return; t.x = d.x; t.y = d.y; t.facing = d.facing; t.fuel = d.fuel; t.movingVis = d.moving; if (d.uid !== me() || !mine()) t.angle = d.angle; },
+    'game:pos': d => { const t = sim?.tankOf(d.uid); if (!t) return; t.x = d.x; t.y = d.y; t.facing = d.facing; t.fuel = d.fuel; t.movingVis = d.moving; if (d.tilt != null) t.tilt = d.tilt; if (d.uid !== me() || !mine()) t.angle = d.angle; else sim.clampAngle(t); },
     'game:item': d => {
       if (!sim) return; const t = sim.tankOf(d.uid);
       if (['double', 'power', 'teleport'].includes(d.id)) sim.float(t.x, t.y - 84, itemById(d.id).n, '#3a2600'); else sim.useItem(t, d.id);
       sim.restore(d.snapshot);
-      if (d.uid === me()) { bag[d.index].used = true; flags = { ...(d.flags || {}) }; } turnItemUsed = true; renderItems();
+      if (d.uid === me()) { bag[d.index].used = true; flags = { ...(d.flags || {}) }; } turnItemUsed = true; renderItems(); play('item');
     },
     'game:shot': d => {
       if (!sim) return; sim.restore(d.snapshot); const t = sim.tankOf(d.uid); t.angle = d.angle; t.movingVis = false;
@@ -72,7 +81,8 @@ export function createBattle({ socket, me, toast, onExit }) {
     'game:pass': d => { const t = sim?.tankOf(d.uid); if (t) sim.float(t.x, t.y - 70, '턴 넘김', '#3a2600'); phase = 'wait'; },
     'game:timeout': d => { if (d.uid === me()) toast('시간이 다 돼서 차례가 넘어갔어요.', true); phase = 'wait'; },
     'game:left': d => { const t = sim?.tankOf(d.uid); if (t) { t.left = true; t.dead = true; sim.float(t.x, t.y - 60, '나감', '#3a2600'); } },
-    'game:over': d => { phase = 'over'; turn = null; setTimeout(() => showResult(d), 1400); },
+    'game:over': d => { phase = 'over'; turn = null; setTimeout(() => { showResult(d); play(d.results.find(r => r.uid === me())?.win ? 'win' : 'lose'); }, 1400); },
+    'room:chat': m => { const box = $('gameLog'); if (!box) return; const div = document.createElement('div'); if (m.system) { div.className = 'sys'; div.textContent = m.text; } else { const b = document.createElement('b'); b.textContent = m.from; div.append(b, ' ' + m.text); } box.append(div); while (box.children.length > 60) box.firstChild.remove(); box.scrollTop = box.scrollHeight; },
   };
   function showResult(d) {
     const meRes = d.results.find(r => r.uid === me());
@@ -103,10 +113,12 @@ export function createBattle({ socket, me, toast, onExit }) {
   function useItem(i) { if (!mine() || turnItemUsed || bag[i]?.used) return; socket().emit('game:item', { index: i }, r => { if (r && !r.ok) toast(r.error, true); }); }
   function hud() {
     const t = myTank(); if (!t) return;
-    $('deg').textContent = t.angle + '°'; $('degRange').textContent = `허용 ${t.S.amin}~${t.S.amax}°`;
-    const a = t.angle * Math.PI / 180; $('needle').setAttribute('x2', 56 + 44 * Math.cos(a)); $('needle').setAttribute('y2', 58 - 44 * Math.sin(a));
-    const arc = d => [56 + 48 * Math.cos(d * Math.PI / 180), 58 - 48 * Math.sin(d * Math.PI / 180)], [x1, y1] = arc(t.S.amin), [x2, y2] = arc(t.S.amax);
-    $('dialRange').setAttribute('d', `M${x2} ${y2} A48 48 0 0 1 ${x1} ${y1}`);
+    const [lo, hi] = sim.angleRange(t);
+    $('deg').textContent = t.angle + '°'; $('degRange').textContent = `지금 ${lo}~${hi}°` + (t.tilt ? ` (기울기 ${t.tilt > 0 ? '앞으로' : '뒤로'} ${Math.abs(t.tilt)}°)` : '');
+    const a = t.angle * Math.PI / 180; $('needle').setAttribute('x2', 56 + 40 * Math.cos(a)); $('needle').setAttribute('y2', 52 - 40 * Math.sin(a));
+    const arc = d => [56 + 44 * Math.cos(d * Math.PI / 180), 52 - 44 * Math.sin(d * Math.PI / 180)], [x1, y1] = arc(lo), [x2, y2] = arc(hi);
+    $('dialRange').setAttribute('d', `M${x2} ${y2} A44 44 0 ${hi - lo > 180 ? 1 : 0} 0 ${x1} ${y1}`);
+    $('dialG').setAttribute('transform', t.facing < 0 ? 'translate(112 0) scale(-1 1)' : '');
     $('powFill').style.width = power + '%'; $('powNum').textContent = Math.round(power);
     $('powLast').hidden = t.lastPower == null; $('powLast').style.left = (t.lastPower || 0) + '%';
     $('fuelFill').style.width = Math.min(100, t.fuel) + '%'; $('fuelNum').textContent = Math.round(t.fuel);
@@ -114,7 +126,9 @@ export function createBattle({ socket, me, toast, onExit }) {
     const cur = turn && sim.tankOf(turn.uid), chip = $('turnChip');
     chip.textContent = phase === 'over' ? '게임 끝' : !cur ? '준비 중' : cur.uid === me() ? '내 차례' : `${cur.name} 차례`;
     chip.classList.toggle('mine', mine());
-    $('timer').textContent = phase === 'aim' ? Math.max(0, Math.ceil((deadline - performance.now()) / 1000)) : '–';
+    const left = Math.max(0, Math.ceil((deadline - performance.now()) / 1000));
+    $('timer').textContent = phase === 'aim' ? left : '–';
+    if (mine() && left <= 5 && left > 0 && left !== lastTick) { lastTick = left; play('tick'); }
     const names = order.map(uid => sim.tankOf(uid)).filter(Boolean);
     $('order').innerHTML = `${sim.map.n} · 턴 ${turn?.turnNo || 0} · 순서 ` + names.map(x => `<span class="${x.uid === turn?.uid ? 'cur' : ''}">${esc(x.name)}</span>`).join('');
     const fl = Object.keys(flags).map(k => ITEM_INFO[k].n); $('flags').textContent = fl.length ? '대기 중 효과: ' + fl.join(' + ') : ''; $('flags').hidden = !fl.length;
@@ -131,14 +145,14 @@ export function createBattle({ socket, me, toast, onExit }) {
       if (mine()) {
         const t = myTank(), dir = keys.left ? -1 : keys.right ? 1 : 0;
         if (dir !== sentDir) { sentDir = dir; socket().emit('game:move', { dir }); }
-        if (keys.up || keys.down) { t.aimAcc = (t.aimAcc || 0) + 30 * dt; while (t.aimAcc >= 1) { t.aimAcc--; t.angle = Math.max(t.S.amin, Math.min(t.S.amax, t.angle + (keys.up ? 1 : -1))); aimDirty = true; } }
+        if (keys.up || keys.down) { t.aimAcc = (t.aimAcc || 0) + 30 * dt; while (t.aimAcc >= 1) { t.aimAcc--; t.angle += keys.up ? 1 : -1; sim.clampAngle(t); aimDirty = true; } }
         if (aimDirty && now - lastAimSent > 80) { aimDirty = false; lastAimSent = now; socket().emit('game:aim', { angle: t.angle }); }
         if (charging) power = Math.min(100, power + 55 * dt);
       }
       ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
       ren.draw(ctx, { active: phase !== 'over' ? turn?.uid : null });
       ren.drawWind(ctx, W / 2, 40);
-      if (mine()) { const t = myTank(), a = t.angle * Math.PI / 180, [mx, my] = sim.muzzle(t); ctx.setLineDash([3, 6]); ctx.strokeStyle = 'rgba(42,47,61,.55)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(mx, my); ctx.lineTo(mx + Math.cos(a) * 44 * t.facing, my - Math.sin(a) * 44); ctx.stroke(); ctx.setLineDash([]); }
+      if (mine() && !myTank().dead) ren.drawAimFan(ctx, myTank());
       hud();
     }
     requestAnimationFrame(loop);
@@ -148,6 +162,9 @@ export function createBattle({ socket, me, toast, onExit }) {
   const active = () => !$('s-game').hidden && sim;
   function pass() { if (!mine()) return; charging = false; socket().emit('game:pass', {}, r => { if (r && !r.ok) toast(r.error, true); }); }
   $('passBtn').onclick = pass;
+  const muteBtn = $('muteBtn'); const muteLabel = () => muteBtn.textContent = isMuted() ? '소리 켜기' : '소리 끄기'; muteLabel();
+  muteBtn.onclick = () => { setMuted(!isMuted()); muteLabel(); };
+  $('gameChat').addEventListener('submit', e => { e.preventDefault(); const i = $('gameMsg'); if (!i.value.trim()) { i.blur(); return; } socket().emit('room:chat', { text: i.value }, r => { if (r && !r.ok) toast(r.error, true); }); i.value = ''; i.blur(); });
   function startCharge() { if (mine() && !charging) { charging = true; power = 0; } }
   function release() {
     if (!charging) return; charging = false; if (!mine()) return;
@@ -157,6 +174,7 @@ export function createBattle({ socket, me, toast, onExit }) {
   const KEYMAP = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down' };
   addEventListener('keydown', e => {
     if (!active() || e.target.matches('input, select, textarea')) return;
+    if (e.key === 'Enter') { e.preventDefault(); keys = {}; $('gameMsg').focus(); return; }
     const k = KEYMAP[e.key]; if (k) { keys[k] = true; e.preventDefault(); }
     if (e.code === 'Space') { e.preventDefault(); if (!e.repeat) startCharge(); }
     if (e.key.toLowerCase() === 'p' && !e.repeat) pass();

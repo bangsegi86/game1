@@ -109,6 +109,7 @@
       <span class="turn-chip" id="turnChip">준비 중</span>
       <div class="order" id="order"></div>
       <span class="flagchip" id="flags" hidden></span>
+      <button class="btn" id="muteBtn" type="button">소리 끄기</button>
       <div class="timer num" id="timer">–</div>
     </div>
     <div class="field-wrap">
@@ -124,11 +125,14 @@
     </div>
     <div class="panel hud">
       <div class="dial">
-        <svg viewBox="0 0 112 64" aria-hidden="true">
-          <path d="M8 58 A48 48 0 0 1 104 58" fill="none" stroke="#45598e" stroke-width="8" stroke-linecap="round"/>
-          <path id="dialRange" d="" fill="none" stroke="#7fd06c" stroke-opacity=".5" stroke-width="8" stroke-linecap="round"/>
-          <line id="needle" x1="56" y1="58" x2="100" y2="58" stroke="#ffb703" stroke-width="3" stroke-linecap="round"/>
-          <circle cx="56" cy="58" r="5" fill="#f4efe1"/>
+        <svg viewBox="0 0 112 104" aria-hidden="true" style="height:96px">
+          <g id="dialG">
+          <circle cx="56" cy="52" r="44" fill="none" stroke="#45598e" stroke-width="7"/>
+          <line x1="8" y1="52" x2="104" y2="52" stroke="#45598e" stroke-width="1.5" stroke-dasharray="3 4"/>
+          <path id="dialRange" d="" fill="none" stroke="#7fd06c" stroke-opacity=".75" stroke-width="7" stroke-linecap="round"/>
+          <line id="needle" x1="56" y1="52" x2="96" y2="52" stroke="#ffb703" stroke-width="3" stroke-linecap="round"/>
+          <circle cx="56" cy="52" r="5" fill="#f4efe1"/>
+          </g>
         </svg>
         <div><div class="deg num" id="deg">45°</div><div class="keys" id="degRange"></div></div>
       </div>
@@ -150,7 +154,9 @@
         <button class="fire" id="fireBtn">눌러서 발사</button>
       </div>
     </div>
-    <p class="keys"><kbd>←</kbd><kbd>→</kbd> 이동 · <kbd>↑</kbd><kbd>↓</kbd> 각도 · <kbd>Space</kbd> 누르고 있다가 떼면 발사 · <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> 포탄 · <kbd>Q</kbd>~<kbd>Y</kbd> 아이템(턴당 1개, 파워업·더블·순간이동은 쏠 때까지 유지) · <kbd>P</kbd> 턴 넘기기 · 가운데 위 나침반이 바람</p>
+    <div class="panel chat game-chat"><div class="log" id="gameLog"></div>
+      <form class="row" id="gameChat"><label for="gameMsg" hidden>게임 채팅</label><input id="gameMsg" maxlength="200" placeholder="Enter를 누르고 채팅" autocomplete="off" style="flex:1;min-width:0"><button class="btn">전송</button></form></div>
+    <p class="keys"><kbd>←</kbd><kbd>→</kbd> 이동 · <kbd>↑</kbd><kbd>↓</kbd> 각도 · <kbd>Space</kbd> 누르고 있다가 떼면 발사 · <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> 포탄 · <kbd>Q</kbd>~<kbd>Y</kbd> 아이템(턴당 1개, 파워업·더블·순간이동은 쏠 때까지 유지) · <kbd>P</kbd> 턴 넘기기 · <kbd>Enter</kbd> 채팅 · 가운데 위 나침반이 바람</p>
   </section>
 </main>
 

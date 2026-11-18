@@ -59,10 +59,18 @@ export class Sim {
   addTank({ uid, tankId, x, facing = 1, team = 'solo', name = '' }) {
     const S = TANK_STATS[tankId];
     const t = { uid, tankId, S, name, team, x, y: 0, hp: S.hp, max: S.hp, angle: Math.min(Math.max(45, S.amin), S.amax), facing, fuel: 100, vx: 0, vy: 0, air: false, fallFrom: 0,
-      firedAt: -9, hitAt: -9, moving: false, shield: false, frozen: 0, canMove: true, dead: false, sunk: false, left: false, kills: 0, dealt: 0, lastHitBy: null, delay: 0 };
-    t.y = this.ground(x, 0); t.fallFrom = t.y; this.tanks.push(t); return t;
+      firedAt: -9, hitAt: -9, moving: false, shield: false, frozen: 0, canMove: true, dead: false, sunk: false, left: false, kills: 0, dealt: 0, lastHitBy: null, delay: 0, tilt: 0 };
+    t.y = this.ground(x, 0); t.fallFrom = t.y; t.tilt = this.slope(t); this.clampAngle(t); this.tanks.push(t); return t;
   }
   tankOf(uid) { return this.tanks.find(t => t.uid === uid); }
+  // 기울기(도): 탱크 앞쪽이 내려가면 +. 각도 범위는 몸체를 따라 돌아가므로 내리막에선 아래로도 쏠 수 있다
+  slope(t) {
+    const f = t.facing || 1, gF = this.ground(t.x + f * 12, t.y - 24), gB = this.ground(t.x - f * 12, t.y - 24);
+    if (gF > this.h || gB > this.h) return t.tilt || 0;
+    return Math.round(Math.max(-35, Math.min(35, Math.atan2(gF - gB, 24) * 180 / Math.PI)));
+  }
+  angleRange(t) { return [t.S.amin - t.tilt, t.S.amax - t.tilt]; }
+  clampAngle(t) { const [lo, hi] = this.angleRange(t); t.angle = Math.round(Math.max(lo, Math.min(hi, t.angle))); }
   enemies(a, b) { return a && b && a !== b && (a.team === 'solo' || a.team !== b.team); }
   kill(t, by) {
     if (t.dead) return; t.dead = true; t.hp = 0;
@@ -90,10 +98,12 @@ export class Sim {
   float(x, y, text, color) { this.fx('float', { x, y, text, color }); }
   boom(x, y, o) { this.fx('boom', { x, y, ...o }); }
   muzzle(t) {
-    const a = t.angle * Math.PI / 180, sc = this.ts, lift = t.S.hover ? -12 * sc : 0;
-    const px = t.x + t.S.pivot[0] * sc * t.facing, py = t.y + t.S.pivot[1] * sc + lift, L = t.S.len * sc + 4;
+    const a = t.angle * Math.PI / 180, sc = this.ts, lift = t.S.hover ? -12 * sc : 0, r = (t.tilt || 0) * Math.PI / 180;
+    const [qx, qy] = t.S.pivot, lx = qx * Math.cos(r) - qy * Math.sin(r), ly = qx * Math.sin(r) + qy * Math.cos(r);
+    const px = t.x + lx * sc * t.facing, py = t.y + ly * sc + lift, L = t.S.len * sc + 4;
     return [px + Math.cos(a) * L * t.facing, py - Math.sin(a) * L];
   }
+  pivotPos(t) { const sc = this.ts, r = (t.tilt || 0) * Math.PI / 180, [qx, qy] = t.S.pivot; return [t.x + (qx * Math.cos(r) - qy * Math.sin(r)) * sc * t.facing, t.y + (qx * Math.sin(r) + qy * Math.cos(r)) * sc + (t.S.hover ? -12 * sc : 0)]; }
   move(t, dir, dt) {
     t.facing = dir; if (t.fuel <= 0 || !t.canMove || t.air || t.dead) return 0;
     const nx = t.x + dir * 50 * dt; if (nx < 12 || nx > this.w - 12) return 0;
@@ -288,7 +298,7 @@ export class Sim {
       t.vy += 900 * dt; t.x += t.vx * dt;
       if (t.x < 10 || t.x > this.w - 10) { t.x = Math.max(10, Math.min(this.w - 10, t.x)); t.vx = 0; }
       const ny = t.y + t.vy * dt;
-      if (t.vy > 0) { const land = this.ground(t.x, t.y - 3); if (ny >= land && land < this.h && land < this.liquidY + 6) { t.y = land; t.air = false; t.vx = 0; const fall = t.y - t.fallFrom; if (fall > 40) this.damage(t, fall * 1.2, null, '낙하 '); t.vy = 0; t.fallFrom = t.y; return true; } }
+      if (t.vy > 0) { const land = this.ground(t.x, t.y - 3); if (ny >= land && land < this.h && land < this.liquidY + 6) { t.y = land; t.air = false; t.vx = 0; const fall = t.y - t.fallFrom; if (fall > 40) this.damage(t, fall * 1.2, null, '낙하 '); t.vy = 0; t.fallFrom = t.y; t.tilt = this.slope(t); this.clampAngle(t); return true; } }
       t.y = ny;
       if (t.y > this.liquidY + 6 || t.y > this.h + 20) {
         t.sunk = true; this.float(t.x, Math.min(this.liquidY, this.h) - 30, '낙사!', '#c92a2a');
@@ -298,6 +308,7 @@ export class Sim {
       return false;
     }
     t.y = g; t.vy = 0; t.fallFrom = t.y;
+    if (!t.dead) { const tl = this.slope(t); if (tl !== t.tilt) { t.tilt = tl; this.clampAngle(t); } }
     if (t.y > this.liquidY + 6 && !t.dead) { t.sunk = true; this.float(t.x, this.liquidY - 30, '낙사!', '#c92a2a'); this.kill(t, null); }
     return true;
   }
@@ -321,7 +332,7 @@ export class Sim {
   snapshot() {
     return {
       clock: this.clock, wind: { ...this.wind }, liquidY: this.liquidY, sdLiquid: !!this.sdLiquid, ops: this.ops.length,
-      tanks: this.tanks.map(t => ({ uid: t.uid, x: t.x, y: t.y, vx: t.vx, vy: t.vy, air: t.air, fallFrom: t.fallFrom, hp: t.hp, angle: t.angle, facing: t.facing, fuel: t.fuel, shield: t.shield, frozen: t.frozen, canMove: t.canMove, dead: t.dead, sunk: t.sunk, left: t.left, kills: t.kills, dealt: t.dealt, lastHitBy: t.lastHitBy, delay: t.delay })),
+      tanks: this.tanks.map(t => ({ uid: t.uid, x: t.x, y: t.y, vx: t.vx, vy: t.vy, air: t.air, fallFrom: t.fallFrom, hp: t.hp, angle: t.angle, facing: t.facing, fuel: t.fuel, tilt: t.tilt, shield: t.shield, frozen: t.frozen, canMove: t.canMove, dead: t.dead, sunk: t.sunk, left: t.left, kills: t.kills, dealt: t.dealt, lastHitBy: t.lastHitBy, delay: t.delay })),
       events: this.events.map(e => ({ type: e.type, x: e.x, xs: e.xs, gy: e.gy, t: e.t, turns: e.turns, done: e.done })),
       zones: this.zones.map(z => ({ ...z })),
     };

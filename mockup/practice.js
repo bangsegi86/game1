@@ -1,9 +1,10 @@
 // 목업의 연습 전투: 실제 서버의 GameSession을 브라우저 안에서 돌리고, 실제 게임 화면(battle.js)을 그대로 쓴다.
 // 그래서 목업에서 보이는 규칙(회오리·불기둥·더블·아이템 유지 등)이 실제 게임과 똑같다.
-import { GameSession } from 'server/game.js';
-import { createBattle } from 'client/battle.js';
-import { DT } from 'sim/world.js';
-import { SHELL_STATS } from 'shared/gamedata.js';
+// 고친 뒤에는 `cd server && npm run build:mockup` 으로 practice.bundle.js를 다시 만든다.
+import { GameSession } from '../server/src/game.js';
+import { createBattle } from '../client/js/battle.js';
+import { DT } from '../shared/sim/world.js';
+import { SHELL_STATS } from '../shared/gamedata.js';
 
 const ME = 1, AI = 2;
 let session = null, battle = null, timer = null, aiTimer = null;
@@ -22,6 +23,7 @@ const fakeSocket = {
       if (ev === 'game:fire') session.onFire(ME, data.slot, data.power);
       if (ev === 'game:item') session.onItem(ME, data.index);
       if (ev === 'game:pass') session.onPass(ME);
+      if (ev === 'room:chat') { const text = String(data.text || '').slice(0, 200); queueMicrotask(() => battle.on['room:chat']({ from: '포탄왕', text })); if (Math.random() < .5) setTimeout(() => battle.on['room:chat']({ from: '연습 상대', text: ['ㅋㅋ 바람 잘 봐', '이번엔 맞힌다', '좋은 샷인데?', '구덩이 조심해라'][Math.floor(Math.random() * 4)] }), 900); }
       reply({ ok: true });
     } catch (e) { reply({ ok: false, error: e.message }); }
   },
@@ -43,8 +45,8 @@ function aiTurn() {
   me.facing = Math.sign(foe.x - me.x) || -1;
   const slot = !p.ssUsed && me.hp <= me.max / 2 && Math.random() < .6 ? 2 : Math.random() < .7 ? 0 : 1;
   const sh = SHELL_STATS[me.tankId][slot];
-  if (sh.shape === 'line') { me.angle = Math.round(Math.max(me.S.amin, Math.min(me.S.amax, Math.atan2(me.y - 20 - (foe.y - 18), Math.abs(foe.x - me.x)) * 180 / Math.PI))); s.onAim(AI, me.angle); s.onFire(AI, slot, 60); return; }
-  me.angle = Math.round(Math.min(me.S.amax, Math.max(me.S.amin, 40 + Math.random() * 12))); s.onAim(AI, me.angle);
+  if (sh.shape === 'line') { s.onAim(AI, Math.atan2(me.y - 20 - (foe.y - 18), Math.abs(foe.x - me.x)) * 180 / Math.PI); s.onFire(AI, slot, 60); return; }
+  s.onAim(AI, 40 + Math.random() * 12);
   const pw = Math.max(15, Math.min(100, sim.solvePower(me, slot, foe.x, true) + (Math.random() * 10 - 5)));
   s.onFire(AI, slot, pw);
 }

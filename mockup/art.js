@@ -434,6 +434,7 @@ function renderTank(c, cw, ch, T, state, t, x, y, sc, o = {}) {
   const S = params(state, o.phaseT != null ? o.phaseT : t + T.seed);
   if (o.phaseT != null) S.t = t + T.seed;
   if (o.angle != null && !S.dead) S.angle = o.angle;
+  if (o.tilt) S.tilt += o.tilt;
   S.noText = !!o.noText;
   const f = o.flip || 1, lift = T.lift ? T.lift(S) : 0, a = o.alpha == null ? 1 : o.alpha;
   c.save(); c.globalAlpha *= a; c.translate(x, y); c.scale(sc * f, sc);

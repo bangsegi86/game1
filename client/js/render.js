@@ -246,6 +246,7 @@ export class Renderer {
   // 시뮬레이션이 쌓아 둔 화면 일 처리
   drain() {
     for (const f of this.sim.fxq) {
+      this.onFx?.(f);
       if (f.type === 'carve') this.carveVisual(f.op);
       else if (f.type === 'boom') {
         const base = f.tankId ? SHELLS[f.tankId][f.slot] : { boom: f.kind || 'dirt', color: f.color };
@@ -316,7 +317,8 @@ export class Renderer {
     if ((t.sunk && t.y > this.h + 10) || t.left) return;
     const S = this.sim, T = tankById(t.tankId); let st = 'idle', ph = null;
     if (t.dead) st = 'dead'; else if (S.clock - t.hitAt < .6) { st = 'hit'; ph = S.clock - t.hitAt; } else if (S.clock - t.firedAt < .5) { st = 'fire'; ph = S.clock - t.firedAt; } else if (t.moving || t.movingVis) st = 'move'; else if (t.hp <= t.max * .25) st = 'danger';
-    renderTank(c, this.w, this.h, T, st, this.t, t.x, t.y, S.ts, { flip: t.facing, angle: t.angle, phaseT: ph, noText: true });
+    // 몸체는 경사만큼 기울고, 포신은 '보이는 각도 = 몸체 각도 - 기울기'가 되도록 그린다
+    renderTank(c, this.w, this.h, T, st, this.t, t.x, t.y, S.ts, { flip: t.facing, angle: t.angle + (t.tilt || 0), tilt: (t.tilt || 0) * Math.PI / 180, phaseT: ph, noText: true });
     if (t.shield) { c.strokeStyle = 'rgba(160,220,255,.85)'; c.fillStyle = 'rgba(85,174,240,.15)'; c.lineWidth = 2.5; circ(c, t.x, t.y - 20, 32); c.fill(); c.stroke(); }
     if (t.frozen > 0) { c.save(); c.translate(t.x + 22, t.y - 40); c.scale(.7, .7); drawShell(c, { key: 'snowflake' }, this.t, 0); c.restore(); }
     if (t.dead || !this.labels) return;
@@ -328,6 +330,20 @@ export class Renderer {
     c.fillStyle = t.hp / t.max > .5 ? '#3fae4a' : t.hp / t.max > .25 ? '#f0a020' : '#d63c3c'; c.fillRect(t.x - 22, top - 2, 44 * t.hp / t.max, 6);
     if (active) { c.fillStyle = '#ffb703'; c.beginPath(); c.moveTo(t.x, top - 22); c.lineTo(t.x - 7, top - 32); c.lineTo(t.x + 7, top - 32); c.fill(); }
     if (t.uid === this.me && !active) { c.strokeStyle = 'rgba(255,183,3,.7)'; c.lineWidth = 2; ell(c, t.x, t.y + 2, 26, 6); c.stroke(); }
+  }
+  // 내 차례에 탱크 둘레에 발사 가능 각도(위·아래 한계)와 지금 각도를 보여 준다
+  drawAimFan(c, t) {
+    const [lo, hi] = this.sim.angleRange(t), [px, py] = this.sim.pivotPos(t), R = 46, f = t.facing, rad = d => d * Math.PI / 180;
+    const pt = (d, r) => [px + Math.cos(rad(d)) * r * f, py - Math.sin(rad(d)) * r];
+    c.save();
+    c.beginPath(); c.moveTo(px, py); for (let d = lo; d <= hi + .01; d += 2) c.lineTo(...pt(Math.min(d, hi), R)); c.closePath();
+    c.fillStyle = 'rgba(127,208,108,.16)'; c.fill();
+    c.beginPath(); for (let d = lo; d <= hi + .01; d += 2) { const [x, y] = pt(Math.min(d, hi), R); d === lo ? c.moveTo(x, y) : c.lineTo(x, y); } c.strokeStyle = 'rgba(127,208,108,.85)'; c.lineWidth = 3; c.stroke();
+    c.strokeStyle = 'rgba(36,29,46,.55)'; c.lineWidth = 1.5; [lo, hi].forEach(d => { c.beginPath(); c.moveTo(...pt(d, R - 8)); c.lineTo(...pt(d, R + 4)); c.stroke(); });
+    c.setLineDash([3, 5]); c.beginPath(); c.moveTo(...pt(0, 14)); c.lineTo(...pt(0, R + 10)); c.strokeStyle = 'rgba(36,29,46,.35)'; c.stroke(); c.setLineDash([]);
+    const [ax, ay] = pt(t.angle, R + 12); c.strokeStyle = '#ffb703'; c.lineWidth = 3; c.lineCap = 'round'; c.beginPath(); c.moveTo(...pt(t.angle, 18)); c.lineTo(ax, ay); c.stroke();
+    c.font = '15px Jua, sans-serif'; c.textAlign = 'center'; c.lineJoin = 'round'; c.lineWidth = 4; c.strokeStyle = 'rgba(255,248,232,.9)'; const [tx, ty] = pt(t.angle, R + 26); c.strokeText(t.angle + '°', tx, ty + 5); c.fillStyle = '#3a2600'; c.fillText(t.angle + '°', tx, ty + 5);
+    c.restore();
   }
   drawWind(c, x, y, r = 24) {
     c.save(); c.translate(x, y);
