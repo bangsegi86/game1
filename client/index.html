@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>포탄대결</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jua&family=Noto+Sans+KR:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="wrap">
+    <div class="brand">포탄대결 <small>SHELL CLASH</small></div>
+    <div class="tabs" id="topRight" hidden>
+      <span class="me-mini" id="meMini"></span>
+      <span class="conn"><span class="dot" id="connDot"></span><span id="connText">연결됨</span></span>
+      <button class="btn" id="logoutBtn">로그아웃</button>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <!-- 로그인 / 회원가입 -->
+  <section class="screen" id="s-login" hidden>
+    <div class="login-stage">
+      <canvas id="loginBg" width="1100" height="520" aria-hidden="true"></canvas>
+      <form class="login-card" id="loginForm" novalidate>
+        <h1>포탄대결</h1>
+        <p class="sub">친구들과 하는 턴제 포격 대전</p>
+        <div class="seg" role="group" aria-label="로그인 또는 회원가입">
+          <button type="button" id="segLogin" aria-pressed="true">로그인</button>
+          <button type="button" id="segJoin" aria-pressed="false">회원가입</button>
+        </div>
+        <div class="field"><label for="uid">아이디</label><input id="uid" autocomplete="username" required><span class="hint" data-join hidden>영문·숫자 4~16자</span></div>
+        <div class="field"><label for="upw">비밀번호</label><input id="upw" type="password" autocomplete="current-password" required><span class="hint" data-join hidden>8자 이상</span></div>
+        <div class="field" data-join hidden><label for="unick">닉네임</label><input id="unick" maxlength="10"><span class="hint">2~10자, 한글·영문·숫자, 다른 사람과 겹치면 안 됩니다</span></div>
+        <p class="form-err" id="loginErr" role="alert"></p>
+        <button class="btn primary" id="loginBtn" type="submit">로그인</button>
+        <div class="server"><span class="dot"></span><span id="serverAddr"></span></div>
+      </form>
+    </div>
+  </section>
+
+  <!-- 로비 -->
+  <section class="screen lobby" id="s-lobby" hidden>
+    <div class="panel me-bar">
+      <canvas id="meTank" style="width:84px;height:60px"></canvas>
+      <div><div class="label">내 정보</div><h2 style="margin:0" id="meName"></h2></div>
+      <div class="stats num" id="meStats"></div>
+    </div>
+    <div class="panel">
+      <div class="row" style="justify-content:space-between;margin-bottom:8px">
+        <h2 style="margin:0">방 목록</h2>
+        <div class="row"><button class="btn" id="quickBtn">빠른 입장</button><button class="btn primary" id="createBtn">방 만들기</button></div>
+      </div>
+      <div class="table-wrap">
+        <table class="num"><thead><tr><th>번호</th><th>방 제목</th><th>모드</th><th>맵</th><th>인원</th><th>상태</th></tr></thead><tbody id="roomRows"></tbody></table>
+      </div>
+      <p class="keys" id="noRooms" hidden>아직 방이 없어요. 방 만들기를 눌러 첫 방을 열어 보세요.</p>
+    </div>
+    <div class="side">
+      <div class="panel"><h2>접속자 <span class="num" id="userCount" style="color:var(--muted);font-size:14px"></span></h2><ul class="users" id="userList"></ul></div>
+      <div class="panel chat"><div class="log" id="lobbyLog"></div>
+        <form class="row" id="lobbyChat"><label for="lobbyMsg" hidden>로비 채팅</label><input id="lobbyMsg" maxlength="200" placeholder="Enter로 채팅" style="flex:1;min-width:0" autocomplete="off"><button class="btn">전송</button></form></div>
+    </div>
+  </section>
+
+  <!-- 대기방 -->
+  <section class="screen room" id="s-room" hidden>
+    <div class="panel room-head">
+      <span class="pill wait" id="roomNo"></span>
+      <h2 id="roomTitle"></h2>
+      <span style="color:var(--muted)" id="roomInfo"></span>
+      <div class="row" style="margin-left:auto">
+        <button class="btn" id="leaveBtn">나가기</button>
+        <button class="btn primary" id="readyBtn">준비</button>
+      </div>
+    </div>
+    <div class="side">
+      <div class="panel"><div class="slots" id="slots"></div><p class="keys" style="margin:8px 0 0">빈 자리를 누르면 그 자리로 옮깁니다.</p></div>
+      <div class="panel">
+        <h2>아이템 가방 <span class="bag-left" id="bagLeft"></span></h2>
+        <div class="itembar" id="bag"></div>
+        <div class="bag-owned" id="owned"></div>
+        <p class="keys" style="margin:8px 0 0">아래 아이템을 누르면 가방에 넣고, 가방 칸을 누르면 뺍니다. 모두 무료예요.</p>
+      </div>
+      <div class="panel chat"><div class="log" id="roomLog"></div>
+        <form class="row" id="roomChat"><label for="roomMsg" hidden>방 채팅</label><input id="roomMsg" maxlength="200" placeholder="Enter로 채팅" style="flex:1;min-width:0" autocomplete="off"><button class="btn">전송</button></form></div>
+    </div>
+    <div class="side">
+      <div class="panel"><h2>탱크 선택</h2><div class="picker" id="picker"></div><div class="tank-info" id="tankInfo"></div></div>
+      <div class="panel">
+        <h2>방 설정 <span style="font-family:var(--font-body);font-size:13px;color:var(--muted)" id="hostOnly">방장만 변경</span></h2>
+        <div class="settings">
+          <div class="field"><label for="setTitle">방 제목</label><input id="setTitle" maxlength="24"></div>
+          <div class="field"><label for="setMap">맵</label><select id="setMap"></select></div>
+          <div class="field"><label for="setMode">모드</label><select id="setMode"><option value="team">팀전</option><option value="solo">개인전</option></select></div>
+          <div class="field"><label for="setTurn">턴 시간</label><select id="setTurn"><option value="10">10초</option><option value="20">20초</option><option value="30">30초</option></select></div>
+          <div class="field"><label for="setPw">방 비밀번호</label><input id="setPw" maxlength="16" placeholder="없음"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 게임 (3단계에서 전투 연결) -->
+  <section class="screen" id="s-game" hidden>
+    <div class="panel game-wait">
+      <h2 id="gameTitle">게임 시작!</h2>
+      <p id="gameInfo" style="color:var(--muted);margin:0"></p>
+      <p class="keys">전투 화면은 3단계에서 서버 판정과 함께 연결됩니다. 지금은 시작 처리와 탱크 배정까지 동작해요.</p>
+      <button class="btn primary" id="finishBtn">방으로 돌아가기 (방장)</button>
+    </div>
+  </section>
+</main>
+
+<div class="modal-bg" id="createModal" hidden>
+  <form class="modal" id="createForm" novalidate>
+    <h2>방 만들기</h2>
+    <div class="field"><label for="cTitle">방 제목</label><input id="cTitle" maxlength="24"></div>
+    <div class="settings">
+      <div class="field"><label for="cMode">모드</label><select id="cMode"><option value="team">팀전</option><option value="solo">개인전</option></select></div>
+      <div class="field"><label for="cMap">맵</label><select id="cMap"></select></div>
+      <div class="field"><label for="cTurn">턴 시간</label><select id="cTurn"><option value="10">10초</option><option value="20" selected>20초</option><option value="30">30초</option></select></div>
+      <div class="field"><label for="cPw">비밀번호 (선택)</label><input id="cPw" maxlength="16"></div>
+    </div>
+    <p class="form-err" id="createErr" role="alert"></p>
+    <div class="row" style="justify-content:flex-end"><button type="button" class="btn" data-close>취소</button><button class="btn primary">만들기</button></div>
+  </form>
+</div>
+<div class="modal-bg" id="pwModal" hidden>
+  <form class="modal" id="pwForm" novalidate>
+    <h2>비밀방</h2>
+    <div class="field"><label for="joinPw">방 비밀번호</label><input id="joinPw" maxlength="16" autocomplete="off"></div>
+    <p class="form-err" id="pwErr" role="alert"></p>
+    <div class="row" style="justify-content:flex-end"><button type="button" class="btn" data-close>취소</button><button class="btn primary">입장</button></div>
+  </form>
+</div>
+
+<script src="/art/art.js"></script>
+<script src="/socket.io/socket.io.js"></script>
+<script type="module" src="/js/app.js"></script>
+</body>
+</html>
