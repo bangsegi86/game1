@@ -1,0 +1,238 @@
+<meta charset="utf-8">
+<title>포탄대결 맵 도감</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jua&family=Noto+Sans+KR:wght@400;500;700&display=swap">
+<style>
+/* Layout: 맵 9종(살아 있는 지형, 눌러서 폭격) → 돌발 이벤트 4종 → 바람과 낙사. 탱크 도감과 같은 해질녘 팔레트. */
+:root {
+  --sky: #1f2d52;
+  --panel: #283a66;
+  --panel-2: #324779;
+  --line: #45598e;
+  --ink: #f4efe1;
+  --muted: #aab5d3;
+  --amber: #ffb703;
+  --amber-ink: #3a2600;
+  --danger: #ff7a6a;
+  --font-display: "Jua", "Noto Sans KR", system-ui, sans-serif;
+  --font-body: "Noto Sans KR", system-ui, -apple-system, "Malgun Gothic", sans-serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { background: var(--sky); color: var(--ink); font-family: var(--font-body); font-size: 14px; line-height: 1.55; }
+button { font: inherit; color: inherit; cursor: pointer; }
+button:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+h1, h2, h3 { font-family: var(--font-display); font-weight: 400; margin: 0; text-wrap: balance; }
+.wrap { max-width: 1160px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 28px 56px; display: grid; gap: 36px; }
+canvas { display: block; width: 100%; height: auto; max-width: 100%; }
+.eyebrow { font-size: 12px; letter-spacing: .1em; color: var(--amber); font-weight: 700; }
+header h1 { font-size: clamp(34px, 6vw, 52px); line-height: 1.05; margin-top: 6px; }
+.lead { color: var(--muted); max-width: 64ch; margin: 6px 0 0; }
+section > h2 { font-size: 26px; margin-bottom: 4px; }
+section > .lead { margin-bottom: 14px; }
+
+.maps { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.map { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; display: grid; align-content: start; }
+.map.must { border-color: var(--amber); box-shadow: 0 0 0 2px color-mix(in srgb, var(--amber) 35%, transparent); }
+.map canvas { aspect-ratio: 2 / 1; cursor: crosshair; touch-action: manipulation; }
+.map .body { padding: 12px 14px 14px; display: grid; gap: 6px; }
+.map .top { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.map h3 { font-size: 24px; line-height: 1.1; }
+.chips { display: flex; gap: 4px; flex-wrap: wrap; }
+.chip { font-size: 11.5px; font-weight: 700; padding: 1px 9px; border-radius: 999px; background: var(--panel-2); color: var(--muted); }
+.chip.hot { background: color-mix(in srgb, var(--amber) 20%, transparent); color: var(--amber); }
+.chip.danger { background: color-mix(in srgb, var(--danger) 18%, transparent); color: var(--danger); }
+.map p { margin: 0; color: var(--muted); font-size: 13.5px; }
+.stats { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.stats b { color: var(--ink); font-weight: 700; }
+.row { display: flex; gap: 8px; flex-wrap: wrap; }
+.btn { border: 1px solid var(--line); background: var(--sky); border-radius: 999px; padding: 4px 12px; font-size: 12.5px; font-weight: 700; }
+
+.events { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.ev { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; display: grid; align-content: start; }
+.ev canvas { aspect-ratio: 400 / 225; }
+.ev .body { padding: 10px 12px 14px; display: grid; gap: 4px; }
+.ev h3 { font-size: 20px; }
+.ev p { margin: 0; color: var(--muted); font-size: 13px; }
+
+.wind { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 14px; align-items: start; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 16px; display: grid; gap: 10px; min-width: 0; }
+.panel h3 { font-size: 20px; }
+.panel canvas.traj { aspect-ratio: 800 / 330; border-radius: 10px; }
+.panel canvas.compass { width: 180px; aspect-ratio: 1; margin: 0 auto; }
+.panel ul { margin: 0; padding-left: 18px; color: var(--muted); display: grid; gap: 4px; }
+.legend { display: flex; gap: 12px; flex-wrap: wrap; font-size: 12.5px; color: var(--muted); }
+.legend span::before { content: ""; display: inline-block; width: 14px; height: 4px; border-radius: 2px; margin-right: 6px; vertical-align: middle; background: var(--c); }
+
+@media (max-width: 980px) { .maps { grid-template-columns: minmax(0, 1fr); } .events { grid-template-columns: repeat(2, minmax(0, 1fr)); } .wind { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 520px) { .events { grid-template-columns: minmax(0, 1fr); } }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">포탄대결 · 아트 시안 v3</div>
+    <h1>맵 도감</h1>
+    <p class="lead">맵 9종은 모두 실제 게임 엔진으로 움직입니다. <b>맵을 누르면 그 자리에 포탄이 떨어져</b> 땅이 파이고, 발밑을 잃은 탱크는 떨어집니다. 물, 용암, 허공, 산성으로 떨어지면 낙사입니다.</p>
+  </header>
+
+  <section>
+    <h2>맵 9종</h2>
+    <p class="lead">탱크 두 대가 서로 쏘는 장면이 계속 반복됩니다. 바람(가운데 위 나침반)은 쏠 때마다 바뀝니다.</p>
+    <div class="maps" id="maps"></div>
+  </section>
+
+  <section>
+    <h2>돌발 이벤트</h2>
+    <p class="lead">게임 중 턴이 시작될 때 맵에 따라 갑자기 나타납니다. 맵마다 잘 나오는 이벤트가 다릅니다(화산섬은 불기둥, 달기지는 운석).</p>
+    <div class="events" id="events"></div>
+  </section>
+
+  <section>
+    <h2>바람</h2>
+    <p class="lead">바람은 방향(360°)과 세기(0~10)가 있고, 턴마다 조금씩 바뀌다가 가끔 크게 바뀝니다. 맵마다 최대 세기가 다르고, 달기지는 바람이 없습니다.</p>
+    <div class="wind">
+      <div class="panel">
+        <h3>같은 각도·파워라도 바람에 따라 이렇게 달라진다</h3>
+        <canvas class="traj" id="traj" aria-label="바람별 탄도 비교"></canvas>
+        <div class="legend">
+          <span style="--c:#7fe36b">바람 없음 · 45° 파워 80</span>
+          <span style="--c:#ffd34d">순풍 10 · 45° 파워 80 (더 멀리)</span>
+          <span style="--c:#55aef0">역풍 10 · 45° 파워 80 (짧게)</span>
+          <span style="--c:#ff7a6a">역풍 10 · 85° 파워 100 (뒤로 떨어짐)</span>
+          <span style="--c:#d4a6ff">아래로 부는 바람 8 · 45° 파워 80</span>
+        </div>
+      </div>
+      <div class="panel">
+        <h3>바람 나침반</h3>
+        <canvas class="compass" id="compass" aria-label="바람 나침반 예시"></canvas>
+        <ul>
+          <li>화살표 방향으로 포탄이 밀립니다. 위아래로 부는 바람도 있습니다.</li>
+          <li>숫자가 세기입니다. 세기 1당 초속 14px²씩 밀어요.</li>
+          <li>가벼운 포탄(포자, 물방울)은 더 많이, 무거운 포탄(철구, 메테오)은 덜 밀립니다.</li>
+          <li>번개구름, 레이저는 바람을 무시합니다.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script src="art.js"></script>
+<script src="engine.js"></script>
+<script>
+const views = [];
+function addView(canvas, w, h, draw) {
+  canvas.width = Math.round(w * DPR); canvas.height = Math.round(h * DPR);
+  const v = { canvas, ctx: canvas.getContext('2d'), w, h, draw, visible: true }; views.push(v); io && io.observe(canvas); return v;
+}
+const io = 'IntersectionObserver' in window ? new IntersectionObserver(es => es.forEach(e => { const v = views.find(v => v.canvas === e.target); if (v) v.visible = e.isIntersecting; })) : null;
+const LIQ = { water: '물에 빠지면 낙사', lava: '용암에 빠지면 낙사', void: '허공으로 떨어지면 낙사', acid: '산성 웅덩이 낙사' };
+const EVN = { tornado: '회오리', pillar: '불기둥', meteors: '운석', lightning: '벼락' };
+
+/* ---------- 맵 카드: 자동 대전 + 눌러서 폭격 ---------- */
+const ORDER = ['valley', ...MAP_ORDER.filter(id => id !== 'valley')];
+const mapsEl = document.getElementById('maps');
+const PAIRS = [['hammer', 'laser'], ['mole', 'whale'], ['bee', 'cloud'], ['magnet', 'shroom']];
+ORDER.forEach((id, i) => {
+  const m = MAPS[id], el = document.createElement('div'); el.className = 'map' + (id === 'valley' ? ' must' : '');
+  const ev = Object.entries(m.ev).sort((a, b) => b[1] - a[1]).map(([k]) => EVN[k]).join(', ') || '없음';
+  el.innerHTML = `<canvas aria-label="${m.n} 지형. 누르면 폭격"></canvas><div class="body">
+    <div class="top"><h3>${m.n}</h3><div class="chips">${m.tags.map(t => `<span class="chip ${t === '필수 맵' ? 'hot' : t.includes('낙사') ? 'danger' : ''}">${t}</span>`).join('')}</div></div>
+    <p>${m.d}</p>
+    <div class="stats"><span>중력 <b>${Math.round(m.grav * 100)}%</b></span><span>최대 바람 <b>${m.windMax}</b></span><span>${m.liquid ? LIQ[m.liquid.type] : '바닥 있음'}</span><span>잘 나오는 이벤트 <b>${ev}</b></span></div>
+    <div class="row"><button class="btn" data-reset>지형 되돌리기</button><button class="btn" data-ev>이벤트 일으키기</button></div></div>`;
+  mapsEl.append(el);
+  const cv = el.querySelector('canvas'), st = { W: null, next: 1.5, n: 0 };
+  const pair = PAIRS[i % PAIRS.length];
+  const setup = () => {
+    const W = st.W || (st.W = new World({ w: 960, h: 480, map: id }));
+    W.reset(); W.addTank(pair[0], m.spawn[0] * 960, 1, 'red', '레드'); W.addTank(pair[1], m.spawn[1] * 960, -1, 'blue', '블루');
+    W.nextWind(); st.next = W.clock + 1.2; st.n = 0;
+  };
+  setup();
+  addView(cv, 480, 240, (c, w, h, t, dt) => {
+    const W = st.W; W.step(dt);
+    const live = W.tanks.filter(x => !x.dead);
+    if (live.length < 2 && !W.busy()) { if (!st.endAt) st.endAt = W.clock; if (W.clock - st.endAt > 2) { st.endAt = 0; setup(); } }
+    else if (W.clock > st.next && !W.busy() && live.length === 2) {
+      const a = W.tanks[st.n % 2], b = W.tanks[(st.n + 1) % 2]; st.n++;
+      W.nextWind(); a.facing = Math.sign(b.x - a.x) || 1;
+      a.angle = Math.min(a.T.amax, Math.max(a.T.amin, 48));
+      const slot = st.n % 5 === 4 ? 2 : st.n % 3 === 2 ? 1 : 0, sh = SHELLS[a.T.id][slot];
+      if (sh.shape === 'line') a.angle = Math.max(a.T.amin, Math.min(a.T.amax, Math.round(Math.atan2(a.y - 20 - (b.y - 18), Math.abs(b.x - a.x)) * 180 / Math.PI)));
+      const p = Math.max(10, Math.min(100, W.solvePower(a, slot, b.x, true) + (Math.random() * 8 - 4)));
+      W.fire(a, slot, p); st.next = W.clock + 1.2;
+      if (Math.random() < .25) W.rollEvent();
+    }
+    c.save(); c.scale(w / 960, h / 480); W.draw(c, {}); W.drawWind(c, 480, 44); c.restore();
+  });
+  cv.addEventListener('click', e => {
+    const r = cv.getBoundingClientRect(), x = (e.clientX - r.left) / r.width * 960, y = (e.clientY - r.top) / r.height * 480;
+    const sh = { ...SHELLS.hammer[0], cr: 36, r: 36, R: 30 }; const W = st.W;
+    W.shells.push({ x, y: -20, sx: x, sy: -20, vx: 0, vy: 420, sh, owner: null, age: 1, trail: [], mode: 'fly', dug: 0, dist: 0, k: 1 });
+  });
+  el.querySelector('[data-reset]').onclick = setup;
+  el.querySelector('[data-ev]').onclick = () => { const ks = Object.keys(m.ev); st.W.rollEvent(ks.length ? ks[Math.floor(Math.random() * ks.length)] : 'meteors'); };
+});
+
+/* ---------- 돌발 이벤트 카드 ---------- */
+const evEl = document.getElementById('events');
+Object.entries(EVENTS).forEach(([key, e], i) => {
+  const el = document.createElement('div'); el.className = 'ev';
+  el.innerHTML = `<canvas aria-label="${e.n}"></canvas><div class="body"><h3>${e.n}</h3><p>${e.d}</p></div>`;
+  evEl.append(el);
+  const st = {}, map = ['valley', 'volcano', 'moon', 'hills'][i];
+  const setup = () => { const W = st.W || (st.W = new World({ w: 400, h: 225, map: 'demo', labels: false })); W.reset(); W.addTank('hammer', 90, 1, 'red', ''); W.addTank('bee', 300, -1, 'blue', ''); st.t0 = W.clock; st.spawned = false; st.shot = false; };
+  setup();
+  addView(el.querySelector('canvas'), 400, 225, (c, w, h, t, dt) => {
+    const W = st.W; W.step(dt); const tt = W.clock - st.t0;
+    if (!st.spawned && tt > .4) { st.spawned = true; const ev = W.rollEvent(key); if (key === 'tornado' || key === 'pillar') ev.x = 200; if (key === 'lightning') ev.x = W.tanks[1].x + 10; if (key === 'meteors') ev.xs = [120, 210, 290]; }
+    if (!st.shot && tt > 2 && (key === 'tornado' || key === 'pillar')) { st.shot = true; const a = W.tanks[0]; a.angle = 45; W.fire(a, 0, W.solvePower(a, 0, W.tanks[1].x, false)); }
+    if (tt > 5) setup();
+    c.save(); c.scale(w / 400, h / 225); W.draw(c, {}); c.restore();
+  });
+});
+
+/* ---------- 바람: 탄도 비교 ---------- */
+const TR = [
+  { col: '#7fe36b', a: 45, p: 80, wa: 0, ws: 0 },
+  { col: '#ffd34d', a: 45, p: 80, wa: 0, ws: 10 },
+  { col: '#55aef0', a: 45, p: 80, wa: 180, ws: 10 },
+  { col: '#ff7a6a', a: 85, p: 100, wa: 180, ws: 10 },
+  { col: '#d4a6ff', a: 45, p: 80, wa: 270, ws: 8 },
+];
+const trajW = 800, trajH = 330, gy = 290, sx = 250;
+TR.forEach(r => { const pts = []; let x = sx, y = gy - 10, a = r.a * Math.PI / 180, vx = Math.cos(a) * r.p * SPEED, vy = -Math.sin(a) * r.p * SPEED; const wa = r.wa * Math.PI / 180, wx = Math.cos(wa) * r.ws * WINDK, wy = -Math.sin(wa) * r.ws * WINDK; for (let i = 0; i < 2000; i++) { const h = 1 / 120; vx += wx * h; vy += (wy + G0) * h; x += vx * h; y += vy * h; if (i % 3 === 0) pts.push([x, y]); if (y > gy) break; } r.pts = pts; });
+const allP = TR.flatMap(r => r.pts), minX = Math.min(...allP.map(p => p[0]), sx - 60), maxX = Math.max(...allP.map(p => p[0])), minY = Math.min(...allP.map(p => p[1]));
+const KS = Math.min((trajW - 40) / (maxX - minX), (gy - 24) / (gy - minY)), OX = 20 + (sx - minX) * KS;
+const TX = x => OX + (x - sx) * KS, TY = y => gy - (gy - y) * KS;
+addView(document.getElementById('traj'), trajW, trajH, (c, w, h, t) => {
+  const g = c.createLinearGradient(0, 0, 0, h); g.addColorStop(0, '#f2b880'); g.addColorStop(1, '#f9e7c4'); c.fillStyle = g; c.fillRect(0, 0, w, h);
+  c.fillStyle = '#b98454'; c.fillRect(0, gy, w, h - gy); c.fillStyle = '#e8c27a'; c.fillRect(0, gy - 3, w, 5);
+  c.strokeStyle = 'rgba(58,38,0,.35)'; c.lineWidth = 1; c.font = '12px "Noto Sans KR", sans-serif'; c.fillStyle = 'rgba(244,239,225,.85)'; c.textAlign = 'center';
+  for (let d = Math.ceil((minX - sx) / 200) * 200; TX(sx + d) < w - 10; d += 200) { const x = TX(sx + d); c.beginPath(); c.moveTo(x, gy + 3); c.lineTo(x, gy + 10); c.stroke(); c.fillText((d > 0 ? '+' : '') + d + 'px', x, gy + 26); }
+  const k = (t % 4) / 3.2;
+  TR.forEach(r => {
+    c.strokeStyle = r.col; c.lineWidth = 3; c.setLineDash([2, 5]); c.beginPath(); r.pts.forEach(([x, y], i) => i ? c.lineTo(TX(x), TY(y)) : c.moveTo(TX(x), TY(y))); c.stroke(); c.setLineDash([]);
+    const n = Math.min(r.pts.length - 1, Math.floor(k * r.pts.length)); if (k <= 1) { const [x, y] = r.pts[n]; circ(c, TX(x), TY(y), 6); fs(c, r.col, 2); }
+    const ex = TX(r.pts[r.pts.length - 1][0]); c.fillStyle = r.col; c.beginPath(); c.moveTo(ex, gy - 2); c.lineTo(ex - 6, gy - 12); c.lineTo(ex + 6, gy - 12); c.closePath(); c.fill();
+  });
+  renderTank(c, w, h, tankById('hammer'), 'idle', t, OX, gy, .45);
+});
+const comp = { ang: 30, str: 6, t: 0 };
+addView(document.getElementById('compass'), 180, 180, (c, w, h, t) => {
+  if (t - comp.t > 2) { comp.t = t; const fake = { map: { windMax: 10 }, wind: { ang: comp.ang, str: comp.str } }; World.prototype.nextWind.call(fake); comp.ang = fake.wind.ang; comp.str = fake.wind.str; }
+  const fake = { wind: comp }; c.save(); c.translate(0, -14); World.prototype.drawWind.call(fake, c, w / 2, h / 2, 56); c.restore();
+  c.font = '13px Jua, sans-serif'; c.fillStyle = '#aab5d3'; c.textAlign = 'center'; c.fillText(`방향 ${Math.round(comp.ang)}° · 2초마다 다음 턴`, w / 2, h - 4);
+});
+
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+let last = performance.now(), T = 0;
+function frame(now) {
+  const dt = Math.min(.05, (now - last) / 1000); last = now; T += reduce ? 0 : dt;
+  views.forEach(v => { if (!v.visible) return; const c = v.ctx; c.setTransform(DPR, 0, 0, DPR, 0, 0); c.clearRect(0, 0, v.w, v.h); v.draw(c, v.w, v.h, T, reduce ? 0 : dt); });
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script>

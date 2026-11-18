@@ -1,3 +1,4 @@
+<meta charset="utf-8">
 <title>포탄대결 화면 시안</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -314,7 +315,7 @@ td.red { color: var(--red); font-weight: 700; } td.blue { color: var(--blue); fo
     <div class="panel room-head">
       <span class="pill wait">001</span>
       <h2>금요일 밤 한판 ㄱㄱ</h2>
-      <span style="color:var(--muted)">팀전 4:4 · 모래협곡 · 턴 20초</span>
+      <span style="color:var(--muted)">팀전 4:4 · <span id="roomMapName">골짜기</span> · 턴 20초</span>
       <div class="row" style="margin-left:auto">
         <a class="btn" href="#lobby" style="text-decoration:none">나가기</a>
         <a class="btn primary" href="#game" style="text-decoration:none">게임 시작</a>
@@ -407,7 +408,7 @@ td.red { color: var(--red); font-weight: 700; } td.blue { color: var(--blue); fo
         <button class="fire" id="fireBtn">눌러서 발사</button>
       </div>
     </div>
-    <p class="keys"><kbd>Q</kbd>~<kbd>Y</kbd> 아이템 · <kbd>←</kbd><kbd>→</kbd> 이동 · <kbd>↑</kbd><kbd>↓</kbd> 각도 · <kbd>Space</kbd> 누르고 있다가 떼면 발사 · <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> 포탄 · 아이템은 턴당 1개</p>
+    <p class="keys">가운데 위 나침반이 바람(방향·세기)이며 턴마다 바뀝니다. 방 설정에서 맵을 바꿀 수 있어요. <kbd>Q</kbd>~<kbd>Y</kbd> 아이템 · <kbd>←</kbd><kbd>→</kbd> 이동 · <kbd>↑</kbd><kbd>↓</kbd> 각도 · <kbd>Space</kbd> 누르고 있다가 떼면 발사 · <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> 포탄 · 아이템은 턴당 1개</p>
   </section>
 
   <!-- 결과 -->
@@ -442,4 +443,5 @@ td.red { color: var(--red); font-weight: 700; } td.blue { color: var(--blue); fo
 </main>
 
 <script src="art.js"></script>
+<script src="engine.js"></script>
 <script src="game.js"></script>

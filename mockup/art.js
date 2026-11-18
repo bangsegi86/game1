@@ -429,25 +429,29 @@ function dust(c, T, S) {
 /* ---------- 탱크 그리기 (틴트용 레이어 사용) ---------- */
 const layer = document.createElement('canvas'); const lctx = layer.getContext('2d');
 function renderTank(c, cw, ch, T, state, t, x, y, sc, o = {}) {
-  // o: flip(-1 왼쪽 보기), angle(포신 각도 덮어쓰기), phaseT(발사·피격 경과 시간), noText, alpha
+  // o: flip(-1 왼쪽 보기), angle(포신 각도), phaseT(발사·피격 경과 시간), noText, alpha
+  // 지금 캔버스 변환(배율·흔들림)을 그대로 따라가므로 어떤 화면에서도 쓸 수 있다
   const S = params(state, o.phaseT != null ? o.phaseT : t + T.seed);
   if (o.phaseT != null) S.t = t + T.seed;
   if (o.angle != null && !S.dead) S.angle = o.angle;
   S.noText = !!o.noText;
   const f = o.flip || 1, lift = T.lift ? T.lift(S) : 0, a = o.alpha == null ? 1 : o.alpha;
-  c.save(); c.globalAlpha = a; c.translate(x, y); c.scale(sc * f, sc);
+  c.save(); c.globalAlpha *= a; c.translate(x, y); c.scale(sc * f, sc);
   const sh = T.hover && !S.dead ? .6 + lift / 60 : 1;
   ell(c, 0, 1, T.w * .56 * sh, 5 * sh); c.fillStyle = 'rgba(20,12,30,.3)'; c.fill();
   if (state === 'move') dust(c, T, S);
   c.restore();
-  const W = Math.ceil(cw * DPR), H = Math.ceil(ch * DPR);
-  if (layer.width < W) layer.width = W; if (layer.height < H) layer.height = H;
-  lctx.setTransform(1, 0, 0, 1, 0, 0); lctx.globalCompositeOperation = 'source-over'; lctx.clearRect(0, 0, W, H);
-  lctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  const M = c.getTransform(), CW = c.canvas.width, CH = c.canvas.height;
+  if (layer.width < CW) layer.width = CW; if (layer.height < CH) layer.height = CH;
+  const k = Math.hypot(M.a, M.b) * sc, cx = M.a * x + M.c * y + M.e, cy = M.b * x + M.d * y + M.f;
+  const bx = Math.max(0, Math.floor(cx - 150 * k)), by = Math.max(0, Math.floor(cy - 190 * k)), bw = Math.min(CW, Math.ceil(cx + 150 * k)) - bx, bh = Math.min(CH, Math.ceil(cy + 40 * k)) - by;
+  if (bw <= 0 || bh <= 0) return S;
+  lctx.setTransform(1, 0, 0, 1, 0, 0); lctx.globalCompositeOperation = 'source-over'; lctx.clearRect(bx, by, bw, bh);
+  lctx.setTransform(M);
   lctx.save(); lctx.translate(x + S.dx * sc * f, y + (S.bob + lift) * sc); lctx.scale(sc * f, sc); lctx.rotate(S.tilt); T.draw(lctx, S); lctx.restore();
-  if (S.white || S.dark) { lctx.save(); lctx.setTransform(1, 0, 0, 1, 0, 0); lctx.globalCompositeOperation = 'source-atop'; lctx.fillStyle = S.white ? `rgba(255,255,255,${S.white})` : `rgba(26,18,22,${S.dark})`; lctx.fillRect(0, 0, W, H); lctx.restore(); }
-  c.save(); c.setTransform(1, 0, 0, 1, 0, 0); c.globalAlpha = a; c.drawImage(layer, 0, 0, W, H, 0, 0, W, H); c.restore();
-  c.save(); c.globalAlpha = a; c.translate(x + S.dx * sc * f, y + (S.bob + lift) * sc); c.scale(sc * f, sc); c.rotate(S.tilt); fx(c, T, S, state); c.restore();
+  if (S.white || S.dark) { lctx.save(); lctx.setTransform(1, 0, 0, 1, 0, 0); lctx.globalCompositeOperation = 'source-atop'; lctx.fillStyle = S.white ? `rgba(255,255,255,${S.white})` : `rgba(26,18,22,${S.dark})`; lctx.fillRect(bx, by, bw, bh); lctx.restore(); }
+  c.save(); c.setTransform(1, 0, 0, 1, 0, 0); c.globalAlpha *= a; c.drawImage(layer, bx, by, bw, bh, bx, by, bw, bh); c.restore();
+  c.save(); c.globalAlpha *= a; c.translate(x + S.dx * sc * f, y + (S.bob + lift) * sc); c.scale(sc * f, sc); c.rotate(S.tilt); fx(c, T, S, state); c.restore();
   return S;
 }
 
@@ -469,35 +473,35 @@ const SHELLS = {
   mole: [
     { n: '돌탄', d: '200', key: 'rock', trail: 'dust', boom: 'dirt', R: 24, desc: '빙글빙글 구르며 날아가는 단단한 돌덩이.' },
     { n: '파편탄', d: '110 × 3', key: 'pebble', count: 3, trail: 'dust', boom: 'dirt', R: 15, desc: '세 갈래로 흩어지는 자갈 세 발.' },
-    { n: '땅굴 폭탄', d: '380', key: 'drill', trail: 'smoke', boom: 'dirt', R: 36, desc: '드릴로 지형을 뚫고 들어가 땅속에서 터진다.' } ],
+    { n: '땅굴 폭탄', d: '380', key: 'drill', trail: 'smoke', boom: 'dirt', R: 36, sp: 'erupt', desc: '드릴이 땅속으로 파고든 뒤 땅이 갈라지며 아래에서 터져 오른다.' } ],
   hammer: [
     { n: '철구', d: '260', key: 'ironball', trail: 'smoke', boom: 'dirt', R: 24, desc: '쇠사슬 달린 쇠공. 무거워서 바람을 덜 탄다.' },
     { n: '지진탄', d: '230', key: 'quake', trail: 'smoke', boom: 'quake', R: 28, desc: '주변 땅을 흔들어 탱크를 미끄러뜨린다.' },
-    { n: '메테오', d: '480', key: 'meteor', trail: 'fire', boom: 'fire', R: 40, desc: '불타는 운석이 꼬리를 그리며 떨어진다.' } ],
+    { n: '메테오', d: '480', key: 'beacon', color: '#ff7a3c', trail: 'spark', boom: 'fire', R: 44, sp: 'meteor', desc: '신호탄이 떨어진 자리로 하늘이 어두워지며 거대한 운석이 떨어진다.' } ],
   cloud: [
     { n: '물방울', d: '180', key: 'drop', trail: 'drops', boom: 'water', R: 22, desc: '물방울이 튀며 첨벙 터진다.' },
     { n: '번개구름', d: '210', key: 'thunder', trail: 'spark', boom: 'electric', color: '#ffe066', R: 24, desc: '바람 영향을 받지 않는 작은 먹구름.' },
-    { n: '폭풍', d: '300', key: 'storm', trail: 'wind', boom: 'wind', R: 40, desc: '회오리가 주변 탱크를 밀어낸다.' } ],
+    { n: '폭풍', d: '300', key: 'storm', trail: 'wind', boom: 'wind', R: 40, sp: 'tornado', desc: '떨어진 자리에서 회오리가 생겨 바람 방향으로 휩쓸고 지나가며 탱크를 날려 버린다.' } ],
   bee: [
     { n: '불씨', d: '190', key: 'ember', trail: 'fire', boom: 'fire', R: 22, desc: '이글거리는 불덩이.' },
     { n: '화염병', d: '160', key: 'molotov', trail: 'fire', boom: 'fire', R: 26, desc: '깨진 자리에 불이 2턴 남는다.' },
-    { n: '불사조', d: '420', key: 'phoenix', trail: 'fire', boom: 'fire', R: 40, desc: '날갯짓하는 불새가 돌진한다.' } ],
+    { n: '불사조', d: '420', key: 'phoenix', trail: 'fire', boom: 'fire', R: 40, sp: 'phoenix', desc: '불새가 돌진해 불기둥을 세우고 바닥을 2턴 동안 불태운다.' } ],
   magnet: [
     { n: '자기탄', d: '190', key: 'magball', trail: 'spark', boom: 'electric', color: '#b98cff', R: 22, desc: '전자가 도는 쇠구슬.' },
     { n: '끌어당김탄', d: '220', key: 'horseshoe', trail: 'spark', boom: 'electric', color: '#ff7a7a', R: 24, desc: '가까운 탱크 쪽으로 휘어 날아간다.' },
-    { n: '자기폭풍', d: '340', key: 'emorb', trail: 'glow', color: '#b98cff', boom: 'electric', R: 40, desc: '번개가 휘감긴 구체. 주변 아이템을 봉인한다.' } ],
+    { n: '자기폭풍', d: '340', key: 'emorb', trail: 'glow', color: '#b98cff', boom: 'electric', R: 40, sp: 'storm', desc: '먹구름이 몰려와 떨어진 자리 주변에 벼락 다섯 줄기가 내리친다.' } ],
   shroom: [
     { n: '포자', d: '170', key: 'spore', trail: 'glow', color: '#c8f06a', boom: 'toxic', R: 22, desc: '반짝이는 포자 덩어리.' },
     { n: '포자비', d: '70 × 5', key: 'spore', small: true, count: 5, trail: 'glow', color: '#c8f06a', boom: 'toxic', R: 12, desc: '작은 포자 다섯 발이 넓게 흩어진다.' },
-    { n: '독버섯밭', d: '240', key: 'toadstool', trail: 'bubbles', boom: 'toxic', R: 38, desc: '떨어진 자리에 독버섯이 자라 3턴 독 피해.' } ],
+    { n: '독버섯밭', d: '240', key: 'toadstool', trail: 'bubbles', boom: 'toxic', R: 38, sp: 'shroom', desc: '거대한 독버섯이 솟아 터지고, 독 안개가 3턴 동안 남아 매 턴 80 피해.' } ],
   whale: [
     { n: '얼음덩이', d: '200', key: 'icecube', trail: 'frost', boom: 'ice', R: 24, desc: '반짝이는 얼음 큐브.' },
     { n: '빙결탄', d: '150', key: 'snowflake', trail: 'frost', boom: 'ice', R: 26, desc: '맞은 탱크는 다음 턴에 움직일 수 없다.' },
-    { n: '해일', d: '400', key: 'wave', trail: 'drops', boom: 'water', R: 42, desc: '거대한 물덩이가 덮친다.' } ],
+    { n: '해일', d: '400', key: 'wave', trail: 'drops', boom: 'water', R: 42, sp: 'wave', desc: '해일이 앞으로 밀려가며 탱크를 쓸어 가고, 고래가 파도 위로 뛰어오른다.' } ],
   laser: [
     { n: '빔탄', d: '210', key: 'bolt', trail: 'glow', color: '#2fe0ff', boom: 'electric', R: 22, desc: '빛나는 에너지 탄.' },
     { n: '관통 레이저', d: '170', key: 'beam', path: 'straight', boom: 'electric', color: '#2fe0ff', R: 20, desc: '중력과 바람을 무시하고 직선으로 꿰뚫는다.' },
-    { n: '궁극 빔', d: '500', key: 'sky', path: 'sky', boom: 'beam', R: 40, desc: '하늘에서 수직 광선이 내리꽂힌다.' } ],
+    { n: '궁극 빔', d: '500', key: 'beacon', color: '#2fe0ff', trail: 'glow', boom: 'beam', R: 40, sp: 'ufo', desc: '신호탄을 따라 우주선이 내려와 땅을 꿰뚫는 수직 레이저를 쏜다.' } ],
 };
 
 /* 포탄 물리 (설계서 '포탄 물리와 지형 파임' 표와 같은 값)
@@ -647,6 +651,8 @@ function drawShell(c, sh, t, ang) {
     case 'wave': c.save(); c.rotate(ang); circ(c, 0, 0, 13); fs(c, vg(c, -13, 13, '#bdeeff', '#3aa0d8', '#1d5f99'), 2.4);
       c.beginPath(); c.moveTo(-12, -2); c.quadraticCurveTo(-4, -14, 8, -10); c.quadraticCurveTo(14, -6, 10, 0); c.quadraticCurveTo(6, -6, 0, -4); c.closePath(); fs(c, '#ffffff', 2);
       c.fillStyle = 'rgba(255,255,255,.6)'; circ(c, -5, 5, 2); c.fill(); circ(c, 3, 7, 1.4); c.fill(); c.restore(); break;
+    case 'beacon': { const col = sh.color || '#ff7a3c'; c.save(); c.rotate(ang); rr(c, -10, -4.5, 18, 9, 4.5); fs(c, '#e8ecf2', 2); rr(c, 2, -4.5, 8, 9, 4); fs(c, col, 2); c.restore();
+      const on = (t * 8) % 1 < .5; c.save(); c.globalCompositeOperation = 'lighter'; puff(c, 0, 0, on ? 14 : 9, col === '#2fe0ff' ? '47,224,255' : '255,122,60', on ? .55 : .3); c.restore(); break; }
     case 'bolt': c.save(); c.rotate(ang); c.shadowColor = '#2fe0ff'; c.shadowBlur = 14; rr(c, -18, -5, 28, 10, 5); c.fillStyle = '#2fe0ff'; c.fill(); rr(c, -12, -2.5, 20, 5, 2.5); c.fillStyle = '#ffffff'; c.fill(); c.restore(); break;
     default: circ(c, 0, 0, 8); fs(c, '#ccc');
   }
@@ -694,4 +700,55 @@ function boom(c, sh, x, y, p) {
   if (kind === 'fire') for (let i = 0; i < 3; i++) { c.save(); c.globalAlpha = a; flame(c, x - R * .4 + i * R * .4, y - 2, .8 + p, p * 10 + i); c.restore(); }
   if (kind === 'quake') { c.strokeStyle = rgba('#5a3b22', a); c.lineWidth = 2; [-1, 1].forEach(d => { c.beginPath(); c.moveTo(x, y + 2); for (let j = 1; j <= 4; j++) c.lineTo(x + d * j * R * .35 * (.5 + p), y + 2 + (j % 2 ? 4 : -1)); c.stroke(); }); ell(c, x, y + 4, R * (.6 + 1.4 * p), 4 + 3 * p); c.strokeStyle = rgba('#ffe0a0', a * .8); c.stroke(); }
   if (kind === 'water') { c.strokeStyle = rgba('#ffffff', a); c.lineWidth = 3; for (let i = -2; i <= 2; i++) { c.beginPath(); c.moveTo(x + i * R * .25, y); c.quadraticCurveTo(x + i * R * .4, y - R * (1 - Math.abs(i) * .25) * p * 1.4, x + i * R * .55, y - R * .3 * p); c.stroke(); } }
+}
+
+/* ---------- 지속 효과: 독 안개, 불바다 ---------- */
+// x 중심, gy 땅 높이, r 반경, a 전체 투명도(사라질 때 0으로)
+function poisonFog(c, x, gy, r, t, a = 1) {
+  c.save();
+  // 바닥 독 웅덩이
+  const pg = c.createRadialGradient(x, gy, 4, x, gy, r);
+  pg.addColorStop(0, `rgba(150,220,70,${.45 * a})`); pg.addColorStop(1, 'rgba(150,220,70,0)');
+  c.fillStyle = pg; ell(c, x, gy + 2, r, 10); c.fill();
+  // 피어오르는 안개 덩어리
+  for (let i = 0; i < 9; i++) {
+    const ph = (t * .12 + i / 9) % 1, side = (hash(i) - .5) * 2;
+    const bx = x + side * r * .8 + Math.sin(t * .9 + i * 1.7) * 10, by = gy - 10 - ph * r * .9 - hash(i + 3) * 14;
+    const br = r * (.35 + .25 * hash(i + 7)) * (.7 + ph * .6), al = Math.sin(ph * Math.PI) * .55 * a;
+    const g = c.createRadialGradient(bx, by, 2, bx, by, br);
+    const col = i % 3 === 0 ? '170,230,90' : '150,80,200';
+    g.addColorStop(0, `rgba(${col},${al})`); g.addColorStop(.6, `rgba(${col},${al * .5})`); g.addColorStop(1, `rgba(${col},0)`);
+    c.fillStyle = g; circ(c, bx, by, br); c.fill();
+  }
+  // 거품
+  for (let i = 0; i < 7; i++) {
+    const ph = (t * .6 + i / 7) % 1, bx = x + (hash(i + 11) - .5) * r * 1.4, by = gy - ph * 46;
+    circ(c, bx, by, 2 + 2.5 * hash(i)); c.lineWidth = 1.5; c.strokeStyle = `rgba(200,140,240,${(1 - ph) * a})`; c.stroke();
+  }
+  // 바닥에 자란 독버섯
+  [[-.55, .8], [0, 1.1], [.5, .7], [.85, .55]].forEach(([u, s], i) => {
+    const grow = Math.min(1, a * 1.5);
+    c.save(); c.globalAlpha = a; c.translate(x + u * r, gy + 3); c.scale(s * grow, s * grow); c.rotate(Math.sin(t * 2 + i) * .08);
+    rr(c, -3, -10, 6, 10, 2); fs(c, '#efe0c8', 1.6);
+    c.beginPath(); c.moveTo(-10, -9); c.bezierCurveTo(-10, -22, 10, -22, 10, -9); c.closePath(); fs(c, vg(c, -21, -9, '#c77dff', '#7b2fbf'), 1.8);
+    circ(c, -4, -14, 1.6); c.fillStyle = '#b6f36a'; c.fill(); circ(c, 4, -16, 1.3); c.fill();
+    c.restore();
+  });
+  c.restore();
+}
+function fireField(c, x, gy, r, t, a = 1) {
+  c.save();
+  const g = c.createRadialGradient(x, gy, 2, x, gy, r * 1.2);
+  g.addColorStop(0, `rgba(255,140,40,${.5 * a})`); g.addColorStop(1, 'rgba(255,140,40,0)');
+  c.fillStyle = g; ell(c, x, gy - 4, r * 1.2, 22); c.fill();
+  c.globalAlpha = a;
+  for (let i = 0; i < 6; i++) { const u = -1 + i * .4; flame(c, x + u * r * .9, gy + 3, .7 + .5 * hash(i) + .15 * Math.sin(t * 6 + i), t + i * .7); }
+  for (let i = 0; i < 6; i++) { const ph = (t * .8 + i / 6) % 1; circ(c, x + (hash(i + 4) - .5) * r * 1.6 + Math.sin(t * 3 + i) * 4, gy - 8 - ph * 50, 1.8); c.fillStyle = `rgba(255,210,90,${1 - ph})`; c.fill(); }
+  c.restore();
+}
+function zoneLabel(c, x, y, text, col) {
+  c.save(); c.font = '13px Jua, sans-serif'; c.textAlign = 'center';
+  const w = c.measureText(text).width + 14;
+  rr(c, x - w / 2, y - 14, w, 19, 9.5); c.fillStyle = 'rgba(31,45,82,.85)'; c.fill();
+  c.fillStyle = col; c.fillText(text, x, y); c.restore();
 }
