@@ -1,8 +1,8 @@
 // 서버와 클라이언트가 함께 쓰는 게임 기본 데이터 (그림 데이터는 mockup/art.js)
 export const TANK_IDS = ['mole', 'hammer', 'cloud', 'bee', 'magnet', 'shroom', 'whale', 'laser'];
 export const TANK_NAMES = { mole: '두더지', hammer: '망치', cloud: '구름열차', bee: '불꽃벌', magnet: '자석포', shroom: '버섯포', whale: '얼음고래', laser: '레이저로봇', random: '랜덤' };
-export const MAP_IDS = ['valley', 'hills', 'mesa', 'ice', 'sky', 'factory', 'shroom', 'volcano', 'moon'];
-export const MAP_NAMES = { valley: '골짜기', hills: '초록언덕', mesa: '모래협곡', ice: '얼음호수', sky: '구름섬', factory: '폐공장', shroom: '버섯숲', volcano: '화산섬', moon: '달기지', random: '무작위' };
+export const MAP_IDS = ['hills', 'valley', 'mountain', 'cave', 'ruins', 'city', 'castle', 'bridge', 'arena', 'mesa', 'ice', 'factory', 'shroom', 'volcano', 'ships', 'moon', 'sky'];
+export const MAP_NAMES = { hills: '초록언덕', valley: '골짜기', mountain: '큰 산', cave: '땅굴', ruins: '사막 유적', city: '무너진 도시', castle: '성채', bridge: '아찔한 다리', arena: '투기장', mesa: '모래협곡', ice: '빙하 계곡', factory: '폐공장', shroom: '버섯숲', volcano: '화산 지대', ships: '바다 위 결투', moon: '달기지', sky: '구름섬', random: '무작위' };
 export const ITEM_SIZES = { double: 2, power: 1, repair: 1, teamrepair: 2, teleport: 2, calm: 1, shield: 1, fuel: 1 };
 export const BAG_CELLS = 6;
 export const TURN_SECONDS = [10, 20, 30];

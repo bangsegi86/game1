@@ -14,6 +14,7 @@ export function baseGrid(mapId, w, h) {
   return BASE.get(key).slice();
 }
 export const opsHash = ops => { let h = 0; const s = JSON.stringify(ops); for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0; return h; };
+export function backGrid(mapId, w, h) { const m = MAPS[mapId]; if (!m.backTerrain) return null; const g = new Uint8Array(w * h); m.backTerrain(new MaskCtx(g, w, h), w, h); return g; }
 const ease = u => u < 0 ? 0 : u > 1 ? 1 : u * u * (3 - 2 * u);
 const r1 = v => Math.round(v * 10) / 10;
 

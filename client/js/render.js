@@ -1,7 +1,7 @@
 // 전투 화면 그리기: 시뮬레이션(shared/sim/world.js) 상태를 받아 그린다.
 // 탱크·포탄·폭발 그림은 /art/art.js 전역 함수를 쓴다.
 import { MAPS, MAT } from '../../shared/sim/maps.js';
-import { baseGrid } from '../../shared/sim/world.js';
+import { baseGrid, backGrid } from '../../shared/sim/world.js';
 import { raggedPoly } from '../../shared/sim/raster.js';
 
 const hex3 = s => { const n = parseInt(s.slice(1), 16); return [n >> 16, (n >> 8) & 255, n & 255]; };
@@ -14,7 +14,7 @@ function hash2(x, y) { let h = (Math.imul(x, 374761393) + Math.imul(y, 668265263
 function palette(m) {
   const p = m.pal, two = (v, d) => Array.isArray(v) ? [hex3(v[0]), hex3(v[1])] : v ? [hex3(v), hex3(v).map(x => x * .6)] : d;
   const s = two(p.soil, [[176, 122, 72], [94, 58, 34]]), r = two(p.rock, [[138, 132, 120], [85, 80, 74]]), i = two(p.ice, [[216, 242, 255], [120, 184, 220]]);
-  return { soil0: s[0], soil1: s[1], rock0: r[0], rock1: r[1], ice0: i[0], ice1: i[1], crust: p.crust ? hex3(p.crust) : null, steel0: hex3(p.steel || '#9aa4b2'), leaf0: hex3(p.leaf || '#4f9e3c'), wood0: hex3(p.wood || '#7a4f2c'), cap0: hex3(p.cap || '#e5487a') };
+  return { soil0: s[0], soil1: s[1], rock0: r[0], rock1: r[1], ice0: i[0], ice1: i[1], crust: p.crust ? hex3(p.crust) : null, steel0: hex3(p.steel || '#9aa4b2'), leaf0: hex3(p.leaf || '#4f9e3c'), wood0: hex3(p.wood || '#7a4f2c'), cap0: hex3(p.cap || '#e5487a'), plank0: hex3(p.plank || '#a0703f') };
 }
 function shadeMat(m, d, x, y, P, out) {
   let c, k = 1;
@@ -25,6 +25,7 @@ function shadeMat(m, d, x, y, P, out) {
   else if (m === 'leaf') { c = P.leaf0; k = .8 + hash2(x >> 3, y >> 3) * .35 + n * .12; if (d < 3) k *= 1.15; }
   else if (m === 'wood') { c = P.wood0; k = 1 + .1 * Math.sin(x * .9 + n2 * 3) + n * .08; }
   else if (m === 'cap') { c = P.cap0; const cx = Math.floor(x / 26), cy = Math.floor(y / 20), ox = cx * 26 + 6 + hash2(cx, cy) * 14, oy = cy * 20 + 4 + hash2(cy, cx) * 12; if ((x - ox) ** 2 + (y - oy) ** 2 < 22) c = [255, 244, 247]; k = 1 + n * .06 - Math.min(.3, d / 60); }
+  else if (m === 'plank') { c = P.plank0; k = ((y % 9) < 1 ? .62 : 1) + .07 * Math.sin(x * .35 + n2 * 4) + n * .06; if (d < 2) k *= 1.15; }
   else { c = mix3(P.ice0, P.ice1, Math.min(1, d / 70)); k = 1 + .08 * Math.sin((x + y) * .12) + n * .05; if (P.crust && d < 6) { c = P.crust; k = d > 4 ? .86 : 1; } }
   out[0] = Math.min(255, c[0] * k); out[1] = Math.min(255, c[1] * k); out[2] = Math.min(255, c[2] * k);
 }
@@ -193,7 +194,7 @@ const SPECIALS = {
 
 
 /* ---------- 지형 그림 굽기: 재질 격자 → 질감 있는 그림 ---------- */
-function bakeTerrain(mapId, grid, w, h) {
+function bakeTerrain(mapId, grid, w, h, bgrid) {
   const P = palette(MAPS[mapId]), fg = new ImageData(w, h), bk = new ImageData(w, h), st = new ImageData(w, h), out = [0, 0, 0];
   for (let x = 0; x < w; x++) {
     let d = 0, prev = false;
@@ -208,6 +209,8 @@ function bakeTerrain(mapId, grid, w, h) {
       if (mat === 'steel') { st.data[i] = out[0]; st.data[i + 1] = out[1]; st.data[i + 2] = out[2]; st.data[i + 3] = 255; }
     }
   }
+  // 뒷배경(땅을 파면 보이는 어두운 벽)을 따로 정한 맵: 동굴·크레바스·창문 안쪽이 하늘이 아니라 어두운 벽으로 보인다
+  if (bgrid) { bk.data.fill(0); for (let x = 0; x < w; x++) { let d = 0, prev = false; for (let y = 0; y < h; y++) { const m = bgrid[y * w + x], i = (y * w + x) * 4; if (!m) { prev = false; continue; } d = prev ? d + 1 : 0; prev = true; const mat = MAT[m]; if (mat === 'leaf' || mat === 'wood') continue; shadeMat(mat, d, x, y, P, out); bk.data[i] = out[0] * .38 + 8; bk.data[i + 1] = out[1] * .36 + 6; bk.data[i + 2] = out[2] * .4 + 14; bk.data[i + 3] = 255; } } }
   const cv = img => { const c = document.createElement('canvas'); c.width = w; c.height = h; c.getContext('2d').putImageData(img, 0, 0); return c; };
   return { fg: cv(fg), back: cv(bk), steel: cv(st) };
 }
@@ -222,7 +225,7 @@ export class Renderer {
   ground(x, from) { return this.sim.ground(x, from); }
   // 처음부터 다시 그리기: 기본 지형을 굽고 지금까지의 땅 파기를 다시 적용한다
   rebuild() {
-    const b = bakeTerrain(this.sim.mapId, baseGrid(this.sim.mapId, this.w, this.h), this.w, this.h);
+    const b = bakeTerrain(this.sim.mapId, baseGrid(this.sim.mapId, this.w, this.h), this.w, this.h, backGrid(this.sim.mapId, this.w, this.h));
     this.fg = b.fg; this.back = b.back; this.steel = b.steel; this.fctx = this.fg.getContext('2d', { willReadFrequently: true });
     for (const op of this.sim.ops) this.carveVisual(op);
   }
@@ -275,8 +278,7 @@ export class Renderer {
     const sx = this.shake ? (hash(Math.floor(this.t * 60)) - .5) * this.shake * 12 : 0, sy = this.shake ? (hash(Math.floor(this.t * 60) + 7) - .5) * this.shake * 12 : 0;
     const cam = o.cam || { x: 0, y: 0 };
     c.save(); c.drawImage(this.sky, cam.x * .5, cam.y * .5, this.w, this.h); c.translate(sx, sy); // 하늘은 절반 속도로 움직여 깊이감을 준다
-    c.drawImage(this.back, 0, 0, this.w, this.h); c.drawImage(this.fg, 0, 0, this.w, this.h);
-    this.drawLiquid(c);
+    c.drawImage(this.back, 0, 0, this.w, this.h); this.drawLiquid(c); c.drawImage(this.fg, 0, 0, this.w, this.h); // 물·용암은 땅 뒤: 웅덩이·틈 안에서만 보인다
     S.zones.forEach(z => { const gy = S.ground(z.x, 0), a = Math.min(1, (clock - (z.born || 0)) * 2); if (z.type === 'poison') poisonFog(c, z.x, gy, z.r, this.t, a); else fireField(c, z.x, gy, z.r, this.t, a); if (this.labels) zoneLabel(c, z.x, gy - z.r - 20, (z.type === 'poison' ? '독 ' : '불 ') + z.turns + '턴', z.type === 'poison' ? '#d4a6ff' : '#ffb36b'); });
     S.events.forEach(e => this.drawEvent(c, e));
     S.tanks.forEach(t => this.drawTank(c, t, o));
