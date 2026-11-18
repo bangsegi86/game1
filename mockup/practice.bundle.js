@@ -381,7 +381,7 @@
       fillPolys(this.grid, this.w, this.h, this.paths, v, this.keep);
     }
   };
-  function fillPolys(grid, W2, H2, polys, value, keep) {
+  function fillPolys(grid, W, H, polys, value, keep) {
     const edges = [];
     let ymin = Infinity, ymax = -Infinity;
     for (const p of polys) for (let i = 0; i + 1 < p.length; i++) {
@@ -397,7 +397,7 @@
         edges.push(y02 < y12 ? [x0, y02, x1, y12, 1] : [x1, y12, x0, y02, -1]);
       }
     }
-    const y0 = Math.max(0, Math.floor(ymin)), y1 = Math.min(H2 - 1, Math.ceil(ymax));
+    const y0 = Math.max(0, Math.floor(ymin)), y1 = Math.min(H - 1, Math.ceil(ymax));
     const xs = [];
     for (let y = y0; y <= y1; y++) {
       const sy = y + 0.5;
@@ -409,7 +409,7 @@
       for (let i = 0; i < xs.length - 1; i++) {
         wind += xs[i][1];
         if (wind !== 0) {
-          const a = Math.max(0, Math.ceil(xs[i][0] - 0.5)), b = Math.min(W2 - 1, Math.floor(xs[i + 1][0] - 0.5)), row = y * W2;
+          const a = Math.max(0, Math.ceil(xs[i][0] - 0.5)), b = Math.min(W - 1, Math.floor(xs[i + 1][0] - 0.5)), row = y * W;
           for (let x = a; x <= b; x++) if (keep == null || grid[row + x] !== keep) grid[row + x] = value;
         }
       }
@@ -466,9 +466,11 @@
 
   // ../shared/sim/world.js
   var G0 = 380;
-  var SPEED = 5.6;
+  var SPEED = 6.6;
   var WINDK = 14;
   var DT = 1 / 60;
+  var WORLD_W = 1440;
+  var WORLD_H = 600;
   var STEEL = MK.steel;
   var LEAF = MK.leaf;
   var WOOD = MK.wood;
@@ -496,7 +498,7 @@
     lightning: { n: "\uBCBC\uB77D", turns: 0 }
   };
   var Sim = class {
-    constructor({ w = 960, h = 480, map = "hills", tankScale = 0.5 } = {}) {
+    constructor({ w = WORLD_W, h = WORLD_H, map = "hills", tankScale = 0.5 } = {}) {
       this.w = w;
       this.h = h;
       this.ts = tankScale;
@@ -779,45 +781,45 @@
     }
     /* ---------- 필살기 진행 (그림은 화면 쪽) ---------- */
     stepSpecial(s, dt) {
-      const W2 = this;
+      const W = this;
       switch (s.type) {
         case "ufo":
           if (s.t >= 1.45 && !s.fired) {
             s.fired = true;
             const r = s.sh.cr * s.k / 2;
-            W2.carveRect(s.x - r, 0, r * 2, s.gy + 70);
-            W2.hurtArea(s.x, s.gy - 20, s.sh.r * s.k, s.sh.dmg * s.k, s.owner, { columnW: r + 14 });
-            W2.boom(s.x, s.gy, { ...s.base, shake: 0.7 });
+            W.carveRect(s.x - r, 0, r * 2, s.gy + 70);
+            W.hurtArea(s.x, s.gy - 20, s.sh.r * s.k, s.sh.dmg * s.k, s.owner, { columnW: r + 14 });
+            W.boom(s.x, s.gy, { ...s.base, shake: 0.7 });
           }
           return s.t < 2.7;
         case "meteor":
           if (s.t >= 1.15 && !s.fired) {
             s.fired = true;
-            W2.carveRound(s.x, s.gy, s.sh.cr * s.k);
-            W2.hurtArea(s.x, s.gy - 10, s.sh.r * s.k, s.sh.dmg * s.k, s.owner);
-            W2.boom(s.x, s.gy, { ...s.base, R: s.base.R * 1.2, debris: 26, power: 1.6, shake: 1.1 });
+            W.carveRound(s.x, s.gy, s.sh.cr * s.k);
+            W.hurtArea(s.x, s.gy - 10, s.sh.r * s.k, s.sh.dmg * s.k, s.owner);
+            W.boom(s.x, s.gy, { ...s.base, R: s.base.R * 1.2, debris: 26, power: 1.6, shake: 1.1 });
           }
           return s.t < 2;
         case "erupt":
           if (s.t >= 0.7 && !s.fired) {
             s.fired = true;
-            W2.carveRound(s.x, s.y, s.sh.cr * s.k);
-            const top = W2.ground(s.x, 0);
-            if (top < s.y) W2.carveRect(s.x - 12, top - 4, 24, s.y - top + 4);
-            W2.hurtArea(s.x, Math.min(s.y, top + 10), s.sh.r * s.k + 20, s.sh.dmg * s.k, s.owner, { tall: s.y - top });
-            W2.boom(s.x, top + 6, { ...s.base, debris: 30, power: 2, shake: 0.8 });
+            W.carveRound(s.x, s.y, s.sh.cr * s.k);
+            const top = W.ground(s.x, 0);
+            if (top < s.y) W.carveRect(s.x - 12, top - 4, 24, s.y - top + 4);
+            W.hurtArea(s.x, Math.min(s.y, top + 10), s.sh.r * s.k + 20, s.sh.dmg * s.k, s.owner, { tall: s.y - top });
+            W.boom(s.x, top + 6, { ...s.base, debris: 30, power: 2, shake: 0.8 });
           }
           return s.t < 1.6;
         case "tornado":
           if (s.t < 2.6) {
             s.x += s.dir * 130 * dt;
-            s.gy = W2.ground(s.x, 0);
+            s.gy = W.ground(s.x, 0);
           }
-          for (const t of W2.tanks) {
+          for (const t of W.tanks) {
             if (t.dead || s.hit.has(t)) continue;
             if (Math.abs(t.x - s.x) < 34 && t.y > s.gy - 150) {
               s.hit.add(t);
-              W2.damage(t, s.sh.dmg * s.k, s.owner);
+              W.damage(t, s.sh.dmg * s.k, s.owner);
               t.vy = -420;
               t.vx = s.dir * 190;
               t.air = true;
@@ -828,36 +830,36 @@
           [0.45, 0.65, 0.85, 1.05, 1.25].forEach((tt, i) => {
             if (s.t >= tt && !s.done[i]) {
               s.done[i] = true;
-              const x = s.x + [-50, 30, -15, 55, 0][i] * s.k, gy = W2.ground(x, 0);
+              const x = s.x + [-50, 30, -15, 55, 0][i] * s.k, gy = W.ground(x, 0);
               s.flash[i] = { x, gy, t: s.t };
-              W2.carveRound(x, gy, 16 * s.k);
-              W2.hurtArea(x, gy - 10, 30, s.sh.dmg * s.k / 4.2, s.owner);
-              W2.boom(x, gy, { kind: "electric", R: 18, color: "#b98cff", shake: 0.25 });
+              W.carveRound(x, gy, 16 * s.k);
+              W.hurtArea(x, gy - 10, 30, s.sh.dmg * s.k / 4.2, s.owner);
+              W.boom(x, gy, { kind: "electric", R: 18, color: "#b98cff", shake: 0.25 });
             }
           });
           return s.t < 1.8;
         case "shroom":
           if (s.t >= 0.85 && !s.fired) {
             s.fired = true;
-            W2.carveRound(s.x, s.gy, s.sh.cr * s.k);
-            W2.hurtArea(s.x, s.gy - 30, s.sh.r * s.k, s.sh.dmg * s.k, s.owner);
-            W2.boom(s.x, s.gy - 60, { kind: "toxic", R: 50 * s.k, shake: 0.4 });
-            W2.zones.push({ type: "poison", x: r1(s.x), r: 80, turns: 3, dmg: 80, born: W2.clock, from: s.owner?.uid });
+            W.carveRound(s.x, s.gy, s.sh.cr * s.k);
+            W.hurtArea(s.x, s.gy - 30, s.sh.r * s.k, s.sh.dmg * s.k, s.owner);
+            W.boom(s.x, s.gy - 60, { kind: "toxic", R: 50 * s.k, shake: 0.4 });
+            W.zones.push({ type: "poison", x: r1(s.x), r: 80, turns: 3, dmg: 80, born: W.clock, from: s.owner?.uid });
           }
           return s.t < 1.5;
         case "wave":
           if (!s.fired) {
             s.fired = true;
-            W2.carveRound(s.x, s.gy, s.sh.cr * s.k);
-            W2.hurtArea(s.x, s.gy - 10, s.sh.r * s.k, s.sh.dmg * s.k * 0.75, s.owner);
-            W2.boom(s.x, s.gy, s.base);
+            W.carveRound(s.x, s.gy, s.sh.cr * s.k);
+            W.hurtArea(s.x, s.gy - 10, s.sh.r * s.k, s.sh.dmg * s.k * 0.75, s.owner);
+            W.boom(s.x, s.gy, s.base);
           }
           s.wx += s.dir * 230 * dt;
-          for (const t of W2.tanks) {
+          for (const t of W.tanks) {
             if (t.dead || s.hit.has(t) || t === s.owner) continue;
             if (Math.abs(t.x - s.wx) < 30) {
               s.hit.add(t);
-              W2.damage(t, s.sh.dmg * s.k * 0.25, s.owner);
+              W.damage(t, s.sh.dmg * s.k * 0.25, s.owner);
               t.vx = s.dir * 240;
               t.vy = -260;
               t.air = true;
@@ -1638,11 +1640,11 @@
     }
     c.restore();
   }
-  function drawTornado(c, x, gy, H2, t, a = 1, col = "230,236,240") {
+  function drawTornado(c, x, gy, H, t, a = 1, col = "230,236,240") {
     c.save();
     c.globalAlpha = a;
     for (let i = 0; i < 14; i++) {
-      const k = i / 13, y = gy - k * H2, r = 6 + k * k * 44 + Math.sin(t * 9 + i) * 2, sx = x + Math.sin(t * 4 + k * 5) * 10 * k;
+      const k = i / 13, y = gy - k * H, r = 6 + k * k * 44 + Math.sin(t * 9 + i) * 2, sx = x + Math.sin(t * 4 + k * 5) * 10 * k;
       c.beginPath();
       c.ellipse(sx, y, r, 4 + k * 5, 0, t * 10 + i, t * 10 + i + 4.4);
       c.strokeStyle = `rgba(${col},${0.35 + 0.5 * (1 - k)})`;
@@ -1652,11 +1654,11 @@
     for (let i = 0; i < 8; i++) {
       const p = (t * 1.3 + i / 8) % 1, ang = t * 12 + i * 2, r = 8 + p * 40;
       c.fillStyle = `rgba(140,110,80,${(1 - p) * 0.9})`;
-      c.fillRect(x + Math.cos(ang) * r, gy - p * H2 * 0.8, 3, 3);
+      c.fillRect(x + Math.cos(ang) * r, gy - p * H * 0.8, 3, 3);
     }
     c.restore();
   }
-  function drawPillar(c, x, gy, H2, t, a = 1) {
+  function drawPillar(c, x, gy, H, t, a = 1) {
     c.save();
     c.globalAlpha = a;
     const g = c.createLinearGradient(x - 18, 0, x + 18, 0);
@@ -1668,15 +1670,15 @@
     c.fillStyle = g;
     c.beginPath();
     c.moveTo(x - 18, gy);
-    for (let y = gy; y >= gy - H2; y -= 8) c.lineTo(x - 14 - Math.sin(y * 0.08 + t * 14) * 5, y);
-    c.lineTo(x, gy - H2 - 16);
-    for (let y = gy - H2; y <= gy; y += 8) c.lineTo(x + 14 + Math.sin(y * 0.08 + t * 14 + 1) * 5, y);
+    for (let y = gy; y >= gy - H; y -= 8) c.lineTo(x - 14 - Math.sin(y * 0.08 + t * 14) * 5, y);
+    c.lineTo(x, gy - H - 16);
+    for (let y = gy - H; y <= gy; y += 8) c.lineTo(x + 14 + Math.sin(y * 0.08 + t * 14 + 1) * 5, y);
     c.closePath();
     c.fill();
     c.globalCompositeOperation = "lighter";
     for (let i = 0; i < 8; i++) {
       const p = (t * 1.5 + i / 8) % 1;
-      puff(c, x + Math.sin(i * 3 + t * 5) * 10, gy - p * H2, 6 + p * 8, "255,160,60", (1 - p) * 0.5);
+      puff(c, x + Math.sin(i * 3 + t * 5) * 10, gy - p * H, 6 + p * 8, "255,160,60", (1 - p) * 0.5);
     }
     c.restore();
   }
@@ -1779,18 +1781,18 @@
   var SPECIALS = {
     ufo: {
       // 레이저로봇: 우주선이 내려와 수직 레이저
-      step(W2, s, dt) {
+      step(W, s, dt) {
         if (s.t >= 1.45 && !s.fired) {
           s.fired = true;
           const r = s.sh.cr * s.k / 2;
-          W2.carveRect(s.x - r, 0, r * 2, s.gy + 70);
-          W2.hurtArea(s.x, s.gy - 20, s.sh.r * s.k, s.sh.dmg * s.k, s.owner, { columnW: r + 14 });
-          W2.boomAt(s.sh, s.x, s.gy, s.k);
-          W2.shake += 0.7;
+          W.carveRect(s.x - r, 0, r * 2, s.gy + 70);
+          W.hurtArea(s.x, s.gy - 20, s.sh.r * s.k, s.sh.dmg * s.k, s.owner, { columnW: r + 14 });
+          W.boomAt(s.sh, s.x, s.gy, s.k);
+          W.shake += 0.7;
         }
         return s.t < 2.7;
       },
-      draw(c, W2, s) {
+      draw(c, W, s) {
         const t = s.t, y = t < 0.9 ? lerp(-80, 46, ease(t / 0.9)) : t < 2 ? 46 + Math.sin(t * 5) * 2 : 46 - (t - 2) * 300;
         const x = s.x + (t > 2 ? (t - 2) * 120 : 0);
         if (t > 0.9 && t < 1.45) {
@@ -1824,20 +1826,20 @@
     },
     meteor: {
       // 망치: 신호탄 자리에 운석 낙하
-      step(W2, s, dt) {
+      step(W, s, dt) {
         if (s.t >= 1.15 && !s.fired) {
           s.fired = true;
-          W2.carveRound(s.x, s.gy, s.sh.cr * s.k);
-          W2.hurtArea(s.x, s.gy - 10, s.sh.r * s.k, s.sh.dmg * s.k, s.owner);
-          W2.boomAt(s.sh, s.x, s.gy, s.k * 1.2);
-          W2.debris(s.x, s.gy, 26, 1.6);
-          W2.shake += 1.1;
+          W.carveRound(s.x, s.gy, s.sh.cr * s.k);
+          W.hurtArea(s.x, s.gy - 10, s.sh.r * s.k, s.sh.dmg * s.k, s.owner);
+          W.boomAt(s.sh, s.x, s.gy, s.k * 1.2);
+          W.debris(s.x, s.gy, 26, 1.6);
+          W.shake += 1.1;
         }
         return s.t < 2;
       },
-      draw(c, W2, s) {
+      draw(c, W, s) {
         const t = s.t;
-        W2.dim = Math.max(W2.dim, t < 1.5 ? Math.min(0.35, t * 0.8) : Math.max(0, 0.35 - (t - 1.5)));
+        W.dim = Math.max(W.dim, t < 1.5 ? Math.min(0.35, t * 0.8) : Math.max(0, 0.35 - (t - 1.5)));
         if (t < 1.15) {
           const u = Math.max(0, (t - 0.2) / 0.95) ** 1.6, x = lerp(s.x - 320 * s.side, s.x, u), y = lerp(-120, s.gy, u);
           for (let i = 1; i < 14; i++) {
@@ -1863,23 +1865,23 @@
     },
     erupt: {
       // 두더지: 땅속 폭발 후 분출
-      step(W2, s, dt) {
-        W2.shake = Math.max(W2.shake, s.t < 0.7 ? 0.25 : 0);
+      step(W, s, dt) {
+        W.shake = Math.max(W.shake, s.t < 0.7 ? 0.25 : 0);
         if (s.t >= 0.7 && !s.fired) {
           s.fired = true;
-          W2.carveRound(s.x, s.y, s.sh.cr * s.k);
-          const top = W2.ground(s.x, 0);
-          if (top < s.y) W2.carveRect(s.x - 12, top - 4, 24, s.y - top + 4);
-          W2.hurtArea(s.x, Math.min(s.y, top + 10), s.sh.r * s.k + 20, s.sh.dmg * s.k, s.owner, { tall: s.y - top });
-          W2.boomAt(s.sh, s.x, top + 6, s.k);
-          W2.debris(s.x, top, 30, 2);
-          W2.shake += 0.8;
+          W.carveRound(s.x, s.y, s.sh.cr * s.k);
+          const top = W.ground(s.x, 0);
+          if (top < s.y) W.carveRect(s.x - 12, top - 4, 24, s.y - top + 4);
+          W.hurtArea(s.x, Math.min(s.y, top + 10), s.sh.r * s.k + 20, s.sh.dmg * s.k, s.owner, { tall: s.y - top });
+          W.boomAt(s.sh, s.x, top + 6, s.k);
+          W.debris(s.x, top, 30, 2);
+          W.shake += 0.8;
         }
         return s.t < 1.6;
       },
-      draw(c, W2, s) {
+      draw(c, W, s) {
         if (s.t < 0.7) {
-          const top = W2.ground(s.x, 0), k = s.t / 0.7;
+          const top = W.ground(s.x, 0), k = s.t / 0.7;
           c.strokeStyle = `rgba(40,20,10,${0.4 + k * 0.5})`;
           c.lineWidth = 2;
           [-1, 1].forEach((d) => {
@@ -1893,16 +1895,16 @@
     },
     tornado: {
       // 구름열차: 회오리가 땅을 따라 이동
-      step(W2, s, dt) {
+      step(W, s, dt) {
         if (s.t < 2.6) {
           s.x += s.dir * 130 * dt;
-          s.gy = W2.ground(s.x, 0);
+          s.gy = W.ground(s.x, 0);
         }
-        W2.tanks.forEach((t) => {
+        W.tanks.forEach((t) => {
           if (t.dead || s.hit.has(t)) return;
           if (Math.abs(t.x - s.x) < 34 && t.y > s.gy - 150) {
             s.hit.add(t);
-            W2.damage(t, s.sh.dmg * s.k, s.owner);
+            W.damage(t, s.sh.dmg * s.k, s.owner);
             t.vy = -420;
             t.vx = s.dir * 190;
             t.air = true;
@@ -1910,28 +1912,28 @@
         });
         return s.t < 3;
       },
-      draw(c, W2, s) {
+      draw(c, W, s) {
         const a = Math.min(1, s.t * 3, (3 - s.t) * 2);
         drawTornado(c, s.x, s.gy, 150, s.t, a);
       }
     },
     storm: {
       // 자석포: 먹구름에서 번개 5발
-      step(W2, s, dt) {
+      step(W, s, dt) {
         [0.45, 0.65, 0.85, 1.05, 1.25].forEach((tt, i) => {
           if (s.t >= tt && !s.done[i]) {
             s.done[i] = true;
-            const x = s.x + [-50, 30, -15, 55, 0][i] * s.k, gy = W2.ground(x, 0);
+            const x = s.x + [-50, 30, -15, 55, 0][i] * s.k, gy = W.ground(x, 0);
             s.flash[i] = { x, gy, t: s.t };
-            W2.carveRound(x, gy, 16 * s.k);
-            W2.hurtArea(x, gy - 10, 30, s.sh.dmg * s.k / 4.2, s.owner);
-            W2.boomAt({ boom: "electric", R: 18, color: "#b98cff" }, x, gy, 1);
-            W2.shake += 0.25;
+            W.carveRound(x, gy, 16 * s.k);
+            W.hurtArea(x, gy - 10, 30, s.sh.dmg * s.k / 4.2, s.owner);
+            W.boomAt({ boom: "electric", R: 18, color: "#b98cff" }, x, gy, 1);
+            W.shake += 0.25;
           }
         });
         return s.t < 1.8;
       },
-      draw(c, W2, s) {
+      draw(c, W, s) {
         const a = Math.min(1, s.t * 3, (1.8 - s.t) * 3);
         drawStormCloud(c, s.x, 40, 1.3, s.t, a);
         s.flash.forEach((f, i) => {
@@ -1941,37 +1943,37 @@
     },
     shroom: {
       // 버섯포: 거대 독버섯이 자라 터지며 독 안개
-      step(W2, s, dt) {
+      step(W, s, dt) {
         if (s.t >= 0.85 && !s.fired) {
           s.fired = true;
-          W2.carveRound(s.x, s.gy, s.sh.cr * s.k);
-          W2.hurtArea(s.x, s.gy - 30, s.sh.r * s.k, s.sh.dmg * s.k, s.owner);
-          W2.boomAt({ boom: "toxic", R: 50 }, s.x, s.gy - 60, s.k);
-          W2.zones.push({ type: "poison", x: s.x, r: 80, turns: 3, dmg: 80, born: W2.clock });
-          W2.shake += 0.4;
+          W.carveRound(s.x, s.gy, s.sh.cr * s.k);
+          W.hurtArea(s.x, s.gy - 30, s.sh.r * s.k, s.sh.dmg * s.k, s.owner);
+          W.boomAt({ boom: "toxic", R: 50 }, s.x, s.gy - 60, s.k);
+          W.zones.push({ type: "poison", x: s.x, r: 80, turns: 3, dmg: 80, born: W.clock });
+          W.shake += 0.4;
         }
         return s.t < 1.5;
       },
-      draw(c, W2, s) {
+      draw(c, W, s) {
         const k = ease(s.t / 0.7) * (s.t > 0.85 ? Math.max(0, 1 - (s.t - 0.85) * 2) : 1);
         drawGiantShroom(c, s.x, s.gy + 4, k, s.t, s.t > 0.85);
       }
     },
     wave: {
       // 얼음고래: 해일이 밀려가고 고래가 뛰어오른다
-      step(W2, s, dt) {
+      step(W, s, dt) {
         if (!s.fired) {
           s.fired = true;
-          W2.carveRound(s.x, s.gy, s.sh.cr * s.k);
-          W2.hurtArea(s.x, s.gy - 10, s.sh.r * s.k, s.sh.dmg * s.k * 0.75, s.owner);
-          W2.boomAt(s.sh, s.x, s.gy, s.k);
+          W.carveRound(s.x, s.gy, s.sh.cr * s.k);
+          W.hurtArea(s.x, s.gy - 10, s.sh.r * s.k, s.sh.dmg * s.k * 0.75, s.owner);
+          W.boomAt(s.sh, s.x, s.gy, s.k);
         }
         s.wx += s.dir * 230 * dt;
-        W2.tanks.forEach((t) => {
+        W.tanks.forEach((t) => {
           if (t.dead || s.hit.has(t) || t === s.owner) return;
           if (Math.abs(t.x - s.wx) < 30) {
             s.hit.add(t);
-            W2.damage(t, s.sh.dmg * s.k * 0.25, s.owner);
+            W.damage(t, s.sh.dmg * s.k * 0.25, s.owner);
             t.vx = s.dir * 240;
             t.vy = -260;
             t.air = true;
@@ -1979,22 +1981,22 @@
         });
         return s.t < 1.9;
       },
-      draw(c, W2, s) {
-        const a = Math.min(1, (1.9 - s.t) * 2), H2 = 80 * (1 - s.t / 2.2);
+      draw(c, W, s) {
+        const a = Math.min(1, (1.9 - s.t) * 2), H = 80 * (1 - s.t / 2.2);
         c.save();
         c.globalAlpha = a;
-        const x0 = s.x, x1 = s.wx, gy = W2.ground(s.wx, 0);
+        const x0 = s.x, x1 = s.wx, gy = W.ground(s.wx, 0);
         c.beginPath();
-        c.moveTo(x0, W2.ground(x0, 0));
+        c.moveTo(x0, W.ground(x0, 0));
         for (let x = x0; s.dir > 0 ? x <= x1 : x >= x1; x += s.dir * 6) {
           const k = Math.abs(x - x0) / Math.max(1, Math.abs(x1 - x0));
-          c.lineTo(x, W2.ground(x, 0) - H2 * k * k - Math.sin(x * 0.08 + s.t * 10) * 4);
+          c.lineTo(x, W.ground(x, 0) - H * k * k - Math.sin(x * 0.08 + s.t * 10) * 4);
         }
-        c.lineTo(x1 + s.dir * 18, gy - H2 * 0.6);
-        c.quadraticCurveTo(x1 + s.dir * 30, gy - H2, x1 + s.dir * 6, gy - H2 - 6);
+        c.lineTo(x1 + s.dir * 18, gy - H * 0.6);
+        c.quadraticCurveTo(x1 + s.dir * 30, gy - H, x1 + s.dir * 6, gy - H - 6);
         c.lineTo(x1, gy);
         c.closePath();
-        fs(c, vg(c, gy - H2, gy, "rgba(220,250,255,.95)", "rgba(80,180,230,.85)", "rgba(30,110,170,.85)"), 2.5);
+        fs(c, vg(c, gy - H, gy, "rgba(220,250,255,.95)", "rgba(80,180,230,.85)", "rgba(30,110,170,.85)"), 2.5);
         c.restore();
         if (s.t > 0.2 && s.t < 1.2) {
           const p = (s.t - 0.2) / 1;
@@ -2004,10 +2006,10 @@
     },
     phoenix: {
       // 불꽃벌: 착탄 후 불기둥
-      step(W2, s) {
+      step(W, s) {
         return s.t < 1;
       },
-      draw(c, W2, s) {
+      draw(c, W, s) {
         drawPillar(c, s.x, s.gy, 140 * ease(s.t / 0.3), s.t, Math.min(1, (1 - s.t) * 3));
       }
     }
@@ -2188,8 +2190,9 @@
     draw(c, o = {}) {
       const S = this.sim, clock = S.clock;
       const sx = this.shake ? (hash(Math.floor(this.t * 60)) - 0.5) * this.shake * 12 : 0, sy = this.shake ? (hash(Math.floor(this.t * 60) + 7) - 0.5) * this.shake * 12 : 0;
+      const cam = o.cam || { x: 0, y: 0 };
       c.save();
-      c.drawImage(this.sky, 0, 0, this.w, this.h);
+      c.drawImage(this.sky, cam.x * 0.5, cam.y * 0.5, this.w, this.h);
       c.translate(sx, sy);
       c.drawImage(this.back, 0, 0, this.w, this.h);
       c.drawImage(this.fg, 0, 0, this.w, this.h);
@@ -2268,6 +2271,9 @@
         c.fillStyle = `rgba(20,8,20,${this.dim})`;
         c.fillRect(0, 0, this.w, this.h);
       }
+      if (!o.cam) this.drawBanner(c, this.w, this.h);
+    }
+    drawBanner(c, vw, vh) {
       if (this.banner && this.t - this.banner.t0 < 1.8) {
         const p = (this.t - this.banner.t0) / 1.8, a = Math.min(1, p * 6, (1 - p) * 4);
         c.save();
@@ -2277,10 +2283,10 @@
         c.lineJoin = "round";
         c.lineWidth = 7;
         c.strokeStyle = OUT;
-        const y = this.h * 0.3 - (1 - Math.min(1, p * 5)) * 20;
-        c.strokeText(this.banner.text, this.w / 2, y);
+        const y = vh * 0.3 - (1 - Math.min(1, p * 5)) * 20;
+        c.strokeText(this.banner.text, vw / 2, y);
         c.fillStyle = "#ffd34d";
-        c.fillText(this.banner.text, this.w / 2, y);
+        c.fillText(this.banner.text, vw / 2, y);
         c.restore();
       }
     }
@@ -2378,26 +2384,35 @@
         c.restore();
       }
       if (t.dead || !this.labels) return;
-      const active = o.active === t.uid, top = t.y - (t.S.hover ? 74 : 62);
+      const active = o.active === t.uid, top = t.y - (t.S.hover ? 74 : 60), col = t.team === "red" ? "#d63c2a" : t.team === "blue" ? "#1f6fae" : t.uid === this.me ? "#d63c2a" : "#3a2600";
+      c.fillStyle = "rgba(20,28,52,.65)";
+      c.fillRect(t.x - 23, t.y + 5, 46, 6);
+      c.fillStyle = t.hp / t.max > 0.5 ? "#3fae4a" : t.hp / t.max > 0.25 ? "#f0a020" : "#d63c3c";
+      c.fillRect(t.x - 23, t.y + 5, 46 * t.hp / t.max, 6);
       c.textAlign = "center";
       c.font = `600 12px "Noto Sans KR", sans-serif`;
       c.lineJoin = "round";
-      c.lineWidth = 3;
-      c.strokeStyle = "rgba(255,248,232,.85)";
-      c.strokeText(t.name, t.x, top - 8);
-      c.fillStyle = t.team === "red" ? "#b8321f" : t.team === "blue" ? "#1f6fae" : t.uid === this.me ? "#b8321f" : "#3a2600";
-      c.fillText(t.name, t.x, top - 8);
-      c.fillStyle = "rgba(31,45,82,.6)";
-      c.fillRect(t.x - 22, top - 2, 44, 6);
-      c.fillStyle = t.hp / t.max > 0.5 ? "#3fae4a" : t.hp / t.max > 0.25 ? "#f0a020" : "#d63c3c";
-      c.fillRect(t.x - 22, top - 2, 44 * t.hp / t.max, 6);
+      c.lineWidth = 3.5;
+      c.strokeStyle = "rgba(255,248,232,.9)";
+      c.strokeText(t.name, t.x, t.y + 25);
+      c.fillStyle = col;
+      c.fillText(t.name, t.x, t.y + 25);
       if (active) {
-        c.fillStyle = "#ffb703";
+        const b = Math.abs(Math.sin(this.t * 5)) * 8, y = top - 6 - b;
+        c.fillStyle = "#e8352a";
+        c.strokeStyle = "rgba(40,10,10,.8)";
+        c.lineWidth = 2;
         c.beginPath();
-        c.moveTo(t.x, top - 22);
-        c.lineTo(t.x - 7, top - 32);
-        c.lineTo(t.x + 7, top - 32);
+        c.moveTo(t.x, y);
+        c.lineTo(t.x - 11, y - 12);
+        c.lineTo(t.x - 4, y - 12);
+        c.lineTo(t.x - 4, y - 26);
+        c.lineTo(t.x + 4, y - 26);
+        c.lineTo(t.x + 4, y - 12);
+        c.lineTo(t.x + 11, y - 12);
+        c.closePath();
         c.fill();
+        c.stroke();
       }
       if (t.uid === this.me && !active) {
         c.strokeStyle = "rgba(255,183,3,.7)";
@@ -2425,12 +2440,12 @@
       c.strokeStyle = "rgba(127,208,108,.85)";
       c.lineWidth = 3;
       c.stroke();
-      c.strokeStyle = "rgba(36,29,46,.55)";
-      c.lineWidth = 1.5;
+      c.strokeStyle = "#ff4a3a";
+      c.lineWidth = 2.5;
       [lo, hi].forEach((d) => {
         c.beginPath();
-        c.moveTo(...pt(d, R - 8));
-        c.lineTo(...pt(d, R + 4));
+        c.moveTo(...pt(d, 12));
+        c.lineTo(...pt(d, R + 8));
         c.stroke();
       });
       c.setLineDash([3, 5]);
@@ -2620,20 +2635,23 @@
   // ../client/js/battle.js
   var $ = (id) => document.getElementById(id);
   var esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
-  var W = 960;
-  var H = 480;
+  var VW = 960;
+  var VH = 480;
+  var MM = { w: 216, h: 90, x: VW - 226, y: 10 };
   function createBattle({ socket, me, toast: toast2, onExit }) {
     const cv = $("field");
-    cv.width = W * DPR;
-    cv.height = H * DPR;
+    cv.width = VW * DPR;
+    cv.height = VH * DPR;
     const ctx2 = cv.getContext("2d");
+    let cam = { x: 0, y: 0 }, camHold = 0, chatLines = [];
     let sim = null, ren = null, start2 = null, bag = [], ssUsed = false, turn = null, deadline = 0, phase = "idle", order = [];
     let lastTick = 0, flags = {}, weapon = 0, power = 0, charging = false, turnItemUsed = false, keys = {}, sentDir = 0, lastAimSent = 0, aimDirty = false, acc = 0, last = 0, running = false;
     const myTank = () => sim?.tankOf(me());
     const mine = () => phase === "aim" && turn?.uid === me();
     function begin(s) {
       start2 = s;
-      sim = new Sim({ map: s.mapId, w: W, h: H });
+      sim = new Sim({ map: s.mapId });
+      MM.h = Math.round(MM.w * sim.h / sim.w);
       s.players.forEach((p) => {
         const t = sim.addTank({ uid: p.uid, tankId: p.tankId, x: p.x, facing: p.facing, team: p.team, name: p.nickname });
       });
@@ -2655,6 +2673,12 @@
       phase = "wait";
       turn = null;
       order = [];
+      const mt = sim.tankOf(me());
+      if (mt) {
+        cam.x = mt.x - VW / 2;
+        cam.y = mt.y - VH * 0.55;
+        clampCam();
+      }
       $("resultBox").hidden = true;
       renderWeapons();
       renderItems();
@@ -2790,20 +2814,8 @@
         }, 1400);
       },
       "room:chat": (m) => {
-        const box2 = $("gameLog");
-        if (!box2) return;
-        const div = document.createElement("div");
-        if (m.system) {
-          div.className = "sys";
-          div.textContent = m.text;
-        } else {
-          const b = document.createElement("b");
-          b.textContent = m.from;
-          div.append(b, " " + m.text);
-        }
-        box2.append(div);
-        while (box2.children.length > 60) box2.firstChild.remove();
-        box2.scrollTop = box2.scrollHeight;
+        chatLines.push({ from: m.system ? "" : m.from, text: m.text, at: performance.now() });
+        if (chatLines.length > 30) chatLines.shift();
       }
     };
     function showResult(d) {
@@ -2865,18 +2877,36 @@
         if (r && !r.ok) toast2(r.error, true);
       });
     }
+    (function ticks() {
+      const g = $("dialTicks");
+      if (!g || g.childNodes.length) return;
+      let h = "";
+      for (let d = 0; d < 360; d += 15) {
+        const r0 = d % 45 ? 46 : 42, a = d * Math.PI / 180;
+        h += `<line x1="${60 + r0 * Math.cos(a)}" y1="${60 - r0 * Math.sin(a)}" x2="${60 + 50 * Math.cos(a)}" y2="${60 - 50 * Math.sin(a)}" stroke="#4a62a0" stroke-width="${d % 45 ? 1 : 1.6}"/>`;
+      }
+      g.innerHTML = h;
+    })();
     function hud() {
       const t = myTank();
       if (!t) return;
       const [lo, hi] = sim.angleRange(t);
       $("deg").textContent = t.angle + "\xB0";
       $("degRange").textContent = `\uC9C0\uAE08 ${lo}~${hi}\xB0` + (t.tilt ? ` (\uAE30\uC6B8\uAE30 ${t.tilt > 0 ? "\uC55E\uC73C\uB85C" : "\uB4A4\uB85C"} ${Math.abs(t.tilt)}\xB0)` : "");
-      const a = t.angle * Math.PI / 180;
-      $("needle").setAttribute("x2", 56 + 40 * Math.cos(a));
-      $("needle").setAttribute("y2", 52 - 40 * Math.sin(a));
-      const arc = (d) => [56 + 44 * Math.cos(d * Math.PI / 180), 52 - 44 * Math.sin(d * Math.PI / 180)], [x1, y1] = arc(lo), [x2, y2] = arc(hi);
-      $("dialRange").setAttribute("d", `M${x2} ${y2} A44 44 0 ${hi - lo > 180 ? 1 : 0} 0 ${x1} ${y1}`);
-      $("dialG").setAttribute("transform", t.facing < 0 ? "translate(112 0) scale(-1 1)" : "");
+      const P = (d, r) => [60 + r * Math.cos(d * Math.PI / 180), 60 - r * Math.sin(d * Math.PI / 180)];
+      const set = (id, d, r) => {
+        const [x, y] = P(d, r);
+        $(id).setAttribute("x2", x);
+        $(id).setAttribute("y2", y);
+      };
+      set("needle", t.angle, 46);
+      set("lineLo", lo, 52);
+      set("lineHi", hi, 52);
+      const [x1, y1] = P(lo, 50), [x2, y2] = P(hi, 50);
+      $("dialRange").setAttribute("d", `M60 60 L${x1} ${y1} A50 50 0 ${hi - lo > 180 ? 1 : 0} 0 ${x2} ${y2} Z`);
+      $("dialG").setAttribute("transform", t.facing < 0 ? "translate(120 0) scale(-1 1)" : "");
+      $("dialLo").textContent = lo;
+      $("dialHi").textContent = hi;
       $("powFill").style.width = power + "%";
       $("powNum").textContent = Math.round(power);
       $("powLast").hidden = t.lastPower == null;
@@ -2885,6 +2915,7 @@
       $("fuelNum").textContent = Math.round(t.fuel);
       $("hpFill").style.width = t.hp / t.max * 100 + "%";
       $("hpNum").textContent = t.hp;
+      $("delayNum").textContent = t.delay;
       const cur = turn && sim.tankOf(turn.uid), chip = $("turnChip");
       chip.textContent = phase === "over" ? "\uAC8C\uC784 \uB05D" : !cur ? "\uC900\uBE44 \uC911" : cur.uid === me() ? "\uB0B4 \uCC28\uB840" : `${cur.name} \uCC28\uB840`;
       chip.classList.toggle("mine", mine());
@@ -2936,13 +2967,178 @@
           }
           if (charging) power = Math.min(100, power + 55 * dt);
         }
+        updateCam(dt);
         ctx2.setTransform(DPR, 0, 0, DPR, 0, 0);
-        ren.draw(ctx2, { active: phase !== "over" ? turn?.uid : null });
-        ren.drawWind(ctx2, W / 2, 40);
+        ctx2.save();
+        ctx2.translate(-Math.round(cam.x), -Math.round(cam.y));
+        ren.draw(ctx2, { active: phase !== "over" ? turn?.uid : null, cam, vw: VW, vh: VH });
         if (mine() && !myTank().dead) ren.drawAimFan(ctx2, myTank());
+        ctx2.restore();
+        ren.drawBanner(ctx2, VW, VH);
+        ren.drawWind(ctx2, VW / 2, 40);
+        drawMinimap();
+        drawRoster();
+        drawChat(now2);
+        drawOffscreen();
         hud();
       }
       requestAnimationFrame(loop);
+    }
+    function clampCam() {
+      cam.x = Math.max(0, Math.min(sim.w - VW, cam.x));
+      cam.y = Math.max(0, Math.min(sim.h - VH, cam.y));
+    }
+    function camGoal() {
+      if (sim.specials.length) {
+        const s = sim.specials[0];
+        return [s.wx ?? s.x, (s.gy ?? s.y) - 140];
+      }
+      if (sim.shells.length) {
+        const s = sim.shells[0];
+        return [s.x + s.vx * 0.25, s.y];
+      }
+      const t = turn && sim.tankOf(turn.uid);
+      if (t && !t.sunk) return [t.x, t.y - 60];
+      return null;
+    }
+    function updateCam(dt) {
+      if (camHold > 0 && !sim.shells.length && !sim.specials.length) {
+        camHold -= dt;
+        return;
+      }
+      const g = camGoal();
+      if (!g) return;
+      const k = Math.min(1, dt * (sim.shells.length ? 5 : 3));
+      cam.x += (g[0] - VW / 2 - cam.x) * k;
+      cam.y += (g[1] - VH * 0.55 - cam.y) * k;
+      clampCam();
+    }
+    function toCanvas(e) {
+      const r = cv.getBoundingClientRect();
+      return [(e.clientX - r.left) * VW / r.width, (e.clientY - r.top) * VH / r.height];
+    }
+    let drag = null;
+    cv.addEventListener("pointerdown", (e) => {
+      if (!sim) return;
+      const [x, y] = toCanvas(e);
+      if (x >= MM.x && x <= MM.x + MM.w && y >= MM.y && y <= MM.y + MM.h) {
+        cam.x = (x - MM.x) / MM.w * sim.w - VW / 2;
+        cam.y = (y - MM.y) / MM.h * sim.h - VH / 2;
+        clampCam();
+        camHold = 3;
+        return;
+      }
+      drag = { x, y, cx: cam.x, cy: cam.y };
+      cv.setPointerCapture(e.pointerId);
+    });
+    cv.addEventListener("pointermove", (e) => {
+      if (!drag) return;
+      const [x, y] = toCanvas(e);
+      cam.x = drag.cx - (x - drag.x);
+      cam.y = drag.cy - (y - drag.y);
+      clampCam();
+      camHold = 3;
+    });
+    ["pointerup", "pointercancel"].forEach((ev) => cv.addEventListener(ev, () => drag = null));
+    const teamCol = (t) => t.team === "red" ? "#ff6a55" : t.team === "blue" ? "#55aef0" : t.uid === me() ? "#ffb703" : "#f4efe1";
+    function drawMinimap() {
+      const c = ctx2, { x, y, w, h } = MM, k = w / sim.w;
+      c.save();
+      c.globalAlpha = 0.92;
+      c.fillStyle = "rgba(20,28,52,.85)";
+      c.fillRect(x - 3, y - 3, w + 6, h + 6);
+      c.drawImage(ren.sky, x, y, w, h);
+      c.drawImage(ren.fg, x, y, w, h);
+      if (sim.map.liquid && sim.map.liquid.type !== "void" || sim.sdLiquid) {
+        c.fillStyle = sim.map.liquid?.type === "lava" ? "rgba(255,120,40,.8)" : "rgba(80,160,230,.8)";
+        c.fillRect(x, y + sim.liquidY * k, w, h - sim.liquidY * k);
+      }
+      c.globalAlpha = 1;
+      sim.events.forEach((e) => {
+        c.fillStyle = e.type === "pillar" ? "#ff7a3c" : "#e6eef5";
+        c.fillRect(x + e.x * k - 1.5, y + (e.gy ?? sim.h) * k - 14, 3, 14);
+      });
+      sim.tanks.forEach((t) => {
+        if (t.left || t.sunk) return;
+        c.fillStyle = t.dead ? "#555" : teamCol(t);
+        c.beginPath();
+        c.arc(x + t.x * k, y + t.y * k - 3, t.uid === turn?.uid ? 4 : 3, 0, 7);
+        c.fill();
+      });
+      sim.shells.forEach((s) => {
+        c.fillStyle = "#fff";
+        c.fillRect(x + s.x * k - 1.5, y + s.y * k - 1.5, 3, 3);
+      });
+      c.strokeStyle = "#ffd34d";
+      c.lineWidth = 1.5;
+      c.strokeRect(x + cam.x * k, y + cam.y * k, VW * k, VH * k);
+      c.strokeStyle = "rgba(255,255,255,.35)";
+      c.lineWidth = 1;
+      c.strokeRect(x - 0.5, y - 0.5, w + 1, h + 1);
+      c.restore();
+    }
+    function drawRoster() {
+      const c = ctx2, x0 = MM.x, y0 = MM.y + MM.h + 14;
+      c.save();
+      c.font = '600 12.5px "Noto Sans KR", sans-serif';
+      c.textAlign = "left";
+      c.lineJoin = "round";
+      sim.tanks.forEach((t, i) => {
+        const y = y0 + i * 18, txt = (t.uid === turn?.uid ? "\u25B6 " : "") + t.name + (t.left ? " (\uB098\uAC10)" : t.dead ? " (\uD0C8\uB77D)" : "");
+        c.lineWidth = 3;
+        c.strokeStyle = "rgba(20,20,35,.75)";
+        c.strokeText(txt, x0, y);
+        c.fillStyle = t.dead ? "#9aa0ad" : teamCol(t);
+        c.fillText(txt, x0, y);
+        if (!t.dead) {
+          c.fillStyle = "rgba(20,28,52,.7)";
+          c.fillRect(x0 + 140, y - 8, 70, 6);
+          c.fillStyle = t.hp / t.max > 0.5 ? "#3fae4a" : t.hp / t.max > 0.25 ? "#f0a020" : "#d63c3c";
+          c.fillRect(x0 + 140, y - 8, 70 * t.hp / t.max, 6);
+        }
+      });
+      c.restore();
+    }
+    function drawChat(now2) {
+      const c = ctx2, lines = chatLines.filter((l) => now2 - l.at < 15e3).slice(-6);
+      c.save();
+      c.font = '13px "Noto Sans KR", sans-serif';
+      c.textAlign = "left";
+      c.lineJoin = "round";
+      lines.forEach((l, i) => {
+        const a = Math.min(1, (15e3 - (now2 - l.at)) / 2e3), y = 26 + i * 19;
+        c.globalAlpha = a;
+        const s = l.from ? `[${l.from}] ${l.text}` : l.text;
+        c.lineWidth = 3.5;
+        c.strokeStyle = "rgba(15,20,40,.8)";
+        c.strokeText(s, 14, y);
+        c.fillStyle = l.from ? "#f4efe1" : "#ffd34d";
+        c.fillText(s, 14, y);
+      });
+      c.restore();
+    }
+    function drawOffscreen() {
+      const c = ctx2;
+      sim.tanks.forEach((t) => {
+        if (t.dead) return;
+        const sx = t.x - cam.x, sy = t.y - 20 - cam.y;
+        if (sx >= 0 && sx <= VW && sy >= 0 && sy <= VH) return;
+        const x = Math.max(14, Math.min(VW - 14, sx)), y = Math.max(14, Math.min(VH - 14, sy)), a = Math.atan2(sy - y, sx - x);
+        c.save();
+        c.translate(x, y);
+        c.rotate(a);
+        c.fillStyle = teamCol(t);
+        c.strokeStyle = "rgba(20,20,35,.8)";
+        c.lineWidth = 2;
+        c.beginPath();
+        c.moveTo(10, 0);
+        c.lineTo(-6, -7);
+        c.lineTo(-6, 7);
+        c.closePath();
+        c.fill();
+        c.stroke();
+        c.restore();
+      });
     }
     const active = () => !$("s-game").hidden && sim;
     function pass() {

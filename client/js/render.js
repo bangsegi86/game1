@@ -273,7 +273,8 @@ export class Renderer {
   draw(c, o = {}) {
     const S = this.sim, clock = S.clock;
     const sx = this.shake ? (hash(Math.floor(this.t * 60)) - .5) * this.shake * 12 : 0, sy = this.shake ? (hash(Math.floor(this.t * 60) + 7) - .5) * this.shake * 12 : 0;
-    c.save(); c.drawImage(this.sky, 0, 0, this.w, this.h); c.translate(sx, sy);
+    const cam = o.cam || { x: 0, y: 0 };
+    c.save(); c.drawImage(this.sky, cam.x * .5, cam.y * .5, this.w, this.h); c.translate(sx, sy); // 하늘은 절반 속도로 움직여 깊이감을 준다
     c.drawImage(this.back, 0, 0, this.w, this.h); c.drawImage(this.fg, 0, 0, this.w, this.h);
     this.drawLiquid(c);
     S.zones.forEach(z => { const gy = S.ground(z.x, 0), a = Math.min(1, (clock - (z.born || 0)) * 2); if (z.type === 'poison') poisonFog(c, z.x, gy, z.r, this.t, a); else fireField(c, z.x, gy, z.r, this.t, a); if (this.labels) zoneLabel(c, z.x, gy - z.r - 20, (z.type === 'poison' ? '독 ' : '불 ') + z.turns + '턴', z.type === 'poison' ? '#d4a6ff' : '#ffb36b'); });
@@ -293,7 +294,10 @@ export class Renderer {
     this.floats.forEach(f => { c.save(); c.globalAlpha = Math.min(1, f.life); c.font = '20px Jua, sans-serif'; c.textAlign = 'center'; c.lineJoin = 'round'; c.lineWidth = 4; c.strokeStyle = '#fff8e8'; c.strokeText(f.s, f.x, f.y); c.fillStyle = f.c; c.fillText(f.s, f.x, f.y); c.restore(); });
     c.restore();
     if (this.dim > 0) { c.fillStyle = `rgba(20,8,20,${this.dim})`; c.fillRect(0, 0, this.w, this.h); }
-    if (this.banner && this.t - this.banner.t0 < 1.8) { const p = (this.t - this.banner.t0) / 1.8, a = Math.min(1, p * 6, (1 - p) * 4); c.save(); c.globalAlpha = a; c.font = '30px Jua, sans-serif'; c.textAlign = 'center'; c.lineJoin = 'round'; c.lineWidth = 7; c.strokeStyle = OUT; const y = this.h * .3 - (1 - Math.min(1, p * 5)) * 20; c.strokeText(this.banner.text, this.w / 2, y); c.fillStyle = '#ffd34d'; c.fillText(this.banner.text, this.w / 2, y); c.restore(); }
+    if (!o.cam) this.drawBanner(c, this.w, this.h);
+  }
+  drawBanner(c, vw, vh) {
+    if (this.banner && this.t - this.banner.t0 < 1.8) { const p = (this.t - this.banner.t0) / 1.8, a = Math.min(1, p * 6, (1 - p) * 4); c.save(); c.globalAlpha = a; c.font = '30px Jua, sans-serif'; c.textAlign = 'center'; c.lineJoin = 'round'; c.lineWidth = 7; c.strokeStyle = OUT; const y = vh * .3 - (1 - Math.min(1, p * 5)) * 20; c.strokeText(this.banner.text, vw / 2, y); c.fillStyle = '#ffd34d'; c.fillText(this.banner.text, vw / 2, y); c.restore(); }
   }
   drawLiquid(c) {
     const S = this.sim, L = S.map.liquid || (S.sdLiquid ? { type: 'water' } : null); if (!L || L.type === 'void' && !S.sdLiquid) return;
@@ -322,13 +326,13 @@ export class Renderer {
     if (t.shield) { c.strokeStyle = 'rgba(160,220,255,.85)'; c.fillStyle = 'rgba(85,174,240,.15)'; c.lineWidth = 2.5; circ(c, t.x, t.y - 20, 32); c.fill(); c.stroke(); }
     if (t.frozen > 0) { c.save(); c.translate(t.x + 22, t.y - 40); c.scale(.7, .7); drawShell(c, { key: 'snowflake' }, this.t, 0); c.restore(); }
     if (t.dead || !this.labels) return;
-    const active = o.active === t.uid, top = t.y - (t.S.hover ? 74 : 62);
+    // 이름·체력은 탱크 아래, 지금 차례 탱크 위에는 크게 튀는 빨간 화살표
+    const active = o.active === t.uid, top = t.y - (t.S.hover ? 74 : 60), col = t.team === 'red' ? '#d63c2a' : t.team === 'blue' ? '#1f6fae' : t.uid === this.me ? '#d63c2a' : '#3a2600';
+    c.fillStyle = 'rgba(20,28,52,.65)'; c.fillRect(t.x - 23, t.y + 5, 46, 6);
+    c.fillStyle = t.hp / t.max > .5 ? '#3fae4a' : t.hp / t.max > .25 ? '#f0a020' : '#d63c3c'; c.fillRect(t.x - 23, t.y + 5, 46 * t.hp / t.max, 6);
     c.textAlign = 'center'; c.font = `600 12px "Noto Sans KR", sans-serif`; c.lineJoin = 'round';
-    c.lineWidth = 3; c.strokeStyle = 'rgba(255,248,232,.85)'; c.strokeText(t.name, t.x, top - 8);
-    c.fillStyle = t.team === 'red' ? '#b8321f' : t.team === 'blue' ? '#1f6fae' : t.uid === this.me ? '#b8321f' : '#3a2600'; c.fillText(t.name, t.x, top - 8);
-    c.fillStyle = 'rgba(31,45,82,.6)'; c.fillRect(t.x - 22, top - 2, 44, 6);
-    c.fillStyle = t.hp / t.max > .5 ? '#3fae4a' : t.hp / t.max > .25 ? '#f0a020' : '#d63c3c'; c.fillRect(t.x - 22, top - 2, 44 * t.hp / t.max, 6);
-    if (active) { c.fillStyle = '#ffb703'; c.beginPath(); c.moveTo(t.x, top - 22); c.lineTo(t.x - 7, top - 32); c.lineTo(t.x + 7, top - 32); c.fill(); }
+    c.lineWidth = 3.5; c.strokeStyle = 'rgba(255,248,232,.9)'; c.strokeText(t.name, t.x, t.y + 25); c.fillStyle = col; c.fillText(t.name, t.x, t.y + 25);
+    if (active) { const b = Math.abs(Math.sin(this.t * 5)) * 8, y = top - 6 - b; c.fillStyle = '#e8352a'; c.strokeStyle = 'rgba(40,10,10,.8)'; c.lineWidth = 2; c.beginPath(); c.moveTo(t.x, y); c.lineTo(t.x - 11, y - 12); c.lineTo(t.x - 4, y - 12); c.lineTo(t.x - 4, y - 26); c.lineTo(t.x + 4, y - 26); c.lineTo(t.x + 4, y - 12); c.lineTo(t.x + 11, y - 12); c.closePath(); c.fill(); c.stroke(); }
     if (t.uid === this.me && !active) { c.strokeStyle = 'rgba(255,183,3,.7)'; c.lineWidth = 2; ell(c, t.x, t.y + 2, 26, 6); c.stroke(); }
   }
   // 내 차례에 탱크 둘레에 발사 가능 각도(위·아래 한계)와 지금 각도를 보여 준다
@@ -339,7 +343,7 @@ export class Renderer {
     c.beginPath(); c.moveTo(px, py); for (let d = lo; d <= hi + .01; d += 2) c.lineTo(...pt(Math.min(d, hi), R)); c.closePath();
     c.fillStyle = 'rgba(127,208,108,.16)'; c.fill();
     c.beginPath(); for (let d = lo; d <= hi + .01; d += 2) { const [x, y] = pt(Math.min(d, hi), R); d === lo ? c.moveTo(x, y) : c.lineTo(x, y); } c.strokeStyle = 'rgba(127,208,108,.85)'; c.lineWidth = 3; c.stroke();
-    c.strokeStyle = 'rgba(36,29,46,.55)'; c.lineWidth = 1.5; [lo, hi].forEach(d => { c.beginPath(); c.moveTo(...pt(d, R - 8)); c.lineTo(...pt(d, R + 4)); c.stroke(); });
+    c.strokeStyle = '#ff4a3a'; c.lineWidth = 2.5; [lo, hi].forEach(d => { c.beginPath(); c.moveTo(...pt(d, 12)); c.lineTo(...pt(d, R + 8)); c.stroke(); }); // 최저·최고 한계선
     c.setLineDash([3, 5]); c.beginPath(); c.moveTo(...pt(0, 14)); c.lineTo(...pt(0, R + 10)); c.strokeStyle = 'rgba(36,29,46,.35)'; c.stroke(); c.setLineDash([]);
     const [ax, ay] = pt(t.angle, R + 12); c.strokeStyle = '#ffb703'; c.lineWidth = 3; c.lineCap = 'round'; c.beginPath(); c.moveTo(...pt(t.angle, 18)); c.lineTo(ax, ay); c.stroke();
     c.font = '15px Jua, sans-serif'; c.textAlign = 'center'; c.lineJoin = 'round'; c.lineWidth = 4; c.strokeStyle = 'rgba(255,248,232,.9)'; const [tx, ty] = pt(t.angle, R + 26); c.strokeText(t.angle + '°', tx, ty + 5); c.fillStyle = '#3a2600'; c.fillText(t.angle + '°', tx, ty + 5);

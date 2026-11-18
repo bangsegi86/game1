@@ -4,7 +4,8 @@ import { MAPS, MK } from './maps.js';
 import { MaskCtx, fillPolys, raggedPoly, hash } from './raster.js';
 import { TANK_STATS, SHELL_STATS } from '../gamedata.js';
 
-export const G0 = 380, SPEED = 5.6, WINDK = 14, DT = 1 / 60;
+// 맵은 화면(960×480)보다 넓은 1440×600. 화면은 카메라로 일부만 보여 준다
+export const G0 = 380, SPEED = 6.6, WINDK = 14, DT = 1 / 60, WORLD_W = 1440, WORLD_H = 600;
 const STEEL = MK.steel, LEAF = MK.leaf, WOOD = MK.wood;
 const BASE = new Map();
 export function baseGrid(mapId, w, h) {
@@ -21,7 +22,7 @@ export const EVENT_INFO = {
 };
 
 export class Sim {
-  constructor({ w = 960, h = 480, map = 'hills', tankScale = .5 } = {}) { this.w = w; this.h = h; this.ts = tankScale; this.reset(map); }
+  constructor({ w = WORLD_W, h = WORLD_H, map = 'hills', tankScale = .5 } = {}) { this.w = w; this.h = h; this.ts = tankScale; this.reset(map); }
   get map() { return MAPS[this.mapId]; }
   reset(mapId) {
     if (mapId) this.mapId = mapId;

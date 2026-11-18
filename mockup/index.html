@@ -215,6 +215,16 @@ td.red { color: var(--red); font-weight: 700; } td.blue { color: var(--blue); fo
 @media (max-width: 520px) { .pad { grid-template-columns: repeat(4, minmax(0, 1fr)); } .pad .pass, .pad .fire { grid-column: span 2; } }
 .game-chat { min-height: 0; grid-template-rows: auto auto; }
 .game-chat .log { max-height: 110px; min-height: 60px; }
+
+.hud { grid-template-columns: auto minmax(0, 1fr) auto auto; background: linear-gradient(180deg, #2c4378, #1d2d55); border: 2px solid #4c66a6; }
+.lcdbox { display: grid; gap: 6px; align-content: center; }
+.lcd { background: #0f1f16; border: 2px solid #3b5a44; border-radius: 8px; padding: 2px 12px; display: grid; justify-items: end; min-width: 92px; box-shadow: inset 0 0 10px rgba(0,0,0,.6); }
+.lcd span { font-size: 10.5px; color: #8fd99a; letter-spacing: .08em; justify-self: start; }
+.lcd b { font-family: "Jua", monospace; font-size: 22px; font-weight: 400; color: #b6ff9a; line-height: 1.1; text-shadow: 0 0 8px rgba(150,255,140,.5); }
+.lcd.big b { font-size: 34px; }
+.game-chat .log { display: none; }
+@media (max-width: 860px) { .hud { grid-template-columns: minmax(0, 1fr); } .lcdbox { grid-template-columns: 1fr 1fr; } }
+.dial svg.gaugeSvg { width: 118px; height: 118px; }
 </style>
 
 <header class="topbar">
@@ -382,7 +392,6 @@ td.red { color: var(--red); font-weight: 700; } td.blue { color: var(--blue); fo
       <div class="order" id="order"></div>
       <span class="flagchip" id="flags" hidden></span>
       <button class="btn" id="muteBtn" type="button">소리 끄기</button>
-      <div class="timer num" id="timer">–</div>
     </div>
     <div class="field-wrap">
       <canvas id="field" aria-label="전장"></canvas>
@@ -397,14 +406,22 @@ td.red { color: var(--red); font-weight: 700; } td.blue { color: var(--blue); fo
     </div>
     <div class="panel hud">
       <div class="dial">
-        <svg viewBox="0 0 112 104" aria-hidden="true" style="height:96px">
+        <svg viewBox="0 0 120 120" aria-hidden="true" class="gaugeSvg">
+          <circle cx="60" cy="60" r="56" fill="#0d1630" stroke="#6f86bd" stroke-width="3"/>
+          <circle cx="60" cy="60" r="50" fill="none" stroke="#263a6a" stroke-width="1"/>
           <g id="dialG">
-          <circle cx="56" cy="52" r="44" fill="none" stroke="#45598e" stroke-width="7"/>
-          <line x1="8" y1="52" x2="104" y2="52" stroke="#45598e" stroke-width="1.5" stroke-dasharray="3 4"/>
-          <path id="dialRange" d="" fill="none" stroke="#7fd06c" stroke-opacity=".75" stroke-width="7" stroke-linecap="round"/>
-          <line id="needle" x1="56" y1="52" x2="96" y2="52" stroke="#ffb703" stroke-width="3" stroke-linecap="round"/>
-          <circle cx="56" cy="52" r="5" fill="#f4efe1"/>
+            <g id="dialTicks"></g>
+            <line x1="8" y1="60" x2="112" y2="60" stroke="#3b5288" stroke-width="1"/>
+            <line x1="60" y1="8" x2="60" y2="112" stroke="#3b5288" stroke-width="1"/>
+            <path id="dialRange" d="" fill="rgba(255,80,60,.13)"/>
+            <line id="lineLo" x1="60" y1="60" x2="110" y2="60" stroke="#ff4a3a" stroke-width="2.2"/>
+            <line id="lineHi" x1="60" y1="60" x2="110" y2="60" stroke="#ff4a3a" stroke-width="2.2"/>
+            <line id="needle" x1="60" y1="60" x2="106" y2="60" stroke="#f4efe1" stroke-width="3" stroke-linecap="round"/>
           </g>
+          <circle cx="60" cy="60" r="5" fill="#9fb4e6" stroke="#0d1630" stroke-width="1.5"/>
+          <rect x="30" y="80" width="60" height="18" rx="3" fill="#2a0e0e" stroke="#6b2b2b"/>
+          <text id="dialLo" x="44" y="93.5" text-anchor="middle" font-size="11" fill="#ff8a7a" font-family="monospace">0</text>
+          <text id="dialHi" x="76" y="93.5" text-anchor="middle" font-size="11" fill="#ff8a7a" font-family="monospace">0</text>
         </svg>
         <div><div class="deg num" id="deg">45°</div><div class="keys" id="degRange"></div></div>
       </div>
@@ -413,6 +430,7 @@ td.red { color: var(--red); font-weight: 700; } td.blue { color: var(--blue); fo
         <div class="gauge-row"><span>연료</span><div class="gauge fuel"><div class="fill" id="fuelFill"></div></div><span class="num" id="fuelNum">100</span></div>
         <div class="gauge-row"><span>체력</span><div class="gauge fuel"><div class="fill" id="hpFill" style="background:var(--red)"></div></div><span class="num" id="hpNum">0</span></div>
       </div>
+      <div class="lcdbox"><div class="lcd"><span>대기</span><b class="num" id="delayNum">0</b></div><div class="lcd big"><span>남은 시간</span><b class="num" id="timer">–</b></div></div>
       <div class="weapons" id="weapons"></div>
     </div>
     <div class="game-bottom">
@@ -426,9 +444,9 @@ td.red { color: var(--red); font-weight: 700; } td.blue { color: var(--blue); fo
         <button class="fire" id="fireBtn">눌러서 발사</button>
       </div>
     </div>
-    <div class="panel chat game-chat"><div class="log" id="gameLog"></div>
+    <div class="panel chat game-chat">
       <form class="row" id="gameChat"><label for="gameMsg" hidden>게임 채팅</label><input id="gameMsg" maxlength="200" placeholder="Enter를 누르고 채팅" autocomplete="off" style="flex:1;min-width:0"><button class="btn">전송</button></form></div>
-    <p class="keys"><kbd>←</kbd><kbd>→</kbd> 이동 · <kbd>↑</kbd><kbd>↓</kbd> 각도 · <kbd>Space</kbd> 누르고 있다가 떼면 발사 · <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> 포탄 · <kbd>Q</kbd>~<kbd>Y</kbd> 아이템(턴당 1개, 파워업·더블·순간이동은 쏠 때까지 유지) · <kbd>P</kbd> 턴 넘기기 · <kbd>Enter</kbd> 채팅 · 가운데 위 나침반이 바람</p>
+    <p class="keys"><kbd>←</kbd><kbd>→</kbd> 이동 · <kbd>↑</kbd><kbd>↓</kbd> 각도 · <kbd>Space</kbd> 누르고 있다가 떼면 발사 · <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> 포탄 · <kbd>Q</kbd>~<kbd>Y</kbd> 아이템(턴당 1개, 파워업·더블·순간이동은 쏠 때까지 유지) · <kbd>P</kbd> 턴 넘기기 · <kbd>Enter</kbd> 채팅 · 가운데 위 나침반이 바람 · 전장을 끌거나 미니맵을 누르면 다른 곳을 볼 수 있어요</p>
   </section>
 
   <!-- 결과 -->

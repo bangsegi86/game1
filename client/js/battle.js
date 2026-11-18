@@ -6,17 +6,19 @@ import { play, setMuted, isMuted } from './sound.js';
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const W = 960, H = 480;
+const VW = 960, VH = 480; // 화면(카메라) 크기. 맵은 이보다 넓다
+const MM = { w: 216, h: 90, x: VW - 226, y: 10 }; // 미니맵
 
 export function createBattle({ socket, me, toast, onExit }) {
-  const cv = $('field'); cv.width = W * DPR; cv.height = H * DPR; const ctx = cv.getContext('2d');
+  const cv = $('field'); cv.width = VW * DPR; cv.height = VH * DPR; const ctx = cv.getContext('2d');
+  let cam = { x: 0, y: 0 }, camHold = 0, chatLines = [];
   let sim = null, ren = null, start = null, bag = [], ssUsed = false, turn = null, deadline = 0, phase = 'idle', order = [];
   let lastTick = 0, flags = {}, weapon = 0, power = 0, charging = false, turnItemUsed = false, keys = {}, sentDir = 0, lastAimSent = 0, aimDirty = false, acc = 0, last = 0, running = false;
   const myTank = () => sim?.tankOf(me());
   const mine = () => phase === 'aim' && turn?.uid === me();
 
   function begin(s) {
-    start = s; sim = new Sim({ map: s.mapId, w: W, h: H });
+    start = s; sim = new Sim({ map: s.mapId }); MM.h = Math.round(MM.w * sim.h / sim.w);
     s.players.forEach(p => { const t = sim.addTank({ uid: p.uid, tankId: p.tankId, x: p.x, facing: p.facing, team: p.team, name: p.nickname }); });
     const mp = s.players.find(p => p.uid === me());
     bag = (mp?.items || []).map(id => ({ id, used: false })); ssUsed = false; weapon = 0; power = 0; charging = false;
@@ -30,6 +32,7 @@ export function createBattle({ socket, me, toast, onExit }) {
       else if (f.type === 'item') play('item');
     };
     phase = 'wait'; turn = null; order = [];
+    const mt = sim.tankOf(me()); if (mt) { cam.x = mt.x - VW / 2; cam.y = mt.y - VH * .55; clampCam(); }
     $('resultBox').hidden = true;
     renderWeapons(); renderItems();
     if (!running) { running = true; last = performance.now(); requestAnimationFrame(loop); }
@@ -82,7 +85,7 @@ export function createBattle({ socket, me, toast, onExit }) {
     'game:timeout': d => { if (d.uid === me()) toast('시간이 다 돼서 차례가 넘어갔어요.', true); phase = 'wait'; },
     'game:left': d => { const t = sim?.tankOf(d.uid); if (t) { t.left = true; t.dead = true; sim.float(t.x, t.y - 60, '나감', '#3a2600'); } },
     'game:over': d => { phase = 'over'; turn = null; setTimeout(() => { showResult(d); play(d.results.find(r => r.uid === me())?.win ? 'win' : 'lose'); }, 1400); },
-    'room:chat': m => { const box = $('gameLog'); if (!box) return; const div = document.createElement('div'); if (m.system) { div.className = 'sys'; div.textContent = m.text; } else { const b = document.createElement('b'); b.textContent = m.from; div.append(b, ' ' + m.text); } box.append(div); while (box.children.length > 60) box.firstChild.remove(); box.scrollTop = box.scrollHeight; },
+    'room:chat': m => { chatLines.push({ from: m.system ? '' : m.from, text: m.text, at: performance.now() }); if (chatLines.length > 30) chatLines.shift(); },
   };
   function showResult(d) {
     const meRes = d.results.find(r => r.uid === me());
@@ -111,18 +114,24 @@ export function createBattle({ socket, me, toast, onExit }) {
     });
   }
   function useItem(i) { if (!mine() || turnItemUsed || bag[i]?.used) return; socket().emit('game:item', { index: i }, r => { if (r && !r.ok) toast(r.error, true); }); }
+  (function ticks() { const g = $('dialTicks'); if (!g || g.childNodes.length) return; let h = ''; for (let d = 0; d < 360; d += 15) { const r0 = d % 45 ? 46 : 42, a = d * Math.PI / 180; h += `<line x1="${60 + r0 * Math.cos(a)}" y1="${60 - r0 * Math.sin(a)}" x2="${60 + 50 * Math.cos(a)}" y2="${60 - 50 * Math.sin(a)}" stroke="#4a62a0" stroke-width="${d % 45 ? 1 : 1.6}"/>`; } g.innerHTML = h; })();
   function hud() {
     const t = myTank(); if (!t) return;
     const [lo, hi] = sim.angleRange(t);
     $('deg').textContent = t.angle + '°'; $('degRange').textContent = `지금 ${lo}~${hi}°` + (t.tilt ? ` (기울기 ${t.tilt > 0 ? '앞으로' : '뒤로'} ${Math.abs(t.tilt)}°)` : '');
-    const a = t.angle * Math.PI / 180; $('needle').setAttribute('x2', 56 + 40 * Math.cos(a)); $('needle').setAttribute('y2', 52 - 40 * Math.sin(a));
-    const arc = d => [56 + 44 * Math.cos(d * Math.PI / 180), 52 - 44 * Math.sin(d * Math.PI / 180)], [x1, y1] = arc(lo), [x2, y2] = arc(hi);
-    $('dialRange').setAttribute('d', `M${x2} ${y2} A44 44 0 ${hi - lo > 180 ? 1 : 0} 0 ${x1} ${y1}`);
-    $('dialG').setAttribute('transform', t.facing < 0 ? 'translate(112 0) scale(-1 1)' : '');
+    // 각도계: 빨간 선 두 개가 최저·최고 각도, 흰 바늘이 지금 각도 (탱크가 보는 방향으로 뒤집힌다)
+    const P = (d, r) => [60 + r * Math.cos(d * Math.PI / 180), 60 - r * Math.sin(d * Math.PI / 180)];
+    const set = (id, d, r) => { const [x, y] = P(d, r); $(id).setAttribute('x2', x); $(id).setAttribute('y2', y); };
+    set('needle', t.angle, 46); set('lineLo', lo, 52); set('lineHi', hi, 52);
+    const [x1, y1] = P(lo, 50), [x2, y2] = P(hi, 50);
+    $('dialRange').setAttribute('d', `M60 60 L${x1} ${y1} A50 50 0 ${hi - lo > 180 ? 1 : 0} 0 ${x2} ${y2} Z`);
+    $('dialG').setAttribute('transform', t.facing < 0 ? 'translate(120 0) scale(-1 1)' : '');
+    $('dialLo').textContent = lo; $('dialHi').textContent = hi;
     $('powFill').style.width = power + '%'; $('powNum').textContent = Math.round(power);
     $('powLast').hidden = t.lastPower == null; $('powLast').style.left = (t.lastPower || 0) + '%';
     $('fuelFill').style.width = Math.min(100, t.fuel) + '%'; $('fuelNum').textContent = Math.round(t.fuel);
     $('hpFill').style.width = (t.hp / t.max * 100) + '%'; $('hpNum').textContent = t.hp;
+    $('delayNum').textContent = t.delay;
     const cur = turn && sim.tankOf(turn.uid), chip = $('turnChip');
     chip.textContent = phase === 'over' ? '게임 끝' : !cur ? '준비 중' : cur.uid === me() ? '내 차례' : `${cur.name} 차례`;
     chip.classList.toggle('mine', mine());
@@ -149,13 +158,79 @@ export function createBattle({ socket, me, toast, onExit }) {
         if (aimDirty && now - lastAimSent > 80) { aimDirty = false; lastAimSent = now; socket().emit('game:aim', { angle: t.angle }); }
         if (charging) power = Math.min(100, power + 55 * dt);
       }
+      updateCam(dt);
       ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
-      ren.draw(ctx, { active: phase !== 'over' ? turn?.uid : null });
-      ren.drawWind(ctx, W / 2, 40);
+      ctx.save(); ctx.translate(-Math.round(cam.x), -Math.round(cam.y));
+      ren.draw(ctx, { active: phase !== 'over' ? turn?.uid : null, cam, vw: VW, vh: VH });
       if (mine() && !myTank().dead) ren.drawAimFan(ctx, myTank());
+      ctx.restore();
+      ren.drawBanner(ctx, VW, VH);
+      ren.drawWind(ctx, VW / 2, 40);
+      drawMinimap(); drawRoster(); drawChat(now); drawOffscreen();
       hud();
     }
     requestAnimationFrame(loop);
+  }
+
+  /* ---------- 카메라: 지금 차례 탱크 → 날아가는 포탄 → 필살기 순서로 따라간다. 끌거나 미니맵을 누르면 잠시 직접 보기 ---------- */
+  function clampCam() { cam.x = Math.max(0, Math.min(sim.w - VW, cam.x)); cam.y = Math.max(0, Math.min(sim.h - VH, cam.y)); }
+  function camGoal() {
+    if (sim.specials.length) { const s = sim.specials[0]; return [s.wx ?? s.x, (s.gy ?? s.y) - 140]; }
+    if (sim.shells.length) { const s = sim.shells[0]; return [s.x + s.vx * .25, s.y]; }
+    const t = turn && sim.tankOf(turn.uid); if (t && !t.sunk) return [t.x, t.y - 60];
+    return null;
+  }
+  function updateCam(dt) {
+    if (camHold > 0 && !sim.shells.length && !sim.specials.length) { camHold -= dt; return; }
+    const g = camGoal(); if (!g) return;
+    const k = Math.min(1, dt * (sim.shells.length ? 5 : 3));
+    cam.x += (g[0] - VW / 2 - cam.x) * k; cam.y += (g[1] - VH * .55 - cam.y) * k; clampCam();
+  }
+  function toCanvas(e) { const r = cv.getBoundingClientRect(); return [(e.clientX - r.left) * VW / r.width, (e.clientY - r.top) * VH / r.height]; }
+  let drag = null;
+  cv.addEventListener('pointerdown', e => {
+    if (!sim) return; const [x, y] = toCanvas(e);
+    if (x >= MM.x && x <= MM.x + MM.w && y >= MM.y && y <= MM.y + MM.h) { cam.x = (x - MM.x) / MM.w * sim.w - VW / 2; cam.y = (y - MM.y) / MM.h * sim.h - VH / 2; clampCam(); camHold = 3; return; }
+    drag = { x, y, cx: cam.x, cy: cam.y }; cv.setPointerCapture(e.pointerId);
+  });
+  cv.addEventListener('pointermove', e => { if (!drag) return; const [x, y] = toCanvas(e); cam.x = drag.cx - (x - drag.x); cam.y = drag.cy - (y - drag.y); clampCam(); camHold = 3; });
+  ['pointerup', 'pointercancel'].forEach(ev => cv.addEventListener(ev, () => drag = null));
+  const teamCol = t => t.team === 'red' ? '#ff6a55' : t.team === 'blue' ? '#55aef0' : t.uid === me() ? '#ffb703' : '#f4efe1';
+  function drawMinimap() {
+    const c = ctx, { x, y, w, h } = MM, k = w / sim.w;
+    c.save(); c.globalAlpha = .92; c.fillStyle = 'rgba(20,28,52,.85)'; c.fillRect(x - 3, y - 3, w + 6, h + 6);
+    c.drawImage(ren.sky, x, y, w, h); c.drawImage(ren.fg, x, y, w, h);
+    if (sim.map.liquid && sim.map.liquid.type !== 'void' || sim.sdLiquid) { c.fillStyle = sim.map.liquid?.type === 'lava' ? 'rgba(255,120,40,.8)' : 'rgba(80,160,230,.8)'; c.fillRect(x, y + sim.liquidY * k, w, h - sim.liquidY * k); }
+    c.globalAlpha = 1;
+    sim.events.forEach(e => { c.fillStyle = e.type === 'pillar' ? '#ff7a3c' : '#e6eef5'; c.fillRect(x + e.x * k - 1.5, y + (e.gy ?? sim.h) * k - 14, 3, 14); });
+    sim.tanks.forEach(t => { if (t.left || t.sunk) return; c.fillStyle = t.dead ? '#555' : teamCol(t); c.beginPath(); c.arc(x + t.x * k, y + t.y * k - 3, t.uid === turn?.uid ? 4 : 3, 0, 7); c.fill(); });
+    sim.shells.forEach(s => { c.fillStyle = '#fff'; c.fillRect(x + s.x * k - 1.5, y + s.y * k - 1.5, 3, 3); });
+    c.strokeStyle = '#ffd34d'; c.lineWidth = 1.5; c.strokeRect(x + cam.x * k, y + cam.y * k, VW * k, VH * k);
+    c.strokeStyle = 'rgba(255,255,255,.35)'; c.lineWidth = 1; c.strokeRect(x - .5, y - .5, w + 1, h + 1);
+    c.restore();
+  }
+  function drawRoster() {
+    const c = ctx, x0 = MM.x, y0 = MM.y + MM.h + 14;
+    c.save(); c.font = '600 12.5px "Noto Sans KR", sans-serif'; c.textAlign = 'left'; c.lineJoin = 'round';
+    sim.tanks.forEach((t, i) => {
+      const y = y0 + i * 18, txt = (t.uid === turn?.uid ? '▶ ' : '') + t.name + (t.left ? ' (나감)' : t.dead ? ' (탈락)' : '');
+      c.lineWidth = 3; c.strokeStyle = 'rgba(20,20,35,.75)'; c.strokeText(txt, x0, y); c.fillStyle = t.dead ? '#9aa0ad' : teamCol(t); c.fillText(txt, x0, y);
+      if (!t.dead) { c.fillStyle = 'rgba(20,28,52,.7)'; c.fillRect(x0 + 140, y - 8, 70, 6); c.fillStyle = t.hp / t.max > .5 ? '#3fae4a' : t.hp / t.max > .25 ? '#f0a020' : '#d63c3c'; c.fillRect(x0 + 140, y - 8, 70 * t.hp / t.max, 6); }
+    });
+    c.restore();
+  }
+  function drawChat(now) {
+    const c = ctx, lines = chatLines.filter(l => now - l.at < 15000).slice(-6);
+    c.save(); c.font = '13px "Noto Sans KR", sans-serif'; c.textAlign = 'left'; c.lineJoin = 'round';
+    lines.forEach((l, i) => { const a = Math.min(1, (15000 - (now - l.at)) / 2000), y = 26 + i * 19; c.globalAlpha = a; const s = l.from ? `[${l.from}] ${l.text}` : l.text; c.lineWidth = 3.5; c.strokeStyle = 'rgba(15,20,40,.8)'; c.strokeText(s, 14, y); c.fillStyle = l.from ? '#f4efe1' : '#ffd34d'; c.fillText(s, 14, y); });
+    c.restore();
+  }
+  // 화면 밖 아군·적 위치를 가장자리 화살표로 알려 준다
+  function drawOffscreen() {
+    const c = ctx;
+    sim.tanks.forEach(t => { if (t.dead) return; const sx = t.x - cam.x, sy = t.y - 20 - cam.y; if (sx >= 0 && sx <= VW && sy >= 0 && sy <= VH) return;
+      const x = Math.max(14, Math.min(VW - 14, sx)), y = Math.max(14, Math.min(VH - 14, sy)), a = Math.atan2(sy - y, sx - x);
+      c.save(); c.translate(x, y); c.rotate(a); c.fillStyle = teamCol(t); c.strokeStyle = 'rgba(20,20,35,.8)'; c.lineWidth = 2; c.beginPath(); c.moveTo(10, 0); c.lineTo(-6, -7); c.lineTo(-6, 7); c.closePath(); c.fill(); c.stroke(); c.restore(); });
   }
 
   /* ---------- 입력 ---------- */
