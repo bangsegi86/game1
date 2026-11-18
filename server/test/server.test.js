@@ -17,7 +17,7 @@ test.after(() => srv.close());
 
 test('회원가입 규칙', async () => {
   assert.equal((await post('/api/register', { username: 'ab', password: 'password1', nickname: '포탄왕' })).status, 400);
-  assert.equal((await post('/api/register', { username: 'shellking', password: 'short', nickname: '포탄왕' })).status, 400);
+  assert.equal((await post('/api/register', { username: 'shellking', password: '', nickname: '포탄왕' })).status, 400);
   const ok = await post('/api/register', { username: 'shellking', password: 'password1', nickname: '포탄왕' });
   assert.equal(ok.status, 200); assert.ok(ok.token);
   assert.equal((await post('/api/register', { username: 'SHELLKING', password: 'password1', nickname: '다른닉' })).status, 409, '아이디 대소문자 중복');

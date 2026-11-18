@@ -13,7 +13,7 @@ export function bagSize(items) { return items.reduce((n, id) => n + (ITEM_SIZES[
 export function validBag(items) { return Array.isArray(items) && items.length <= BAG_CELLS && items.every(id => ITEM_SIZES[id]) && bagSize(items) <= BAG_CELLS; }
 export const RULES = {
   username: /^[A-Za-z0-9]{4,16}$/,
-  passwordMin: 8, passwordMax: 64,
+  passwordMin: 1, passwordMax: 200,
   nicknameMin: 2, nicknameMax: 10,
 };
 export function checkNickname(n) {

@@ -17,12 +17,12 @@ export function loadSecret(dataDir) {
 export class AuthError extends Error { constructor(msg, status = 400) { super(msg); this.status = status; } }
 
 export function makeAuth(db, secret) {
-  const sign = user => jwt.sign({ sub: user.id, nick: user.nickname }, secret, { expiresIn: '7d' });
+  const sign = user => jwt.sign({ sub: user.id, nick: user.nickname }, secret, { expiresIn: '1h' });
   const publicUser = u => ({ id: u.id, username: u.username, nickname: u.nickname });
   return {
     async register({ username, password, nickname } = {}) {
       if (typeof username !== 'string' || !RULES.username.test(username)) throw new AuthError('아이디는 영문·숫자 4~16자로 정해 주세요.');
-      if (typeof password !== 'string' || password.length < RULES.passwordMin || password.length > RULES.passwordMax) throw new AuthError(`비밀번호는 ${RULES.passwordMin}자 이상으로 정해 주세요.`);
+      if (typeof password !== 'string' || password.length < RULES.passwordMin || password.length > RULES.passwordMax) throw new AuthError('비밀번호를 입력해 주세요.');
       const nerr = checkNickname(nickname); if (nerr) throw new AuthError(nerr);
       nickname = nickname.trim();
       if (db.findByUsername(username)) throw new AuthError('이미 쓰고 있는 아이디예요.', 409);
@@ -40,6 +40,7 @@ export function makeAuth(db, secret) {
       db.touchLogin(row.id);
       return { token: sign(row), user: publicUser(row) };
     },
+    refresh: user => sign(user),
     verify(token) {
       try { const p = jwt.verify(token, secret); const u = db.findById(p.sub); return u ? publicUser(u) : null; } catch { return null; }
     },

@@ -43,8 +43,9 @@ export function createServer({ port = 3000, dataDir = path.join(ROOT, 'server', 
   const server = http.createServer(app);
   const io = new Server(server, { cors: { origin: false } });
   const online = new Map(); // userId -> { socket, user }
-  const away = new Map(); // userId -> 재접속 대기 타이머 (새로고침해도 10초 안에 오면 방에 남는다)
-  const GRACE_MS = 10000;
+  const away = new Map(); // userId -> 재접속 대기 타이머 (새로고침해도 1분 안에 오면 방에 남는다)
+  const GRACE_MS = 60000; // 새로고침·잠깐 끊김 유예 1분
+  const IDLE_MS = 60 * 60 * 1000; // 아무 활동이 없으면 1시간 뒤 로그아웃
 
   io.use((socket, next) => {
     const user = auth.verify(socket.handshake.auth?.token);
@@ -78,7 +79,18 @@ export function createServer({ port = 3000, dataDir = path.join(ROOT, 'server', 
     const r0 = rooms.roomOf(user.id); if (r0) { socket.join(`room:${r0.id}`); socket.emit('room:state', rooms.view(r0)); }
     pushLobby();
 
+    // 활동 기록: 무엇이든 하면 1시간 타이머를 다시 시작하고, 5분마다 새 토큰을 준다
+    let idleTimer = null, lastToken = Date.now();
+    const touch = () => {
+      clearTimeout(idleTimer);
+      idleTimer = setTimeout(() => { socket.emit('session:expired', { reason: '1시간 동안 활동이 없어 로그아웃됐어요. 다시 로그인해 주세요.' }); socket.disconnect(true); }, IDLE_MS); idleTimer.unref?.();
+      if (Date.now() - lastToken > 5 * 60 * 1000) { lastToken = Date.now(); socket.emit('auth:token', { token: auth.refresh(user) }); }
+    };
+    touch();
+    socket.on('activity', touch);
+    socket.on('disconnect', () => clearTimeout(idleTimer));
     const handle = (name, fn) => socket.on(name, async (payload, ack) => {
+      touch();
       const reply = typeof ack === 'function' ? ack : () => {};
       try { reply({ ok: true, ...(await fn(payload || {}) || {}) }); }
       catch (e) { reply({ ok: false, error: e instanceof RoomError ? e.message : '처리하지 못했어요.' }); if (!(e instanceof RoomError)) console.error(name, e); }
@@ -127,7 +139,7 @@ export function createServer({ port = 3000, dataDir = path.join(ROOT, 'server', 
     socket.on('disconnect', () => {
       if (online.get(user.id)?.socket === socket) {
         online.delete(user.id);
-        if (rooms.roomOf(user.id)) away.set(user.id, setTimeout(() => { away.delete(user.id); if (!online.has(user.id)) leaveRoom(); }, GRACE_MS));
+        if (rooms.roomOf(user.id)) away.set(user.id, setTimeout(() => { away.delete(user.id); if (!online.has(user.id)) leaveRoom(); }, GRACE_MS).unref());
       }
       pushLobby();
     });

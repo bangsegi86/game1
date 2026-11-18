@@ -37,7 +37,7 @@ $('loginForm').addEventListener('submit', async e => {
   const username = $('uid').value.trim(), password = $('upw').value, nickname = $('unick').value.trim(), err = $('loginErr');
   if (joinMode) {
     if (!RULES.username.test(username)) return err.textContent = '아이디는 영문·숫자 4~16자로 정해 주세요.';
-    if (password.length < RULES.passwordMin) return err.textContent = `비밀번호는 ${RULES.passwordMin}자 이상으로 정해 주세요.`;
+    if (!password) return err.textContent = '비밀번호를 입력해 주세요.';
     const n = checkNickname(nickname); if (n) return err.textContent = n;
   } else if (!username || !password) return err.textContent = '아이디와 비밀번호를 입력해 주세요.';
   $('loginBtn').disabled = true; err.textContent = '';
@@ -68,6 +68,8 @@ function connect() {
   s.on('disconnect', () => { $('connDot').classList.add('off'); $('connText').textContent = '다시 연결하는 중…'; });
   s.on('connect_error', e => { if (e.message === 'unauthorized') { store.set('sc_token', null); s.disconnect(); show('login'); $('loginErr').textContent = '다시 로그인해 주세요.'; } });
   s.on('hello', ({ user, stats }) => { state.user = user; state.stats = stats; renderMe(); if (state.room) { renderRoom(); show('room'); } else show('lobby'); });
+  s.on('auth:token', ({ token }) => { state.token = token; store.set('sc_token', token); s.auth.token = token; });
+  s.on('session:expired', ({ reason }) => { store.set('sc_token', null); state.token = null; s.disconnect(); state.socket = null; state.room = null; show('login'); $('loginErr').textContent = reason; });
   s.on('session:kicked', ({ reason }) => { s.disconnect(); state.socket = null; show('login'); $('loginErr').textContent = reason; });
   s.on('lobby:state', st => { state.lobby = st; renderLobby(); });
   s.on('lobby:chat', m => logLine($('lobbyLog'), m));
@@ -158,6 +160,10 @@ $('finishBtn').onclick = () => act('game:finish');
 $('setTitle').addEventListener('change', e => act('room:settings', { title: e.target.value }));
 $('setPw').addEventListener('change', e => { act('room:settings', { password: e.target.value }, e.target.value ? '비밀번호를 걸었어요.' : '비밀번호를 풀었어요.'); e.target.value = ''; });
 $('roomChat').addEventListener('submit', async e => { e.preventDefault(); const i = $('roomMsg'); if (!i.value.trim()) return; const r = await act('room:chat', { text: i.value }); if (r.ok) i.value = ''; });
+
+/* 활동 알림: 화면을 만지면 1분에 한 번만 서버에 알려 로그인 시간을 늘린다 */
+let lastAct = 0;
+['pointerdown', 'keydown', 'wheel'].forEach(ev => addEventListener(ev, () => { const now = Date.now(); if (state.socket?.connected && now - lastAct > 60000) { lastAct = now; state.socket.emit('activity'); } }, { passive: true }));
 
 /* ---------- 시작 ---------- */
 if (state.token) connect(); else show('login');
