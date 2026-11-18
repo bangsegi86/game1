@@ -96,6 +96,8 @@ export class Sim {
     t.facing = dir; if (t.fuel <= 0 || !t.canMove || t.air || t.dead) return 0;
     const nx = t.x + dir * 50 * dt; if (nx < 12 || nx > this.w - 12) return 0;
     const ny = this.ground(nx, t.y - 14); if (ny < t.y - 12) return 0;
+    // 가파른 벽(약 55° 이상)은 못 오른다: 앞 6px 경사를 본다. 그래서 깊은 구덩이는 함정이 된다
+    const ahead = this.ground(t.x + dir * 6, t.y - 14); if (t.y - ahead > 8.5) return 0;
     t.moving = true; t.x = nx; if (ny <= t.y + 2) { t.y = ny; t.fallFrom = ny; }
     const used = 22 * dt * (ny < t.y ? 1.5 : 1); t.fuel = Math.max(0, t.fuel - used); return used;
   }

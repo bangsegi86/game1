@@ -581,6 +581,7 @@ class World {
     t.facing = dir; if (t.fuel <= 0 || !t.canMove || t.air) return;
     const nx = t.x + dir * 50 * dt; if (nx < 12 || nx > this.w - 12) return;
     const ny = this.ground(nx, t.y - 14); if (ny < t.y - 12) return;
+    const ahead = this.ground(t.x + dir * 6, t.y - 14); if (t.y - ahead > 8.5) return;
     t.moving = true; t.x = nx; if (ny <= t.y + 2) { t.y = ny; t.fallFrom = ny; }
     t.fuel = Math.max(0, t.fuel - 22 * dt * (ny < t.y ? 1.5 : 1));
   }
