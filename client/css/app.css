@@ -226,3 +226,9 @@ tbody tr.clickable { cursor: pointer; }
 .game .itembar .item:not(:disabled) { border-color: var(--amber); cursor: pointer; }
 .game .itembar .item.used { opacity: .3; }
 td.win { color: var(--good); font-weight: 700; } td.lose { color: var(--muted); }
+.flagchip { font-size: 12.5px; font-weight: 700; padding: 3px 10px; border-radius: 999px; background: color-mix(in srgb, #ff6a2a 22%, transparent); color: #ffb08a; }
+.pad { grid-template-columns: repeat(4, 44px) 84px 112px; }
+.pad .pass { font-size: 13px; font-weight: 700; }
+.pad .pass:disabled, .pad .fire:disabled { opacity: .45; }
+@media (max-width: 520px) { .pad .pass { grid-column: span 2; } }
+@media (max-width: 520px) { .pad { grid-template-columns: repeat(4, minmax(0, 1fr)); } .pad .pass, .pad .fire { grid-column: span 2; } }

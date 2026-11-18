@@ -1,8 +1,8 @@
 // 전투 화면 그리기: 시뮬레이션(shared/sim/world.js) 상태를 받아 그린다.
 // 탱크·포탄·폭발 그림은 /art/art.js 전역 함수를 쓴다.
-import { MAPS, MAT } from '/shared/sim/maps.js';
-import { baseGrid } from '/shared/sim/world.js';
-import { raggedPoly } from '/shared/sim/raster.js';
+import { MAPS, MAT } from '../../shared/sim/maps.js';
+import { baseGrid } from '../../shared/sim/world.js';
+import { raggedPoly } from '../../shared/sim/raster.js';
 
 const hex3 = s => { const n = parseInt(s.slice(1), 16); return [n >> 16, (n >> 8) & 255, n & 255]; };
 const mix3 = (a, b, k) => [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k, a[2] + (b[2] - a[2]) * k];
@@ -282,6 +282,7 @@ export class Renderer {
       if (s.sh.shape === 'line') { c.save(); c.lineCap = 'round'; c.strokeStyle = 'rgba(47,224,255,.55)'; c.lineWidth = 10; c.beginPath(); c.moveTo(s.sx, s.sy); c.lineTo(s.x, s.y); c.stroke(); c.strokeStyle = '#fff'; c.lineWidth = 3; c.stroke(); c.restore(); return; }
       const art = SHELLS[s.tankId][s.slot];
       trail(c, art, s.trail.slice(1), this.t);
+      if (s.powered || s.k > 1) { const g = c.createRadialGradient(s.x, s.y, 2, s.x, s.y, 20); g.addColorStop(0, 'rgba(255,120,50,.75)'); g.addColorStop(1, 'rgba(255,90,40,0)'); c.fillStyle = g; circ(c, s.x, s.y, 20); c.fill(); }
       c.save(); c.translate(s.x, s.y); c.scale(.95, .95); drawShell(c, art, this.t, Math.atan2(s.vy, s.vx)); c.restore();
       if (s.y < 0) { c.fillStyle = '#c92a2a'; c.beginPath(); c.moveTo(s.x, 4); c.lineTo(s.x - 6, 14); c.lineTo(s.x + 6, 14); c.fill(); }
     });

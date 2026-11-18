@@ -1,6 +1,6 @@
 // 전투 화면: 서버가 보낸 입력을 같은 시뮬레이션으로 재생하고, 내 차례에는 조작을 보낸다
-import { Sim, DT, opsHash } from '/shared/sim/world.js';
-import { SHELL_STATS, TANK_NAMES } from '/shared/gamedata.js';
+import { Sim, DT, opsHash } from '../../shared/sim/world.js';
+import { SHELL_STATS, TANK_NAMES, ITEM_INFO } from '../../shared/gamedata.js';
 import { Renderer } from './render.js';
 
 const $ = id => document.getElementById(id);
@@ -10,7 +10,7 @@ const W = 960, H = 480;
 export function createBattle({ socket, me, toast, onExit }) {
   const cv = $('field'); cv.width = W * DPR; cv.height = H * DPR; const ctx = cv.getContext('2d');
   let sim = null, ren = null, start = null, bag = [], ssUsed = false, turn = null, deadline = 0, phase = 'idle', order = [];
-  let weapon = 0, power = 0, charging = false, turnItemUsed = false, keys = {}, sentDir = 0, lastAimSent = 0, aimDirty = false, acc = 0, last = 0, running = false;
+  let flags = {}, weapon = 0, power = 0, charging = false, turnItemUsed = false, keys = {}, sentDir = 0, lastAimSent = 0, aimDirty = false, acc = 0, last = 0, running = false;
   const myTank = () => sim?.tankOf(me());
   const mine = () => phase === 'aim' && turn?.uid === me();
 
@@ -29,7 +29,7 @@ export function createBattle({ socket, me, toast, onExit }) {
     begin(st.start);
     for (const op of st.ops) { sim.applyOp(op); sim.ops.push(op); }
     ren.rebuild(); sim.restore(st.snapshot);
-    bag = st.bag.map(b => ({ ...b })); ssUsed = !!st.ssUsed;
+    bag = st.bag.map(b => ({ ...b })); ssUsed = !!st.ssUsed; flags = { ...(st.flags || {}) };
     if (st.turn) { turn = { uid: st.turn.uid, turnNo: st.turn.turnNo }; order = st.turn.order || []; deadline = performance.now() + st.turn.left * 1000; phase = st.phase === 'aim' ? 'aim' : 'resolve'; }
     renderWeapons(); renderItems();
   }
@@ -47,7 +47,7 @@ export function createBattle({ socket, me, toast, onExit }) {
       sim.restore(d.snapshot);
       turn = { uid: d.uid, turnNo: d.turnNo }; deadline = performance.now() + d.seconds * 1000; order = d.order;
       phase = 'aim'; power = 0; charging = false; turnItemUsed = false; sentDir = 0;
-      if (d.uid === me()) { toast('내 차례예요!'); if (weapon === 2 && !ssReady()) weapon = 0; }
+      if (d.uid === me()) { flags = { ...(d.flags || {}) }; const f = Object.keys(flags).map(k => ITEM_INFO[k].n); toast(f.length ? `내 차례예요! 걸려 있는 효과: ${f.join(', ')}` : '내 차례예요!'); if (weapon === 2 && !ssReady()) weapon = 0; }
       renderWeapons(); renderItems();
     },
     'game:pos': d => { const t = sim?.tankOf(d.uid); if (!t) return; t.x = d.x; t.y = d.y; t.facing = d.facing; t.fuel = d.fuel; t.movingVis = d.moving; if (d.uid !== me() || !mine()) t.angle = d.angle; },
@@ -55,12 +55,13 @@ export function createBattle({ socket, me, toast, onExit }) {
       if (!sim) return; const t = sim.tankOf(d.uid);
       if (['double', 'power', 'teleport'].includes(d.id)) sim.float(t.x, t.y - 84, itemById(d.id).n, '#3a2600'); else sim.useItem(t, d.id);
       sim.restore(d.snapshot);
-      if (d.uid === me()) { bag[d.index].used = true; } turnItemUsed = true; renderItems();
+      if (d.uid === me()) { bag[d.index].used = true; flags = { ...(d.flags || {}) }; } turnItemUsed = true; renderItems();
     },
     'game:shot': d => {
       if (!sim) return; sim.restore(d.snapshot); const t = sim.tankOf(d.uid); t.angle = d.angle; t.movingVis = false;
       sim.fire(t, d.slot, d.power, d.opts); phase = 'resolve'; charging = false;
       if (d.uid === me() && d.slot === 2) ssUsed = true;
+      if (d.uid === me()) flags = {};
       t.lastPower = d.power; renderItems(); renderWeapons();
     },
     'game:sync': d => {
@@ -68,6 +69,7 @@ export function createBattle({ socket, me, toast, onExit }) {
       if (sim.ops.length !== d.ops || opsHash(sim.ops) !== d.hash) return resync();
       sim.restore(d.snapshot); phase = 'wait';
     },
+    'game:pass': d => { const t = sim?.tankOf(d.uid); if (t) sim.float(t.x, t.y - 70, '턴 넘김', '#3a2600'); phase = 'wait'; },
     'game:timeout': d => { if (d.uid === me()) toast('시간이 다 돼서 차례가 넘어갔어요.', true); phase = 'wait'; },
     'game:left': d => { const t = sim?.tankOf(d.uid); if (t) { t.left = true; t.dead = true; sim.float(t.x, t.y - 60, '나감', '#3a2600'); } },
     'game:over': d => { phase = 'over'; turn = null; setTimeout(() => showResult(d), 1400); },
@@ -115,6 +117,8 @@ export function createBattle({ socket, me, toast, onExit }) {
     $('timer').textContent = phase === 'aim' ? Math.max(0, Math.ceil((deadline - performance.now()) / 1000)) : '–';
     const names = order.map(uid => sim.tankOf(uid)).filter(Boolean);
     $('order').innerHTML = `${sim.map.n} · 턴 ${turn?.turnNo || 0} · 순서 ` + names.map(x => `<span class="${x.uid === turn?.uid ? 'cur' : ''}">${esc(x.name)}</span>`).join('');
+    const fl = Object.keys(flags).map(k => ITEM_INFO[k].n); $('flags').textContent = fl.length ? '대기 중 효과: ' + fl.join(' + ') : ''; $('flags').hidden = !fl.length;
+    $('passBtn').disabled = !mine();
     const ssBtn = document.querySelector('#weapons [data-w="2"]'); if (ssBtn && ssBtn.disabled === ssReady()) renderWeapons();
   }
   function loop(now) {
@@ -142,6 +146,8 @@ export function createBattle({ socket, me, toast, onExit }) {
 
   /* ---------- 입력 ---------- */
   const active = () => !$('s-game').hidden && sim;
+  function pass() { if (!mine()) return; charging = false; socket().emit('game:pass', {}, r => { if (r && !r.ok) toast(r.error, true); }); }
+  $('passBtn').onclick = pass;
   function startCharge() { if (mine() && !charging) { charging = true; power = 0; } }
   function release() {
     if (!charging) return; charging = false; if (!mine()) return;
@@ -153,6 +159,7 @@ export function createBattle({ socket, me, toast, onExit }) {
     if (!active() || e.target.matches('input, select, textarea')) return;
     const k = KEYMAP[e.key]; if (k) { keys[k] = true; e.preventDefault(); }
     if (e.code === 'Space') { e.preventDefault(); if (!e.repeat) startCharge(); }
+    if (e.key.toLowerCase() === 'p' && !e.repeat) pass();
     if (e.key === '1') { weapon = 0; renderWeapons(); } if (e.key === '2') { weapon = 1; renderWeapons(); } if (e.key === '3' && ssReady()) { weapon = 2; renderWeapons(); }
     const qi = 'qwerty'.indexOf(e.key.toLowerCase()); if (qi >= 0 && !e.repeat) { let c = 0; bag.forEach((b, i) => { if (c === qi) useItem(i); c += itemById(b.id).size; }); }
   });

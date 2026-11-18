@@ -351,8 +351,8 @@ const SPECIALS = {
 
 /* ---------- 돌발 이벤트 ---------- */
 const EVENTS = {
-  tornado: { n: '회오리', d: '맵을 떠돌며 포탄을 위로 튕기고 탱크를 날려 버린다. 2턴 유지.', turns: 2 },
-  pillar: { n: '불기둥', d: '땅이 갈라지며 불기둥이 솟는다. 지나가는 포탄은 그 자리에서 터진다. 1턴 유지.', turns: 1 },
+  tornado: { n: '회오리', d: '생긴 자리에 2턴 동안 서 있다. 지나가는 포탄을 붙잡아 빙글빙글 올라가다 튕겨 낸다. 탱크는 그냥 지나간다.', turns: 2 },
+  pillar: { n: '불기둥', d: '생긴 자리에 2턴 동안 타오른다. 통과한 포탄은 파워업(피해·파임 +30%). 탱크는 그냥 지나간다.', turns: 2 },
   meteors: { n: '운석 소나기', d: '운석 세 개가 무작위 위치에 떨어져 땅을 판다.', turns: 0 },
   lightning: { n: '벼락', d: '먹구름이 몰려와 탱크 근처에 벼락이 떨어진다.', turns: 0 },
 };
@@ -374,7 +374,7 @@ class World {
     this.refreshMask(0, 0, this.w, this.h);
     this.g = G0 * this.map.grav; this.liquidY = this.map.liquid ? this.map.liquid.y * this.h : this.h + 30;
     this.tanks = []; this.shells = []; this.booms = []; this.floats = []; this.parts = []; this.zones = []; this.specials = []; this.events = []; this.pending = [];
-    this.clock = 0; this.shake = 0; this.dim = 0; this.banner = null; this.splashes = [];
+    this.clock = 0; this.shake = 0; this.dim = 0; this.queued = null; this.banner = null; this.splashes = [];
     this.wind = { ang: 180, str: 0 };
   }
   /* 지형 */
@@ -449,7 +449,7 @@ class World {
       const a = (t.angle + da) * Math.PI / 180, v = sh.shape === 'line' ? 900 : p * (sh.pspread ? sh.pspread[i] : 1) * SPEED, [ox, oy] = this.muzzle(t);
       this.shells.push({ x: ox, y: oy, sx: ox, sy: oy, vx: Math.cos(a) * t.facing * v, vy: -Math.sin(a) * v, sh, owner: t, age: 0, trail: [], mode: 'fly', dug: 0, dist: 0, lastCarve: null, k: o.boost || 1, teleport: !!o.teleport });
     });
-    spawn(); if (o.double) this.pending.push({ at: .45, fn: spawn });
+    spawn(); if (o.double) this.queued = { wait: .4, fn: () => { if (!t.dead) { t.firedAt = this.clock; spawn(); } } };
   }
   /* 착탄 */
   impact(s, x, y, hitTank) {
@@ -503,11 +503,8 @@ class World {
     const gy = x => this.ground(x, 0);
     this.events.forEach(e => {
       e.t += dt;
-      if (e.type === 'tornado') {
-        e.x += (this.windVec()[0] * .25 + Math.sin(this.clock * .7) * 20) * dt; e.x = Math.max(40, Math.min(this.w - 40, e.x)); e.gy = Math.min(gy(e.x), this.liquidY);
-        this.tanks.forEach(t => { if (!t.dead && !e.hit.has(t) && Math.abs(t.x - e.x) < 26 && e.t > .5) { e.hit.add(t); this.damage(t, 60, null); t.vy = -380; t.vx = (Math.sign(t.x - e.x) || 1) * 170; t.air = true; } });
-      }
-      if (e.type === 'pillar') { e.gy = gy(e.x); if (e.t > 1 && !e.done[0]) { e.done[0] = true; this.tanks.forEach(t => { if (!t.dead && Math.abs(t.x - e.x) < 30) { this.damage(t, 150, null); t.vy = -300; t.air = true; } }); this.shake += .4; } }
+      if (e.type === 'tornado') e.gy = Math.min(gy(e.x), this.liquidY);
+      if (e.type === 'pillar') { e.gy = gy(e.x); if (e.t > 1 && !e.done[0]) { e.done[0] = true; this.shake += .3; } }
       if (e.type === 'meteors') e.xs.forEach((x, i) => { const tt = .4 + i * .45; if (e.t > tt + .7 && !e.done[i]) { e.done[i] = true; const y = gy(x); this.carveRound(x, y, 26); this.hurtArea(x, y - 10, 26, 90, null); this.boomAt({ boom: 'fire', R: 28 }, x, y); this.debris(x, y, 12, 1); this.shake += .3; } });
       if (e.type === 'lightning' && e.t > .7 && !e.done[0]) { e.done[0] = true; const y = gy(e.x); this.carveRound(e.x, y, 18); this.hurtArea(e.x, y - 10, 24, 110, null); this.boomAt({ boom: 'electric', R: 22, color: '#bfe0ff' }, e.x, y); this.shake += .35; }
     });
@@ -515,8 +512,9 @@ class World {
   }
   shellVsEvents(s, dt) {
     for (const e of this.events) {
-      if (e.type === 'tornado' && e.t > .5 && Math.abs(s.x - e.x) < 36 && s.y > (e.gy || this.h) - 160) { s.vy -= 1400 * dt; s.vx += (s.x > e.x ? 1 : -1) * 500 * dt; }
-      if (e.type === 'pillar' && e.t > 1 && Math.abs(s.x - e.x) < 16 && s.y > (e.gy || this.h) - 150) { s.done = true; this.boomAt({ boom: 'fire', R: 20 }, s.x, s.y); this.float(s.x, s.y - 20, '불기둥에 막힘', '#c92a2a'); return true; }
+      const gy = e.gy || this.h;
+      if (e.type === 'tornado' && e.t > .5 && s.mode === 'fly' && Math.abs(s.x - e.x) < 30 && s.y > gy - 170 && s.y < gy + 4 && !(s.caught && s.caught.includes(e.x))) { (s.caught ||= []).push(e.x); s.mode = 'spin'; s.spin = { x: e.x, t: 0, ph: s.x < e.x ? Math.PI : 0, r: Math.max(8, Math.abs(s.x - e.x)), top: s.y - 130 }; this.float(e.x, s.y - 16, '휘말림!', '#3a2600'); }
+      if (e.type === 'pillar' && e.t > 1 && Math.abs(s.x - e.x) < 18 && s.y > gy - 150 && s.y < gy && !(s.fired && s.fired.includes(e.x))) { (s.fired ||= []).push(e.x); s.k = (s.k || 1) * 1.3; s.powered = true; this.float(s.x, s.y - 18, '파워업!', '#ff6a2a'); }
     }
     return false;
   }
@@ -529,6 +527,7 @@ class World {
       const sh = s.sh;
       for (let k = 0; k < 4 && !s.done; k++) {
         const h = dt / 4; s.age += h;
+        if (s.mode === 'spin') { const sp = s.spin; sp.t += h; sp.ph += h * 13; sp.r = Math.min(26, sp.r + h * 20); const y = s.y - h * 130, x = sp.x + Math.cos(sp.ph) * sp.r; s.vx = (x - s.x) / h; s.vy = (y - s.y) / h; s.x = x; s.y = y; if (sp.t > 1.1 || s.y < sp.top || s.y < 10) { s.vx = (-Math.sin(sp.ph) >= 0 ? 1 : -1) * 420; s.vy = -240; s.mode = 'fly'; s.spin = null; } continue; }
         if (s.mode === 'dig') { s.x += s.vx * h; s.y += s.vy * h; s.dug += Math.hypot(s.vx, s.vy) * h; if (this.hitTank(s) || s.dug >= 80 || s.y > this.h - 4) { this.impact(s, s.x, s.y); break; } continue; }
         if (sh.shape !== 'line') { s.vx += wx * sh.wind * h; s.vy += (wy * sh.wind + this.g * sh.wt) * h; }
         if (sh.fx === 'home') { const tg = this.tanks.filter(t => !t.dead && t !== s.owner).map(t => [t, Math.hypot(t.x - s.x, t.y - 18 - s.y)]).filter(([, d]) => d < 150).sort((a, b) => a[1] - b[1])[0]; if (tg) { const [t, d] = tg; s.vx += (t.x - s.x) / d * 600 * h; s.vy += (t.y - 18 - s.y) / d * 600 * h; } }
@@ -552,6 +551,7 @@ class World {
     }
     this.shells = this.shells.filter(s => !s.done);
     this.specials = this.specials.filter(s => { s.t += dt; return SPECIALS[s.type].step(this, s, dt); });
+    if (this.queued && !this.shells.length && !this.specials.length) { this.queued.wait -= dt; if (this.queued.wait <= 0) { const q = this.queued; this.queued = null; q.fn(); } }
     this.stepEvents(dt);
     this.booms = this.booms.filter(b => this.clock - b.t0 < .8);
     this.splashes = this.splashes.filter(s => this.clock - s.t0 < 1);
@@ -578,7 +578,7 @@ class World {
     }
     t.y = g; t.vy = 0; t.fallFrom = t.y; return true;
   }
-  busy() { return this.shells.length || this.pending.length || this.specials.length || this.booms.length || this.tanks.some(t => !t.sunk && (t.air || this.ground(t.x, t.y - 3) > t.y + 1)) || this.events.some(e => (e.type === 'meteors' && e.t < 2.4) || (e.type === 'lightning' && e.t < 1.3) || (e.type === 'pillar' && e.t < 1.6)); }
+  busy() { return this.shells.length || this.pending.length || this.queued || this.specials.length || this.booms.length || this.tanks.some(t => !t.sunk && (t.air || this.ground(t.x, t.y - 3) > t.y + 1)) || this.events.some(e => (e.type === 'meteors' && e.t < 2.4) || (e.type === 'lightning' && e.t < 1.3) || (e.type === 'pillar' && e.t < 1.6)); }
   move(t, dir, dt) {
     t.facing = dir; if (t.fuel <= 0 || !t.canMove || t.air) return;
     const nx = t.x + dir * 50 * dt; if (nx < 12 || nx > this.w - 12) return;

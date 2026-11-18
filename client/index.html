@@ -108,6 +108,7 @@
     <div class="game-top">
       <span class="turn-chip" id="turnChip">준비 중</span>
       <div class="order" id="order"></div>
+      <span class="flagchip" id="flags" hidden></span>
       <div class="timer num" id="timer">–</div>
     </div>
     <div class="field-wrap">
@@ -145,10 +146,11 @@
         <button data-hold="right" aria-label="오른쪽 이동">▶</button>
         <button data-hold="up" aria-label="각도 올리기">▲</button>
         <button data-hold="down" aria-label="각도 내리기">▼</button>
+        <button class="pass" id="passBtn">턴 넘기기</button>
         <button class="fire" id="fireBtn">눌러서 발사</button>
       </div>
     </div>
-    <p class="keys"><kbd>←</kbd><kbd>→</kbd> 이동 · <kbd>↑</kbd><kbd>↓</kbd> 각도 · <kbd>Space</kbd> 누르고 있다가 떼면 발사 · <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> 포탄 · <kbd>Q</kbd>~<kbd>Y</kbd> 아이템(턴당 1개) · 가운데 위 나침반이 바람</p>
+    <p class="keys"><kbd>←</kbd><kbd>→</kbd> 이동 · <kbd>↑</kbd><kbd>↓</kbd> 각도 · <kbd>Space</kbd> 누르고 있다가 떼면 발사 · <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> 포탄 · <kbd>Q</kbd>~<kbd>Y</kbd> 아이템(턴당 1개, 파워업·더블·순간이동은 쏠 때까지 유지) · <kbd>P</kbd> 턴 넘기기 · 가운데 위 나침반이 바람</p>
   </section>
 </main>
 

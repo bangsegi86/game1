@@ -158,6 +158,7 @@ export function createServer({ port = 3000, dataDir = path.join(ROOT, 'server', 
     handle('game:aim', gameErr(({ angle }) => { game().onAim(user.id, angle); }));
     handle('game:fire', gameErr(({ slot, power }) => { game().onFire(user.id, slot, power); }));
     handle('game:item', gameErr(({ index }) => { game().onItem(user.id, index); }));
+    handle('game:pass', gameErr(() => { game().onPass(user.id); }));
 
     socket.on('disconnect', () => {
       if (online.get(user.id)?.socket === socket) {

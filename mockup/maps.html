@@ -188,8 +188,8 @@ Object.entries(EVENTS).forEach(([key, e], i) => {
   addView(el.querySelector('canvas'), 400, 225, (c, w, h, t, dt) => {
     const W = st.W; W.step(dt); const tt = W.clock - st.t0;
     if (!st.spawned && tt > .4) { st.spawned = true; const ev = W.rollEvent(key); if (key === 'tornado' || key === 'pillar') ev.x = 200; if (key === 'lightning') ev.x = W.tanks[1].x + 10; if (key === 'meteors') ev.xs = [120, 210, 290]; }
-    if (!st.shot && tt > 2 && (key === 'tornado' || key === 'pillar')) { st.shot = true; const a = W.tanks[0]; a.angle = 45; W.fire(a, 0, W.solvePower(a, 0, W.tanks[1].x, false)); }
-    if (tt > 5) setup();
+    if (!st.shot && tt > 1.4 && (key === 'tornado' || key === 'pillar')) { st.shot = true; const a = W.tanks[0]; a.angle = key === 'pillar' ? 30 : 45; W.fire(a, 0, W.solvePower(a, 0, W.tanks[1].x, false)); }
+    if (tt > 5.5) setup();
     c.save(); c.scale(w / 400, h / 225); W.draw(c, {}); c.restore();
   });
 });
