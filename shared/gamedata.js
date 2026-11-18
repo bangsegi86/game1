@@ -37,12 +37,12 @@ export const TANK_STATS = {
 };
 // dmg 피해, r 피해 반경, cr 파임 반경, wind 바람계수, wt 무게계수, R 폭발 그림 크기
 export const SHELL_STATS = {
-  mole:   [{ n: '돌탄', dmg: 200, r: 34, cr: 34, wind: 1, wt: 1, R: 24 }, { n: '파편탄', dmg: 110, r: 24, cr: 20, wind: 1, wt: 1, R: 15, spread: [-5, 0, 5] }, { n: '땅굴 폭탄', dmg: 380, r: 60, cr: 50, wind: .8, wt: 1.1, R: 36, shape: 'tunnel', sp: 'erupt' }],
+  mole:   [{ n: '돌탄', dmg: 200, r: 34, cr: 34, wind: 1, wt: 1, R: 24 }, { n: '파편탄', dmg: 110, r: 24, cr: 20, wind: 1, wt: 1, R: 15, spread: [-1.5, 0, 1.5], pspread: [.91, 1, 1.09] }, { n: '땅굴 폭탄', dmg: 380, r: 60, cr: 50, wind: .8, wt: 1.1, R: 36, shape: 'tunnel', sp: 'erupt' }],
   hammer: [{ n: '철구', dmg: 260, r: 30, cr: 30, wind: .5, wt: 1.2, R: 24 }, { n: '지진탄', dmg: 230, r: 44, cr: [70, 24], wind: .6, wt: 1.2, R: 28, shape: 'ellipse' }, { n: '메테오', dmg: 480, r: 56, cr: 64, wind: .4, wt: 1.3, R: 44, sp: 'meteor' }],
   cloud:  [{ n: '물방울', dmg: 180, r: 30, cr: 18, wind: 1.2, wt: .9, R: 22 }, { n: '번개구름', dmg: 210, r: 30, cr: 26, wind: 0, wt: 1, R: 24 }, { n: '폭풍', dmg: 300, r: 70, cr: 20, wind: 1.5, wt: .8, R: 40, sp: 'tornado' }],
   bee:    [{ n: '불씨', dmg: 190, r: 30, cr: 30, wind: 1, wt: 1, R: 22 }, { n: '화염병', dmg: 160, r: 36, cr: 22, wind: 1, wt: 1, R: 26, fx: 'burn' }, { n: '불사조', dmg: 420, r: 50, cr: 48, wind: .7, wt: .9, R: 40, sp: 'phoenix' }],
   magnet: [{ n: '자기탄', dmg: 190, r: 30, cr: 30, wind: 1, wt: 1, R: 22 }, { n: '끌어당김탄', dmg: 220, r: 30, cr: 30, wind: 1, wt: 1, R: 24, fx: 'home' }, { n: '자기폭풍', dmg: 340, r: 64, cr: 40, wind: .8, wt: 1, R: 40, sp: 'storm' }],
-  shroom: [{ n: '포자', dmg: 170, r: 30, cr: 26, wind: 1.4, wt: .8, R: 22 }, { n: '포자비', dmg: 70, r: 20, cr: 14, wind: 1.4, wt: .8, R: 12, spread: [-10, -5, 0, 5, 10] }, { n: '독버섯밭', dmg: 240, r: 60, cr: 30, wind: 1, wt: 1, R: 38, sp: 'shroom' }],
+  shroom: [{ n: '포자', dmg: 170, r: 30, cr: 26, wind: 1.4, wt: .8, R: 22 }, { n: '포자비', dmg: 70, r: 20, cr: 14, wind: 1.4, wt: .8, R: 12, spread: [-3, -1.5, 0, 1.5, 3], pspread: [.84, .92, 1, 1.08, 1.16] }, { n: '독버섯밭', dmg: 240, r: 60, cr: 30, wind: 1, wt: 1, R: 38, sp: 'shroom' }],
   whale:  [{ n: '얼음덩이', dmg: 200, r: 32, cr: 30, wind: .9, wt: 1.1, R: 24 }, { n: '빙결탄', dmg: 150, r: 32, cr: 16, wind: 1, wt: 1, R: 26, fx: 'freeze' }, { n: '해일', dmg: 400, r: 62, cr: 40, wind: .6, wt: 1.2, R: 42, sp: 'wave' }],
   laser:  [{ n: '빔탄', dmg: 210, r: 28, cr: 28, wind: .7, wt: .9, R: 22 }, { n: '관통 레이저', dmg: 170, r: 22, cr: 12, wind: 0, wt: 0, R: 20, shape: 'line' }, { n: '궁극 빔', dmg: 500, r: 44, cr: 40, wind: 0, wt: 1, R: 40, sp: 'ufo' }],
 };

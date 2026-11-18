@@ -507,12 +507,12 @@ const SHELLS = {
 /* 포탄 물리 (설계서 '포탄 물리와 지형 파임' 표와 같은 값)
    dmg 피해, r 피해 반경, cr 파임 반경(타원은 [가로, 세로]), wind 바람계수, wt 무게계수, shape 파임 모양, fx 특수 효과 */
 const PHYS = {
-  mole:   [{ dmg: 200, r: 34, cr: 34, wind: 1, wt: 1 }, { dmg: 110, r: 24, cr: 20, wind: 1, wt: 1, spread: [-5, 0, 5] }, { dmg: 380, r: 60, cr: 50, wind: .8, wt: 1.1, shape: 'tunnel' }],
+  mole:   [{ dmg: 200, r: 34, cr: 34, wind: 1, wt: 1 }, { dmg: 110, r: 24, cr: 20, wind: 1, wt: 1, spread: [-1.5, 0, 1.5], pspread: [.91, 1, 1.09] }, { dmg: 380, r: 60, cr: 50, wind: .8, wt: 1.1, shape: 'tunnel' }],
   hammer: [{ dmg: 260, r: 30, cr: 30, wind: .5, wt: 1.2 }, { dmg: 230, r: 44, cr: [70, 24], wind: .6, wt: 1.2, shape: 'ellipse' }, { dmg: 480, r: 56, cr: 64, wind: .4, wt: 1.3 }],
   cloud:  [{ dmg: 180, r: 30, cr: 18, wind: 1.2, wt: .9 }, { dmg: 210, r: 30, cr: 26, wind: 0, wt: 1 }, { dmg: 300, r: 70, cr: 20, wind: 1.5, wt: .8, fx: 'push' }],
   bee:    [{ dmg: 190, r: 30, cr: 30, wind: 1, wt: 1 }, { dmg: 160, r: 36, cr: 22, wind: 1, wt: 1, fx: 'burn' }, { dmg: 420, r: 50, cr: 48, wind: .7, wt: .9 }],
   magnet: [{ dmg: 190, r: 30, cr: 30, wind: 1, wt: 1 }, { dmg: 220, r: 30, cr: 30, wind: 1, wt: 1, fx: 'home' }, { dmg: 340, r: 64, cr: 40, wind: .8, wt: 1 }],
-  shroom: [{ dmg: 170, r: 30, cr: 26, wind: 1.4, wt: .8 }, { dmg: 70, r: 20, cr: 14, wind: 1.4, wt: .8, spread: [-10, -5, 0, 5, 10] }, { dmg: 240, r: 60, cr: 30, wind: 1, wt: 1, fx: 'poison' }],
+  shroom: [{ dmg: 170, r: 30, cr: 26, wind: 1.4, wt: .8 }, { dmg: 70, r: 20, cr: 14, wind: 1.4, wt: .8, spread: [-3, -1.5, 0, 1.5, 3], pspread: [.84, .92, 1, 1.08, 1.16] }, { dmg: 240, r: 60, cr: 30, wind: 1, wt: 1, fx: 'poison' }],
   whale:  [{ dmg: 200, r: 32, cr: 30, wind: .9, wt: 1.1 }, { dmg: 150, r: 32, cr: 16, wind: 1, wt: 1, fx: 'freeze' }, { dmg: 400, r: 62, cr: 40, wind: .6, wt: 1.2 }],
   laser:  [{ dmg: 210, r: 28, cr: 28, wind: .7, wt: .9 }, { dmg: 170, r: 22, cr: 12, wind: 0, wt: 0, shape: 'line' }, { dmg: 500, r: 44, cr: 40, wind: 0, wt: 1, shape: 'down' }],
 };

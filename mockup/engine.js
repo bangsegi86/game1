@@ -178,7 +178,7 @@ function bakeMap(id, w, h) {
   const m = MAPS[id], P = palette(m);
   const mk = document.createElement('canvas'); mk.width = w; mk.height = h; const mc = mk.getContext('2d'); m.terrain(mc, w, h);
   const src = mc.getImageData(0, 0, w, h).data;
-  const fg = new ImageData(w, h), bk = new ImageData(w, h), st = new ImageData(w, h), out = [0, 0, 0];
+  const fg = new ImageData(w, h), bk = new ImageData(w, h), st = new ImageData(w, h), out = [0, 0, 0], pass = new Uint8Array(w * h);
   for (let x = 0; x < w; x++) {
     let d = 0, prev = false;
     for (let y = 0; y < h; y++) {
@@ -187,14 +187,15 @@ function bakeMap(id, w, h) {
       d = prev ? d + 1 : 0; prev = true;
       let best = 0, bd = 1e9; for (let k = 0; k < MAT.length; k++) { const dd = (src[i] - MAT[k][1]) ** 2 + (src[i + 1] - MAT[k][2]) ** 2 + (src[i + 2] - MAT[k][3]) ** 2; if (dd < bd) { bd = dd; best = k; } }
       const mat = MAT[best][0]; shadeMat(mat, d, x, y, P, out);
+      if (mat === 'leaf' || mat === 'wood') prev = false; // 나무 아래 흙은 나무와 상관없이 지면부터 깊이를 센다
       fg.data[i] = out[0]; fg.data[i + 1] = out[1]; fg.data[i + 2] = out[2]; fg.data[i + 3] = a;
-      bk.data[i] = out[0] * .38 + 8; bk.data[i + 1] = out[1] * .36 + 6; bk.data[i + 2] = out[2] * .4 + 14; bk.data[i + 3] = a;
+      if (mat !== 'leaf' && mat !== 'wood') { bk.data[i] = out[0] * .38 + 8; bk.data[i + 1] = out[1] * .36 + 6; bk.data[i + 2] = out[2] * .4 + 14; bk.data[i + 3] = a; } else pass[y * w + x] = 1;
       if (mat === 'steel') { st.data[i] = out[0]; st.data[i + 1] = out[1]; st.data[i + 2] = out[2]; st.data[i + 3] = a; }
     }
   }
   const toCanvas = img => { const c = document.createElement('canvas'); c.width = w; c.height = h; c.getContext('2d').putImageData(img, 0, 0); return c; };
   const sky = document.createElement('canvas'); sky.width = w; sky.height = h; skyPaint(sky.getContext('2d'), w, h, m.sky);
-  return (WORLD_CACHE[key] = { fg, back: toCanvas(bk), steel: toCanvas(st), sky });
+  return (WORLD_CACHE[key] = { fg, back: toCanvas(bk), steel: toCanvas(st), sky, pass });
 }
 
 /* ---------- 연출용 그림 ---------- */
@@ -384,7 +385,8 @@ class World {
     for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) this.mask[y * W + x] = d[((y - y0) * rw + (x - x0)) * 4 + 3] > 60 ? 1 : 0;
   }
   solid(x, y) { x |= 0; y |= 0; return x >= 0 && x < this.w && y >= 0 && y < this.h && this.mask[y * this.w + x] === 1; }
-  ground(x, from = 0) { for (let y = Math.max(0, from | 0); y < this.h; y++) if (this.solid(x, y) || this.solid(x - 7, y) || this.solid(x + 7, y)) return y; return this.h + 200; }
+  stand(x, y) { x |= 0; y |= 0; return x >= 0 && x < this.w && y >= 0 && y < this.h && this.mask[y * this.w + x] === 1 && !this.baked.pass[y * this.w + x]; }
+  ground(x, from = 0) { for (let y = Math.max(0, from | 0); y < this.h; y++) if (this.stand(x, y) || this.stand(x - 7, y) || this.stand(x + 7, y)) return y; return this.h + 200; }
   _carve(path, bx, by, bw, bh, scorch) {
     const c = this.tctx; c.save();
     c.globalCompositeOperation = 'destination-out'; path(c, 0); c.fill();
@@ -443,8 +445,8 @@ class World {
   }
   fire(t, slot, p, o = {}) {
     const sh = SHELLS[t.T.id][slot]; t.firedAt = this.clock; t.lastPower = p;
-    const spawn = () => (sh.spread || [0]).forEach(da => {
-      const a = (t.angle + da) * Math.PI / 180, v = sh.shape === 'line' ? 900 : p * SPEED, [ox, oy] = this.muzzle(t);
+    const spawn = () => (sh.spread || [0]).forEach((da, i) => {
+      const a = (t.angle + da) * Math.PI / 180, v = sh.shape === 'line' ? 900 : p * (sh.pspread ? sh.pspread[i] : 1) * SPEED, [ox, oy] = this.muzzle(t);
       this.shells.push({ x: ox, y: oy, sx: ox, sy: oy, vx: Math.cos(a) * t.facing * v, vy: -Math.sin(a) * v, sh, owner: t, age: 0, trail: [], mode: 'fly', dug: 0, dist: 0, lastCarve: null, k: o.boost || 1, teleport: !!o.teleport });
     });
     spawn(); if (o.double) this.pending.push({ at: .45, fn: spawn });

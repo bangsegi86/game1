@@ -5,7 +5,7 @@ import { MaskCtx, fillPolys, raggedPoly, hash } from './raster.js';
 import { TANK_STATS, SHELL_STATS } from '../gamedata.js';
 
 export const G0 = 380, SPEED = 5.6, WINDK = 14, DT = 1 / 60;
-const STEEL = MK.steel;
+const STEEL = MK.steel, LEAF = MK.leaf, WOOD = MK.wood;
 const BASE = new Map();
 export function baseGrid(mapId, w, h) {
   const key = `${mapId}:${w}x${h}`;
@@ -34,7 +34,9 @@ export class Sim {
 
   /* ---------- 지형 ---------- */
   solid(x, y) { x |= 0; y |= 0; return x >= 0 && x < this.w && y >= 0 && y < this.h && this.grid[y * this.w + x] !== 0; }
-  ground(x, from = 0) { for (let y = Math.max(0, from | 0); y < this.h; y++) if (this.solid(x, y) || this.solid(x - 7, y) || this.solid(x + 7, y)) return y; return this.h + 200; }
+  // 탱크가 설 수 있는 땅: 나무(잎·줄기)는 포탄은 막지만 탱크는 그 앞을 지나간다
+  stand(x, y) { x |= 0; y |= 0; if (x < 0 || x >= this.w || y < 0 || y >= this.h) return false; const m = this.grid[y * this.w + x]; return m !== 0 && m !== LEAF && m !== WOOD; }
+  ground(x, from = 0) { for (let y = Math.max(0, from | 0); y < this.h; y++) if (this.stand(x, y) || this.stand(x - 7, y) || this.stand(x + 7, y)) return y; return this.h + 200; }
   applyOp(op) {
     const poly = op.k === 'rect' ? [[op.x, op.y], [op.x + op.w, op.y], [op.x + op.w, op.y + op.h], [op.x, op.y + op.h], [op.x, op.y]] : raggedPoly(op.x, op.y, op.r, op.ry);
     fillPolys(this.grid, this.w, this.h, [poly], 0, STEEL);
@@ -106,8 +108,10 @@ export class Sim {
   fire(t, slot, p, o = {}) {
     const sh = SHELL_STATS[t.tankId][slot]; t.firedAt = this.clock;
     this.teleported = false;
-    const spawn = () => (sh.spread || [0]).forEach(da => {
-      const a = (t.angle + da) * Math.PI / 180, v = sh.shape === 'line' ? 900 : p * SPEED, [ox, oy] = this.muzzle(t);
+    // 다발 포탄: 각도와 파워를 조금씩 달리해 멀리 쏠수록 넓게 퍼지고, 가까이 쏘면 거의 한 곳에 맞는다
+    const spawn = () => (sh.spread || [0]).forEach((da, i) => {
+      const pk = sh.pspread ? sh.pspread[i] : 1;
+      const a = (t.angle + da) * Math.PI / 180, v = sh.shape === 'line' ? 900 : p * pk * SPEED, [ox, oy] = this.muzzle(t);
       this.shells.push({ x: ox, y: oy, sx: ox, sy: oy, vx: Math.cos(a) * t.facing * v, vy: -Math.sin(a) * v, sh, tankId: t.tankId, slot, owner: t, age: 0, trail: [], mode: 'fly', dug: 0, dist: 0, lastCarve: null, k: o.boost || 1, teleport: !!o.teleport });
     });
     spawn(); if (o.double) this.pending.push({ at: .45, fn: spawn });

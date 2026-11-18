@@ -202,8 +202,9 @@ function bakeTerrain(mapId, grid, w, h) {
       if (!m) { prev = false; continue; }
       d = prev ? d + 1 : 0; prev = true;
       const mat = MAT[m]; shadeMat(mat, d, x, y, P, out);
+      if (mat === 'leaf' || mat === 'wood') prev = false; // 나무 아래 흙은 나무와 상관없이 지면부터 깊이를 센다
       fg.data[i] = out[0]; fg.data[i + 1] = out[1]; fg.data[i + 2] = out[2]; fg.data[i + 3] = 255;
-      bk.data[i] = out[0] * .38 + 8; bk.data[i + 1] = out[1] * .36 + 6; bk.data[i + 2] = out[2] * .4 + 14; bk.data[i + 3] = 255;
+      if (mat !== 'leaf' && mat !== 'wood') { bk.data[i] = out[0] * .38 + 8; bk.data[i + 1] = out[1] * .36 + 6; bk.data[i + 2] = out[2] * .4 + 14; bk.data[i + 3] = 255; } // 나무는 부서지면 깨끗이 사라지게 뒷배경에서 뺀다
       if (mat === 'steel') { st.data[i] = out[0]; st.data[i + 1] = out[1]; st.data[i + 2] = out[2]; st.data[i + 3] = 255; }
     }
   }
