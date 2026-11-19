@@ -287,6 +287,12 @@ function drawUFO(c, x, y, t, glow) {
   for (let i = 0; i < 7; i++) { const a = -Math.PI * .9 + i * Math.PI * .3 / 1, px = Math.cos(i / 7 * TAU + t * 3) * 44, on = Math.sin(i / 7 * TAU + t * 3) > 0; if (!on) continue; circ(c, px, 6, 3); c.fillStyle = ['#ff5d5d', '#ffd34d', '#7fe36b', '#2fe0ff'][i % 4]; c.fill(); }
   c.restore();
 }
+// 회오리·불기둥 기둥은 맵 위아래로 이어지되, 땅이 있는 곳에는 그리지 않는다 (빈 곳만 잘라서 그림)
+function clipAirColumn(c, solid, x, bottom, half) {
+  c.beginPath();
+  for (let xx = x - half; xx < x + half; xx += 8) { let st = null; for (let y = 0; y <= bottom + 2; y += 2) { const air = y <= bottom && !solid(xx + 4, y); if (air && st == null) st = y; if (!air && st != null) { c.rect(xx, st, 8, y - st); st = null; } } if (st != null) c.rect(xx, st, 8, bottom + 2 - st); }
+  c.clip();
+}
 function drawTornado(c, x, gy, H, t, a = 1, col = '230,236,240') {
   c.save(); c.globalAlpha = a;
   const n = Math.max(14, Math.round(H / 14));
@@ -605,8 +611,9 @@ class World {
     const gy = x => this.ground(x, 0);
     this.events.forEach(e => {
       e.t += dt;
-      if (e.type === 'tornado') e.gy = Math.min(gy(e.x), this.liquidY);
-      if (e.type === 'pillar') { e.gy = gy(e.x); if (e.t > 1 && !e.done[0]) { e.done[0] = true; this.shake += .3; } }
+      const cb = x => { let y = Math.min(this.h - 1, Math.floor(this.liquidY)); while (y > 0 && this.solid(x, y)) y--; return y; };
+      if (e.type === 'tornado') e.gy = cb(e.x);
+      if (e.type === 'pillar') { e.gy = cb(e.x); if (e.t > 1 && !e.done[0]) { e.done[0] = true; this.shake += .3; } }
       if (e.type === 'meteors') e.xs.forEach((x, i) => { const tt = .4 + i * .45; if (e.t > tt + .7 && !e.done[i]) { e.done[i] = true; const y = gy(x); this.carveRound(x, y, 26); this.hurtArea(x, y - 10, 26, 90, null); this.boomAt({ boom: 'fire', R: 28 }, x, y); this.debris(x, y, 12, 1); this.shake += .3; } });
       if (e.type === 'lightning' && e.t > .7 && !e.done[0]) { e.done[0] = true; const y = gy(e.x); this.carveRound(e.x, y, 18); this.hurtArea(e.x, y - 10, 24, 110, null); this.boomAt({ boom: 'electric', R: 22, color: '#bfe0ff' }, e.x, y); this.shake += .35; }
     });
@@ -629,7 +636,7 @@ class World {
       const sh = s.sh;
       for (let k = 0; k < 4 && !s.done; k++) {
         const h = dt / 4; s.age += h;
-        if (s.mode === 'spin') { const sp = s.spin; sp.t += h; sp.ph += h * 13; sp.r = Math.min(26, sp.r + h * 20); const y = s.y - h * 130, x = sp.x + Math.cos(sp.ph) * sp.r; s.vx = (x - s.x) / h; s.vy = (y - s.y) / h; s.x = x; s.y = y; if (sp.t > 1.1 || s.y < sp.top || s.y < 10) { s.vx = (-Math.sin(sp.ph) >= 0 ? 1 : -1) * 420; s.vy = -240; s.mode = 'fly'; s.spin = null; } continue; }
+        if (s.mode === 'spin') { const sp = s.spin; sp.t += h; sp.ph += h * 13; sp.r = Math.min(26, sp.r + h * 20); const y = s.y - h * 130, x = sp.x + Math.cos(sp.ph) * sp.r; s.vx = (x - s.x) / h; s.vy = (y - s.y) / h; s.x = x; s.y = y; if (sp.t > 1.1 || s.y < sp.top || s.y < 10) { s.vx = (-Math.sin(sp.ph) >= 0 ? 1 : -1) * 420; s.vy = -240; s.mode = 'fly'; s.spin = null; } if (this.solid(s.x, s.y)) { this.impact(s, s.x, s.y); break; } continue; }
         if (s.mode === 'dig') { s.x += s.vx * h; s.y += s.vy * h; s.dug += Math.hypot(s.vx, s.vy) * h; if (this.hitTank(s) || s.dug >= 80 || s.y > this.h - 4) { this.impact(s, s.x, s.y); break; } continue; }
         if (sh.shape !== 'line') { s.vx += wx * sh.wind * h; s.vy += (wy * sh.wind + this.g * sh.wt) * h; }
         if (sh.fx === 'home') { const tg = this.tanks.filter(t => !t.dead && t !== s.owner).map(t => [t, Math.hypot(t.x - s.x, t.y - 18 - s.y)]).filter(([, d]) => d < 150).sort((a, b) => a[1] - b[1])[0]; if (tg) { const [t, d] = tg; s.vx += (t.x - s.x) / d * 600 * h; s.vy += (t.y - 18 - s.y) / d * 600 * h; } }
@@ -733,8 +740,8 @@ class World {
     this.splashes.forEach(s => { const p = (this.clock - s.t0); for (let i = 0; i < 8; i++) { const a = -Math.PI * (.2 + .6 * hash(i)), v = 120 + hash(i + 3) * 80; c.fillStyle = L.type === 'lava' ? 'rgba(255,170,60,.9)' : 'rgba(200,240,255,.9)'; circ(c, s.x + Math.cos(a) * v * p, y0 + Math.sin(a) * v * p + 300 * p * p, 3); c.fill(); } });
   }
   drawEvent(c, e) {
-    if (e.type === 'tornado') { const a = Math.min(1, e.t * 2) * (e.turns <= 0 ? .4 : 1); const gy = e.gy || this.ground(e.x, 0); drawTornado(c, e.x, gy, gy + 20, this.clock, a, '200,210,220'); }
-    if (e.type === 'pillar') { const gy = e.gy || this.ground(e.x, 0); if (e.t < 1) { const k = (e.t * 6) % 1 < .5; c.fillStyle = `rgba(255,120,40,${k ? .8 : .4})`; ell(c, e.x, gy, 22, 6); c.fill(); c.strokeStyle = '#3a1a10'; c.lineWidth = 2; c.beginPath(); c.moveTo(e.x - 18, gy); c.lineTo(e.x - 6, gy + 3); c.lineTo(e.x + 4, gy - 1); c.lineTo(e.x + 18, gy + 2); c.stroke(); } else drawPillar(c, e.x, gy, (gy + 20) * ease((e.t - 1) / .3), this.clock, e.turns <= 0 ? .5 : 1); }
+    if (e.type === 'tornado') { const a = Math.min(1, e.t * 2) * (e.turns <= 0 ? .4 : 1); const gy = e.gy || this.ground(e.x, 0); c.save(); clipAirColumn(c, (x, y) => this.solid(x, y), e.x, gy, 44); drawTornado(c, e.x, gy, gy + 20, this.clock, a, '200,210,220'); c.restore(); }
+    if (e.type === 'pillar') { const gy = e.gy || this.ground(e.x, 0); if (e.t < 1) { const k = (e.t * 6) % 1 < .5; c.fillStyle = `rgba(255,120,40,${k ? .8 : .4})`; ell(c, e.x, gy, 22, 6); c.fill(); c.strokeStyle = '#3a1a10'; c.lineWidth = 2; c.beginPath(); c.moveTo(e.x - 18, gy); c.lineTo(e.x - 6, gy + 3); c.lineTo(e.x + 4, gy - 1); c.lineTo(e.x + 18, gy + 2); c.stroke(); } else { c.save(); clipAirColumn(c, (x, y) => this.solid(x, y), e.x, gy, 40); drawPillar(c, e.x, gy, (gy + 20) * ease((e.t - 1) / .3), this.clock, e.turns <= 0 ? .5 : 1); c.restore(); } }
     if (e.type === 'meteors') e.xs.forEach((x, i) => { const tt = .4 + i * .45, u = (e.t - tt) / .7; if (u < 0 || u > 1) return; const gy = this.ground(x, 0), px = lerp(x - 160, x, u), py = lerp(-40, gy, u); for (let j = 1; j < 8; j++) { const uu = Math.max(0, u - j * .04); c.save(); c.globalCompositeOperation = 'lighter'; puff(c, lerp(x - 160, x, uu), lerp(-40, gy, uu), 9 - j, '255,140,50', .5 * (1 - j / 8)); c.restore(); } c.save(); c.translate(px, py); c.scale(1.2, 1.2); drawShell(c, { key: 'meteor' }, this.clock, .8); c.restore(); });
     if (e.type === 'lightning') { const a = Math.min(1, e.t * 3, (1.3 - e.t) * 3); drawStormCloud(c, e.x, 46, 1, this.clock, a); if (e.t > .7 && e.t < .9) drawBolt(c, e.x, 60, e.x, this.ground(e.x, 0), Math.floor(this.clock * 30), 1 - (e.t - .7) / .2); }
   }

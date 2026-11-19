@@ -82,6 +82,12 @@ function drawUFO(c, x, y, t, glow) {
   for (let i = 0; i < 7; i++) { const a = -Math.PI * .9 + i * Math.PI * .3 / 1, px = Math.cos(i / 7 * TAU + t * 3) * 44, on = Math.sin(i / 7 * TAU + t * 3) > 0; if (!on) continue; circ(c, px, 6, 3); c.fillStyle = ['#ff5d5d', '#ffd34d', '#7fe36b', '#2fe0ff'][i % 4]; c.fill(); }
   c.restore();
 }
+// 회오리·불기둥 기둥은 맵 위아래로 이어지되, 땅이 있는 곳에는 그리지 않는다 (빈 곳만 잘라서 그림)
+function clipAirColumn(c, solid, x, bottom, half) {
+  c.beginPath();
+  for (let xx = x - half; xx < x + half; xx += 8) { let st = null; for (let y = 0; y <= bottom + 2; y += 2) { const air = y <= bottom && !solid(xx + 4, y); if (air && st == null) st = y; if (!air && st != null) { c.rect(xx, st, 8, y - st); st = null; } } if (st != null) c.rect(xx, st, 8, bottom + 2 - st); }
+  c.clip();
+}
 function drawTornado(c, x, gy, H, t, a = 1, col = '230,236,240') {
   c.save(); c.globalAlpha = a;
   const n = Math.max(14, Math.round(H / 14));
@@ -370,8 +376,8 @@ export class Renderer {
   drawEvent(c, e) {
     const S = this.sim, t = this.t;
     if (e.type === 'supply') { drawPlane(c, Sim.planeX(S, e), PLANE_Y, e.dir, t); return; }
-    if (e.type === 'tornado') { const gy = e.gy ?? S.ground(e.x, 0); drawTornado(c, e.x, gy, gy + 20, t, Math.min(1, e.t * 2), '200,210,220'); } // 땅에서 하늘 끝까지
-    if (e.type === 'pillar') { const gy = e.gy ?? S.ground(e.x, 0); if (e.t < 1) { const k = (e.t * 6) % 1 < .5; c.fillStyle = `rgba(255,120,40,${k ? .8 : .4})`; ell(c, e.x, gy, 22, 6); c.fill(); } else drawPillar(c, e.x, gy, (gy + 20) * ease((e.t - 1) / .3), t, 1); }
+    if (e.type === 'tornado') { const gy = e.gy ?? S.colBottom(e.x); c.save(); clipAirColumn(c, (x, y) => S.solid(x, y), e.x, gy, 44); drawTornado(c, e.x, gy, gy + 20, t, Math.min(1, e.t * 2), '200,210,220'); c.restore(); } // 맨 아래부터 하늘 끝까지
+    if (e.type === 'pillar') { const gy = e.gy ?? S.colBottom(e.x); c.save(); if (e.t >= 1) clipAirColumn(c, (x, y) => S.solid(x, y), e.x, gy, 40); if (e.t < 1) { const k = (e.t * 6) % 1 < .5; c.fillStyle = `rgba(255,120,40,${k ? .8 : .4})`; ell(c, e.x, gy, 22, 6); c.fill(); } else drawPillar(c, e.x, gy, (gy + 20) * ease((e.t - 1) / .3), t, 1);  c.restore(); }
     if (e.type === 'meteors') e.xs.forEach((x, i) => { const tt = .4 + i * .45, u = (e.t - tt) / .7; if (u < 0 || u > 1) return; const gy = S.ground(x, 0), px = lerp(x - 160, x, u), py = lerp(-40, gy, u); c.save(); c.translate(px, py); c.scale(1.2, 1.2); drawShell(c, { key: 'meteor' }, t, .8); c.restore(); });
     if (e.type === 'lightning') { const a = Math.min(1, e.t * 3, (1.3 - e.t) * 3); drawStormCloud(c, e.x, 46, 1, t, a); if (e.t > .7 && e.t < .9) drawBolt(c, e.x, 60, e.x, S.ground(e.x, 0), Math.floor(t * 30), 1 - (e.t - .7) / .2); }
   }

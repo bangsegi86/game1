@@ -265,8 +265,9 @@ export class Sim {
     for (const e of this.events) {
       e.t += dt;
       // 회오리·불기둥은 생긴 자리에 그대로 있고 탱크는 그냥 지나간다. 포탄에만 영향을 준다
-      if (e.type === 'tornado') e.gy = Math.min(this.ground(e.x, 0), this.liquidY);
-      if (e.type === 'pillar') { e.gy = this.ground(e.x, 0); if (e.t > 1 && !e.done[0]) { e.done[0] = true; this.fx('shake', { v: .3 }); } }
+      // 회오리·불기둥은 맵 맨 위부터 맨 아래(가장 낮은 빈 곳: 땅 위 또는 물 위)까지 이어진다. 얼음 줄 아래도 포함
+      if (e.type === 'tornado') e.gy = this.colBottom(e.x);
+      if (e.type === 'pillar') { e.gy = this.colBottom(e.x); if (e.t > 1 && !e.done[0]) { e.done[0] = true; this.fx('shake', { v: .3 }); } }
       if (e.type === 'meteors') e.xs.forEach((x, i) => { const tt = .4 + i * .45; if (e.t > tt + .7 && !e.done[i]) { e.done[i] = true; const y = this.ground(x, 0); this.carveRound(x, y, 26); this.hurtArea(x, y - 10, 26, 90, null); this.boom(x, y, { kind: 'fire', R: 28, debris: 12, shake: .3 }); } });
       if (e.type === 'supply' && !e.done[0] && (e.dir > 0 ? Sim.planeX(this, e) >= e.x : Sim.planeX(this, e) <= e.x)) { e.done[0] = true; this.crates.push({ id: ++this.crateId, x: e.x, y: PLANE_Y + 14, vy: 0, item: e.item, para: true, landed: false }); }
       if (e.type === 'lightning' && e.t > .7 && !e.done[0]) { e.done[0] = true; const y = this.ground(e.x, 0); this.carveRound(e.x, y, 18); this.hurtArea(e.x, y - 10, 24, 110, null); this.boom(e.x, y, { kind: 'electric', R: 22, color: '#bfe0ff', shake: .35 }); }
@@ -303,6 +304,7 @@ export class Sim {
     }
     return false;
   }
+  colBottom(x) { let y = Math.min(this.h - 1, Math.floor(this.liquidY)); while (y > 0 && this.solid(x, y)) y--; return y; }
   spinStep(s, h) {
     const sp = s.spin; sp.t += h; sp.ph += h * 13; sp.r = Math.min(26, sp.r + h * 20);
     const y = s.y - h * 130, x = sp.x + Math.cos(sp.ph) * sp.r;
@@ -335,7 +337,7 @@ export class Sim {
       const sh = s.sh;
       for (let k = 0; k < 4 && !s.done; k++) {
         const h = dt / 4; s.age += h;
-        if (s.mode === 'spin') { this.spinStep(s, h); continue; }
+        if (s.mode === 'spin') { this.spinStep(s, h); if (this.solid(s.x, s.y)) { this.impact(s, s.x, s.y); break; } continue; } // 회오리를 타고 오르다 위의 땅(얼음 줄 밑면)에 닿으면 터진다
         if (s.mode === 'dig') { s.x += s.vx * h; s.y += s.vy * h; s.dug += Math.hypot(s.vx, s.vy) * h; if (this.hitTank(s) || s.dug >= 80 || s.y > this.h - 4) { this.impact(s, s.x, s.y); break; } continue; }
         if (sh.shape !== 'line') { s.vx += wx * sh.wind * h; s.vy += (wy * sh.wind + this.g * sh.wt) * h; }
         if (sh.fx === 'home') { let best = null, bd = 150; for (const t of this.tanks) { if (t.dead || t === s.owner) continue; const d = Math.hypot(t.x - s.x, t.y - 18 - s.y); if (d < bd) { bd = d; best = t; } } if (best) { s.vx += (best.x - s.x) / bd * 600 * h; s.vy += (best.y - 18 - s.y) / bd * 600 * h; } }

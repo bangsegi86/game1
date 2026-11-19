@@ -122,3 +122,25 @@ test('필살기는 순간이동을 쓰지 않고 다음 발사까지 남긴다',
   g.onItem(uid, 0); g.onFire(uid, 2, 70);
   assert.equal(g.player(uid).flags.teleport, true);
 });
+test('강화탄은 쓴 턴 포함 내 턴 2번까지만 유지된다', () => {
+  let clock = 0; const g = new GameSession({ roomId: 1, mapId: 'demo', mode: 'team', turnSeconds: 10, players: [1, 2].map(i => ({ userId: i, nickname: 'p' + i, team: i === 1 ? 'red' : 'blue', tankId: 'hammer', items: ['power'] })) }, { send: () => {}, now: () => clock * 1000 });
+  const until = (f, n = 5000) => { for (let i = 0; i < n && !f(); i++) { clock += DT; g.tick(DT); } };
+  until(() => g.phase === 'aim'); const uid = g.cur.uid; g.onItem(uid, 0);
+  assert.equal(g.player(uid).flags.power, 2);
+  g.onPass(uid); until(() => g.phase === 'aim' && g.cur.uid !== uid); g.onPass(g.cur.uid);
+  until(() => g.phase === 'aim' && g.cur.uid === uid); assert.equal(g.player(uid).flags.power, 1, '두 번째 내 턴: 아직 유지');
+  g.onPass(uid); until(() => g.phase === 'aim' && g.cur.uid !== uid); g.onPass(g.cur.uid);
+  until(() => g.phase === 'aim' && g.cur.uid === uid); assert.equal(g.player(uid).flags.power, undefined, '세 번째 내 턴: 사라짐');
+  assert.equal(g.sim.tankOf(uid).powerUp, false);
+});
+test('얼음 줄다리: 줄 아래를 지나는 포탄도 회오리에 잡혀 올라가다 줄 밑면을 부순다', () => {
+  const sim = new Sim({ map: 'bungee' }); const a = sim.addTank({ uid: 1, tankId: 'hammer', x: 200, team: 'red' }); sim.addTank({ uid: 2, tankId: 'mole', x: 1300, team: 'blue' });
+  for (let i = 0; i < 30; i++) sim.step(DT);
+  const ex = 700, e = sim.addEvent({ type: 'tornado', x: ex }); for (let i = 0; i < 60; i++) sim.step(DT);
+  assert.ok(e.gy > sim.ground(ex, 0) + 40, '회오리 바닥이 얼음 줄보다 아래(물가)까지 내려와야 한다');
+  const ropeTop = sim.ground(ex, 0); let below = ropeTop; while (sim.solid(ex, below)) below++;
+  // 줄 아래 빈 곳에서 회오리 쪽으로 옆으로 날아가는 포탄
+  sim.shells.push({ x: ex - 60, y: below + 40, sx: ex - 60, sy: below + 40, vx: 300, vy: 0, sh: { ...sim.tanks[0].S && { dmg: 100, r: 30, cr: 30, wind: 0, wt: 0, R: 20 } }, tankId: 'hammer', slot: 0, owner: a, age: 1, trail: [], mode: 'fly', dug: 0, dist: 0, lastCarve: null, k: 1 });
+  const ops0 = sim.ops.length; for (let i = 0; i < 300 && sim.shells.length; i++) sim.step(DT);
+  assert.ok(sim.ops.length > ops0, '줄 밑면이 파여야 한다');
+});

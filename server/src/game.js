@@ -4,7 +4,7 @@ export { opsHash };
 import { botTurn } from './bot.js';
 import { SHELL_STATS, SLOT_DELAY, ITEM_INFO, TURN_BASE_DELAY, SUDDEN_DEATH_TURN } from '../../shared/gamedata.js';
 
-const SUPPLY_CHANCE = .15, EVENT_GAP = 3;
+const SUPPLY_CHANCE = .15, EVENT_GAP = 3, POWER_TURNS = 2;
 const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 
 export class GameSession {
@@ -73,6 +73,7 @@ export class GameSession {
     if (!live.length) return this.finish({ winnerTeam: null });
     const t = live[0]; this.turnNo++; this.cur = this.player(t.uid);
     sim.turnStart(t);
+    let powerExpired = false; if (this.cur.flags.power) { this.cur.flags.power--; if (this.cur.flags.power <= 0) { delete this.cur.flags.power; powerExpired = true; } }
     for (const p of this.players) { const tk = sim.tankOf(p.uid); if (tk) tk.powerUp = !!p.flags.power; } // 쏘기 전까지 강화 표시 유지
     if (this.turnNo > 1) sim.wind = Sim.nextWind(sim.wind, sim.map.windMax);
     // 돌발 이벤트는 3턴째부터, 그리고 이벤트(보급 비행기 포함) 뒤 3턴은 쉬어 간다
@@ -86,7 +87,7 @@ export class GameSession {
     this.turnState = { itemUsed: false, flags: {}, itemDelay: 0 }; this.moveUsed = 0; this.moveDir = 0;
     this.deadline = this.now() + this.setup.turnSeconds * 1000 + 500;
     this.phase = 'aim'; this.botWait = 1.4;
-    this.send('game:turn', { turnNo: this.turnNo, uid: t.uid, seconds: this.setup.turnSeconds, wind: sim.wind, event, sd, snapshot: sim.snapshot(), order: this.order(), flags: this.cur.flags });
+    this.send('game:turn', { turnNo: this.turnNo, uid: t.uid, seconds: this.setup.turnSeconds, wind: sim.wind, event, sd, snapshot: sim.snapshot(), order: this.order(), flags: this.cur.flags, powerExpired });
     if (t.dead) this.endTurn(); // 독·화상으로 턴 시작에 쓰러진 경우
   }
   order() { return this.alive().sort((a, b) => a.delay - b.delay).map(t => t.uid); }
@@ -107,7 +108,8 @@ export class GameSession {
     it.used = true; this.turnState.itemUsed = true; this.turnState.itemDelay = ITEM_INFO[it.id].delay;
     const t = this.sim.tankOf(uid);
     // 발사에 붙는 아이템(파워업·더블·순간이동)은 실제로 쏠 때까지 남는다. 턴을 넘겨도 다음 내 턴에 함께 나간다
-    if (fireItem) { p.flags[it.id] = true; if (it.id === 'power') t.powerUp = true; } else this.sim.useItem(t, it.id);
+    // 강화탄은 쓴 턴을 포함해 내 턴 2번 동안만 유지(숫자 = 남은 내 턴). 연발·순간이동은 쏠 때까지
+    if (fireItem) { p.flags[it.id] = it.id === 'power' ? POWER_TURNS : true; if (it.id === 'power') t.powerUp = true; } else this.sim.useItem(t, it.id);
     this.sim.fxq.length = 0;
     this.send('game:item', { uid, index, id: it.id, flags: p.flags, snapshot: this.sim.snapshot() });
   }

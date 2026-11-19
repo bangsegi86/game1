@@ -61,7 +61,7 @@ export function createBattle({ socket, me, toast, onExit, onQuit }) {
       sim.restore(d.snapshot);
       turn = { uid: d.uid, turnNo: d.turnNo }; deadline = performance.now() + d.seconds * 1000; order = d.order;
       phase = 'aim'; power = 0; charging = false; turnItemUsed = false; sentDir = 0;
-      if (d.uid === me()) { play('turn'); flags = { ...(d.flags || {}) }; const f = Object.keys(flags).map(k => ITEM_INFO[k].n); toast(f.length ? `내 차례예요! 걸려 있는 효과: ${f.join(', ')}` : '내 차례예요!'); if (weapon === 2 && !ssReady()) weapon = 0; }
+      if (d.uid === me()) { play('turn'); flags = { ...(d.flags || {}) }; const f = Object.keys(flags).map(k => ITEM_INFO[k].n + (k === 'power' ? '(이번 턴까지)' : '')); toast(d.powerExpired ? '강화탄 효과가 끝났어요 (2턴 지남).' : f.length ? `내 차례예요! 걸려 있는 효과: ${f.join(', ')}` : '내 차례예요!'); if (weapon === 2 && !ssReady()) weapon = 0; }
       renderWeapons(); renderItems();
     },
     'game:pos': d => { const t = sim?.tankOf(d.uid); if (!t) return; t.x = d.x; t.y = d.y; t.facing = d.facing; t.fuel = d.fuel; t.movingVis = d.moving; if (d.tilt != null) t.tilt = d.tilt; if (d.uid !== me() || !mine()) t.angle = d.angle; else sim.clampAngle(t); },
@@ -134,7 +134,7 @@ export function createBattle({ socket, me, toast, onExit, onQuit }) {
       const btn = document.createElement('button'); btn.type = 'button';
       if (!b || b.used) { btn.className = 'tile empty'; btn.disabled = true; btn.setAttribute('aria-label', `${k} 빈칸`); btn.innerHTML = k ? `<span class="k">${k}</span>` : ''; el.append(btn); continue; }
       const it = itemById(b.id);
-      btn.className = 'tile' + (can ? '' : ' off'); btn.disabled = !can; btn.setAttribute('aria-label', `${k} ${it.n}`);
+      btn.className = 'tile' + (can ? '' : ' off'); btn.disabled = !can; btn.setAttribute('aria-label', `${k} ${it.n}`); btn.title = `${it.n}: ${it.d}`;
       const c = document.createElement('canvas'); c.width = c.height = 34 * DPR; const g = c.getContext('2d'); g.setTransform(DPR, 0, 0, DPR, 0, 0); g.translate(17, 17); g.scale(34 / 64, 34 / 64); drawItemIcon(g, b.id, 0, true);
       btn.append(c); btn.insertAdjacentHTML('beforeend', `${k ? `<span class="k">${k}</span>` : ''}<span class="tip">${it.n}<small>${it.tip}</small></span>`);
       btn.onclick = () => useItem(i); el.append(btn);
@@ -168,7 +168,7 @@ export function createBattle({ socket, me, toast, onExit, onQuit }) {
     if (mine() && left <= 5 && left > 0 && left !== lastTick) { lastTick = left; play('tick'); }
     const names = order.map(uid => sim.tankOf(uid)).filter(Boolean);
     $('order').innerHTML = `${sim.map.n} · 턴 ${turn?.turnNo || 0} · 순서 ` + names.map(x => `<span class="${x.uid === turn?.uid ? 'cur' : ''}">${esc(x.name)}</span>`).join('');
-    const fl = Object.keys(flags).map(k => ITEM_INFO[k].n); $('flags').textContent = fl.length ? '대기 중 효과: ' + fl.join(' + ') : ''; $('flags').hidden = !fl.length;
+    const fl = Object.keys(flags).map(k => ITEM_INFO[k].n + (k === 'power' ? (flags.power > 1 ? ' (다음 내 턴까지)' : ' (이번 턴까지)') : '')); $('flags').textContent = fl.length ? '대기 중 효과: ' + fl.join(' + ') : ''; $('flags').hidden = !fl.length;
     $('passBtn').disabled = !mine();
     // 필살기가 막 쓸 수 있게 되면: 소리 + 전장 가운데 알림 + 버튼이 튀어 오르며 빛난다
     const r = ssReady(), mt = myTank(), hpPct = mt ? Math.round(mt.hp / mt.max * 100) : -1;

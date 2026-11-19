@@ -1115,9 +1115,9 @@
     stepEvents(dt) {
       for (const e of this.events) {
         e.t += dt;
-        if (e.type === "tornado") e.gy = Math.min(this.ground(e.x, 0), this.liquidY);
+        if (e.type === "tornado") e.gy = this.colBottom(e.x);
         if (e.type === "pillar") {
-          e.gy = this.ground(e.x, 0);
+          e.gy = this.colBottom(e.x);
           if (e.t > 1 && !e.done[0]) {
             e.done[0] = true;
             this.fx("shake", { v: 0.3 });
@@ -1201,6 +1201,11 @@
       }
       return false;
     }
+    colBottom(x) {
+      let y = Math.min(this.h - 1, Math.floor(this.liquidY));
+      while (y > 0 && this.solid(x, y)) y--;
+      return y;
+    }
     spinStep(s, h) {
       const sp = s.spin;
       sp.t += h;
@@ -1266,6 +1271,10 @@
           s.age += h;
           if (s.mode === "spin") {
             this.spinStep(s, h);
+            if (this.solid(s.x, s.y)) {
+              this.impact(s, s.x, s.y);
+              break;
+            }
             continue;
           }
           if (s.mode === "dig") {
@@ -1585,6 +1594,7 @@
   // src/game.js
   var SUPPLY_CHANCE = 0.15;
   var EVENT_GAP = 3;
+  var POWER_TURNS = 2;
   var shuffle = (a) => {
     for (let i = a.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
@@ -1727,6 +1737,14 @@
       this.turnNo++;
       this.cur = this.player(t.uid);
       sim.turnStart(t);
+      let powerExpired = false;
+      if (this.cur.flags.power) {
+        this.cur.flags.power--;
+        if (this.cur.flags.power <= 0) {
+          delete this.cur.flags.power;
+          powerExpired = true;
+        }
+      }
       for (const p of this.players) {
         const tk = sim.tankOf(p.uid);
         if (tk) tk.powerUp = !!p.flags.power;
@@ -1752,7 +1770,7 @@
       this.deadline = this.now() + this.setup.turnSeconds * 1e3 + 500;
       this.phase = "aim";
       this.botWait = 1.4;
-      this.send("game:turn", { turnNo: this.turnNo, uid: t.uid, seconds: this.setup.turnSeconds, wind: sim.wind, event, sd, snapshot: sim.snapshot(), order: this.order(), flags: this.cur.flags });
+      this.send("game:turn", { turnNo: this.turnNo, uid: t.uid, seconds: this.setup.turnSeconds, wind: sim.wind, event, sd, snapshot: sim.snapshot(), order: this.order(), flags: this.cur.flags, powerExpired });
       if (t.dead) this.endTurn();
     }
     order() {
@@ -1787,7 +1805,7 @@
       this.turnState.itemDelay = ITEM_INFO[it.id].delay;
       const t = this.sim.tankOf(uid);
       if (fireItem) {
-        p.flags[it.id] = true;
+        p.flags[it.id] = it.id === "power" ? POWER_TURNS : true;
         if (it.id === "power") t.powerUp = true;
       } else this.sim.useItem(t, it.id);
       this.sim.fxq.length = 0;
@@ -2106,6 +2124,22 @@
       c.fill();
     }
     c.restore();
+  }
+  function clipAirColumn(c, solid, x, bottom, half) {
+    c.beginPath();
+    for (let xx = x - half; xx < x + half; xx += 8) {
+      let st = null;
+      for (let y = 0; y <= bottom + 2; y += 2) {
+        const air = y <= bottom && !solid(xx + 4, y);
+        if (air && st == null) st = y;
+        if (!air && st != null) {
+          c.rect(xx, st, 8, y - st);
+          st = null;
+        }
+      }
+      if (st != null) c.rect(xx, st, 8, bottom + 2 - st);
+    }
+    c.clip();
   }
   function drawTornado(c, x, gy, H, t, a = 1, col = "230,236,240") {
     c.save();
@@ -2874,17 +2908,23 @@
         return;
       }
       if (e.type === "tornado") {
-        const gy = e.gy ?? S.ground(e.x, 0);
+        const gy = e.gy ?? S.colBottom(e.x);
+        c.save();
+        clipAirColumn(c, (x, y) => S.solid(x, y), e.x, gy, 44);
         drawTornado(c, e.x, gy, gy + 20, t, Math.min(1, e.t * 2), "200,210,220");
+        c.restore();
       }
       if (e.type === "pillar") {
-        const gy = e.gy ?? S.ground(e.x, 0);
+        const gy = e.gy ?? S.colBottom(e.x);
+        c.save();
+        if (e.t >= 1) clipAirColumn(c, (x, y) => S.solid(x, y), e.x, gy, 40);
         if (e.t < 1) {
           const k = e.t * 6 % 1 < 0.5;
           c.fillStyle = `rgba(255,120,40,${k ? 0.8 : 0.4})`;
           ell(c, e.x, gy, 22, 6);
           c.fill();
         } else drawPillar(c, e.x, gy, (gy + 20) * ease((e.t - 1) / 0.3), t, 1);
+        c.restore();
       }
       if (e.type === "meteors") e.xs.forEach((x, i) => {
         const tt = 0.4 + i * 0.45, u = (e.t - tt) / 0.7;
@@ -3268,8 +3308,8 @@
         if (d.uid === me()) {
           play("turn");
           flags = { ...d.flags || {} };
-          const f = Object.keys(flags).map((k) => ITEM_INFO[k].n);
-          toast2(f.length ? `\uB0B4 \uCC28\uB840\uC608\uC694! \uAC78\uB824 \uC788\uB294 \uD6A8\uACFC: ${f.join(", ")}` : "\uB0B4 \uCC28\uB840\uC608\uC694!");
+          const f = Object.keys(flags).map((k) => ITEM_INFO[k].n + (k === "power" ? "(\uC774\uBC88 \uD134\uAE4C\uC9C0)" : ""));
+          toast2(d.powerExpired ? "\uAC15\uD654\uD0C4 \uD6A8\uACFC\uAC00 \uB05D\uB0AC\uC5B4\uC694 (2\uD134 \uC9C0\uB0A8)." : f.length ? `\uB0B4 \uCC28\uB840\uC608\uC694! \uAC78\uB824 \uC788\uB294 \uD6A8\uACFC: ${f.join(", ")}` : "\uB0B4 \uCC28\uB840\uC608\uC694!");
           if (weapon === 2 && !ssReady()) weapon = 0;
         }
         renderWeapons();
@@ -3456,6 +3496,7 @@
         btn.className = "tile" + (can ? "" : " off");
         btn.disabled = !can;
         btn.setAttribute("aria-label", `${k} ${it.n}`);
+        btn.title = `${it.n}: ${it.d}`;
         const c = document.createElement("canvas");
         c.width = c.height = 34 * DPR;
         const g = c.getContext("2d");
@@ -3525,7 +3566,7 @@
       }
       const names = order.map((uid) => sim.tankOf(uid)).filter(Boolean);
       $("order").innerHTML = `${sim.map.n} \xB7 \uD134 ${turn?.turnNo || 0} \xB7 \uC21C\uC11C ` + names.map((x) => `<span class="${x.uid === turn?.uid ? "cur" : ""}">${esc(x.name)}</span>`).join("");
-      const fl = Object.keys(flags).map((k) => ITEM_INFO[k].n);
+      const fl = Object.keys(flags).map((k) => ITEM_INFO[k].n + (k === "power" ? flags.power > 1 ? " (\uB2E4\uC74C \uB0B4 \uD134\uAE4C\uC9C0)" : " (\uC774\uBC88 \uD134\uAE4C\uC9C0)" : ""));
       $("flags").textContent = fl.length ? "\uB300\uAE30 \uC911 \uD6A8\uACFC: " + fl.join(" + ") : "";
       $("flags").hidden = !fl.length;
       $("passBtn").disabled = !mine();
