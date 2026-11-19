@@ -3,7 +3,12 @@ export const TANK_IDS = ['mole', 'hammer', 'cloud', 'bee', 'magnet', 'shroom', '
 export const TANK_NAMES = { mole: '두더지', hammer: '망치', cloud: '구름열차', bee: '불꽃벌', magnet: '자석포', shroom: '버섯포', whale: '얼음고래', laser: '레이저로봇', super: '슈퍼탱크', random: '랜덤' };
 // 숨은 탱크: 직접 고를 수 없고, '랜덤'을 고른 사람에게 10% 확률로 나온다
 export const SECRET_TANK = 'super', SECRET_CHANCE = .1;
-export function pickRandomTank(rnd = Math.random) { return rnd() < SECRET_CHANCE ? SECRET_TANK : TANK_IDS[Math.floor(rnd() * TANK_IDS.length)]; }
+// taken: 이미 다른 사람이 쓰는 탱크. 겹치지 않게 남은 탱크 중에서 고르고, 다 쓰였을 때만 겹친다. 슈퍼탱크는 한 판에 한 대까지
+export function pickRandomTank(rnd = Math.random, taken = []) {
+  if (!taken.includes(SECRET_TANK) && rnd() < SECRET_CHANCE) return SECRET_TANK;
+  const left = TANK_IDS.filter(id => !taken.includes(id)), pool = left.length ? left : TANK_IDS;
+  return pool[Math.floor(rnd() * pool.length)];
+}
 export const MAP_IDS = ['valley', 'temple', 'sky', 'bridge', 'cave', 'bungee'];
 export const MAP_NAMES = { valley: '골짜기', temple: '모래 신전', sky: '구름섬', bridge: '통나무 다리', cave: '수정 동굴', bungee: '얼음 줄다리', random: '무작위' };
 // 모든 아이템은 1칸. 가방은 4칸

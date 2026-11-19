@@ -4,7 +4,7 @@
 import { GameSession } from '../server/src/game.js';
 import { createBattle } from '../client/js/battle.js';
 import { DT } from '../shared/sim/world.js';
-import { SHELL_STATS } from '../shared/gamedata.js';
+import { SHELL_STATS, pickRandomTank } from '../shared/gamedata.js';
 
 const ME = 1, AI = 2;
 let session = null, battle = null, timer = null, aiTimer = null;
@@ -54,7 +54,7 @@ function aiTurn() {
 
 function start(cfg) {
   clearInterval(timer); clearTimeout(aiTimer);
-  const foeTank = cfg.tank === 'laser' ? 'hammer' : 'laser';
+  const foeTank = pickRandomTank(Math.random, [cfg.tank]); // 연습 상대도 랜덤 (내 탱크와 겹치지 않게)
   session = new GameSession({ roomId: 1, mapId: cfg.map, mode: 'team', turnSeconds: 20, players: [
     { userId: ME, nickname: '포탄왕', team: 'red', tankId: cfg.tank, items: cfg.bag },
     { userId: AI, nickname: '연습 상대', team: 'blue', tankId: foeTank, items: ['repair', 'power', 'double', 'shield'], bot: true },

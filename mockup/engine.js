@@ -133,7 +133,7 @@ function caveDeco(c, w, h) {
 // 얼음 줄다리: 물 위에 떠 있는 얇은 얼음 줄. 한두 발이면 끊어져서, 상대를 빠뜨리는(낙사) 싸움이 된다
 const iceRopeY = path([[0, .4], [.1, .38], [.22, .42], [.36, .5], [.5, .56], [.6, .5], [.72, .38], [.86, .3], [1, .33]], .6);
 const ropeTh = u => .03 + .007 * Math.sin(u * 37) + .004 * Math.sin(u * 91 + 2);
-const lowRopeY = u => .735 + .03 * Math.sin((u - .3) * 26);
+const lowRopeY = u => .69 + .025 * Math.sin((u - .3) * 26);
 function rope(c, w, h, fn, th, u0, u1) {
   const top = [], bot = []; for (let u = u0; u <= u1 + 1e-9; u += .004) { top.push([u, fn(u)]); bot.push([u, fn(u) + th(u)]); }
   blob(c, w, h, [...top, ...bot.reverse()], 'ice');
@@ -151,8 +151,8 @@ function bungeeDeco(c, w, h) {
   // 가운데 밝은 빛
   const lg = c.createRadialGradient(.6 * w, .5 * h, 0, .6 * w, .5 * h, .3 * w); lg.addColorStop(0, 'rgba(255,255,240,.9)'); lg.addColorStop(1, 'rgba(255,255,240,0)'); c.fillStyle = lg; c.fillRect(0, 0, w, h);
   // 물: 짙은 청록 바다와 반짝이는 물결 (실제 물 높이는 맵의 liquid)
-  const wg = c.createLinearGradient(0, .8 * h, 0, h); wg.addColorStop(0, '#3f9fb2'); wg.addColorStop(1, '#114a5e'); c.fillStyle = wg; c.fillRect(0, .82 * h, w, .18 * h);
-  c.fillStyle = 'rgba(220,250,255,.55)'; for (let i = 0; i < 40; i++) c.fillRect(hr(i + 40) * w, (.86 + hr(i + 41) * .12) * h, 8 + hr(i + 42) * 26, 2);
+  const wg = c.createLinearGradient(0, .8 * h, 0, h); wg.addColorStop(0, '#3f9fb2'); wg.addColorStop(1, '#114a5e'); c.fillStyle = wg; c.fillRect(0, .77 * h, w, .23 * h);
+  c.fillStyle = 'rgba(220,250,255,.55)'; for (let i = 0; i < 40; i++) c.fillRect(hr(i + 40) * w, (.81 + hr(i + 41) * .17) * h, 8 + hr(i + 42) * 26, 2);
   // 물가의 얼음 덩어리와 물에 꽂힌 관
   [[0, .66, .14], [.16, .7, .09], [.78, .68, .08], [.88, .62, .12]].forEach(([u, v, s]) => { poly(c, w, h, [[u, .85], [u + s * .05, v], [u + s * .9, v - .02], [u + s, .85]], 'rgba(150,190,212,.9)'); poly(c, w, h, [[u + s * .05, v], [u + s * .9, v - .02], [u + s * .8, v + .03], [u + s * .1, v + .035]], 'rgba(225,245,255,.8)'); });
   c.strokeStyle = '#3c4a55'; c.lineWidth = 4; [[.04, .7], [.08, .73], [.12, .7], [.2, .74], [.3, .72]].forEach(([u, v]) => { c.beginPath(); c.moveTo(u * w, .9 * h); c.lineTo(u * w, (v + .02) * h); c.lineTo((u + .015) * w, v * h); c.stroke(); });
@@ -210,7 +210,7 @@ const MAPS = {
   },
   bungee: {
     n: '얼음 줄다리', d: '물 위에 걸린 얇은 얼음 줄. 포탄 한두 발이면 끊어진다. 피해보다 상대 발밑을 끊어 물에 빠뜨리는 게 목표.', tags: ['낙사 맵', '얇은 얼음', '빠뜨리기'],
-    grav: 1, windMax: 20, liquid: { y: .84, type: 'water' }, spawn: [.12, .88], ev: { tornado: .3, lightning: .25 },
+    grav: 1, windMax: 20, liquid: { y: .79, type: 'water' }, spawn: [.12, .88], ev: { tornado: .3, lightning: .25 },
     pal: { ice: ['#62b0f2', '#1f5aa8'], crust: '#d8f1ff', soil: ['#62b0f2', '#1f5aa8'], rock: ['#62b0f2', '#1f5aa8'] },
     sky: { stops: ['#1d4f63', '#5e9fae', '#cfe7e6'], clouds: 2, cloudCol: 'rgba(230,245,245,.5)', extra: bungeeDeco },
     terrain(c, w, h) { rope(c, w, h, iceRopeY, ropeTh, 0, 1); rope(c, w, h, lowRopeY, u => .02 + .004 * Math.sin(u * 53), .3, .62); },

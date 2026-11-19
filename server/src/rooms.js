@@ -121,7 +121,9 @@ export class RoomManager {
     if (room.mode === 'team' && (!ps.some(p => p.team === 'red') || !ps.some(p => p.team === 'blue'))) fail('양쪽 팀에 한 명 이상 있어야 해요.');
     room.status = 'playing';
     const mapId = room.mapId === 'random' ? MAP_IDS[Math.floor(Math.random() * MAP_IDS.length)] : room.mapId;
-    const players = ps.map(p => ({ userId: p.userId, nickname: p.nickname, slot: p.slot, team: p.team, items: p.items, bot: !!p.bot, tankId: p.tankId === 'random' ? pickRandomTank() : p.tankId }));
+    // 랜덤은 직접 고른 탱크와 앞서 뽑힌 탱크를 피해서 뽑는다 (다 같은 탱크가 걸리지 않게)
+    const taken = ps.filter(p => p.tankId !== 'random').map(p => p.tankId);
+    const players = ps.map(p => { let tankId = p.tankId; if (tankId === 'random') { tankId = pickRandomTank(Math.random, taken); taken.push(tankId); } return { userId: p.userId, nickname: p.nickname, slot: p.slot, team: p.team, items: p.items, bot: !!p.bot, tankId }; });
     return { room, setup: { roomId: room.id, mapId, mode: room.mode, turnSeconds: room.turnSeconds, players } };
   }
   finish(roomId) {

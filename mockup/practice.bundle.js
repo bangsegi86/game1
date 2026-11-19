@@ -210,7 +210,7 @@
   }
   var iceRopeY = path([[0, 0.4], [0.1, 0.38], [0.22, 0.42], [0.36, 0.5], [0.5, 0.56], [0.6, 0.5], [0.72, 0.38], [0.86, 0.3], [1, 0.33]], 0.6);
   var ropeTh = (u) => 0.03 + 7e-3 * Math.sin(u * 37) + 4e-3 * Math.sin(u * 91 + 2);
-  var lowRopeY = (u) => 0.735 + 0.03 * Math.sin((u - 0.3) * 26);
+  var lowRopeY = (u) => 0.69 + 0.025 * Math.sin((u - 0.3) * 26);
   function rope(c, w, h, fn, th, u0, u1) {
     const top = [], bot = [];
     for (let u = u0; u <= u1 + 1e-9; u += 4e-3) {
@@ -245,9 +245,9 @@
     wg.addColorStop(0, "#3f9fb2");
     wg.addColorStop(1, "#114a5e");
     c.fillStyle = wg;
-    c.fillRect(0, 0.82 * h, w, 0.18 * h);
+    c.fillRect(0, 0.77 * h, w, 0.23 * h);
     c.fillStyle = "rgba(220,250,255,.55)";
-    for (let i = 0; i < 40; i++) c.fillRect(hr(i + 40) * w, (0.86 + hr(i + 41) * 0.12) * h, 8 + hr(i + 42) * 26, 2);
+    for (let i = 0; i < 40; i++) c.fillRect(hr(i + 40) * w, (0.81 + hr(i + 41) * 0.17) * h, 8 + hr(i + 42) * 26, 2);
     [[0, 0.66, 0.14], [0.16, 0.7, 0.09], [0.78, 0.68, 0.08], [0.88, 0.62, 0.12]].forEach(([u, v, s]) => {
       poly(c, w, h, [[u, 0.85], [u + s * 0.05, v], [u + s * 0.9, v - 0.02], [u + s, 0.85]], "rgba(150,190,212,.9)");
       poly(c, w, h, [[u + s * 0.05, v], [u + s * 0.9, v - 0.02], [u + s * 0.8, v + 0.03], [u + s * 0.1, v + 0.035]], "rgba(225,245,255,.8)");
@@ -364,7 +364,7 @@
       tags: ["\uB099\uC0AC \uB9F5", "\uC587\uC740 \uC5BC\uC74C", "\uBE60\uB728\uB9AC\uAE30"],
       grav: 1,
       windMax: 20,
-      liquid: { y: 0.84, type: "water" },
+      liquid: { y: 0.79, type: "water" },
       spawn: [0.12, 0.88],
       ev: { tornado: 0.3, lightning: 0.25 },
       pal: { ice: ["#62b0f2", "#1f5aa8"], crust: "#d8f1ff", soil: ["#62b0f2", "#1f5aa8"], rock: ["#62b0f2", "#1f5aa8"] },
@@ -518,7 +518,15 @@
   }
 
   // ../shared/gamedata.js
+  var TANK_IDS = ["mole", "hammer", "cloud", "bee", "magnet", "shroom", "whale", "laser"];
   var TANK_NAMES = { mole: "\uB450\uB354\uC9C0", hammer: "\uB9DD\uCE58", cloud: "\uAD6C\uB984\uC5F4\uCC28", bee: "\uBD88\uAF43\uBC8C", magnet: "\uC790\uC11D\uD3EC", shroom: "\uBC84\uC12F\uD3EC", whale: "\uC5BC\uC74C\uACE0\uB798", laser: "\uB808\uC774\uC800\uB85C\uBD07", super: "\uC288\uD37C\uD0F1\uD06C", random: "\uB79C\uB364" };
+  var SECRET_TANK = "super";
+  var SECRET_CHANCE = 0.1;
+  function pickRandomTank(rnd = Math.random, taken = []) {
+    if (!taken.includes(SECRET_TANK) && rnd() < SECRET_CHANCE) return SECRET_TANK;
+    const left = TANK_IDS.filter((id) => !taken.includes(id)), pool = left.length ? left : TANK_IDS;
+    return pool[Math.floor(rnd() * pool.length)];
+  }
   var TANK_STATS = {
     mole: { hp: 600, amin: 0, amax: 70, pivot: [-8, -50], len: 42, w: 96 },
     hammer: { hp: 720, amin: 20, amax: 60, pivot: [12, -60], len: 46, w: 112 },
@@ -3589,10 +3597,8 @@
       const g = camGoal();
       if (!g) return;
       const k = Math.min(1, dt * (sim.shells.length ? 5 : 3));
-      let gy = g[1] - VH * 0.55;
-      if (!sim.shells.length && sim.liquidY < sim.h) gy = Math.max(gy, Math.min(sim.liquidY + 70, sim.h) - VH);
       cam.x += (g[0] - VW / 2 - cam.x) * k;
-      cam.y += (gy - cam.y) * k;
+      cam.y += (g[1] - VH * 0.55 - cam.y) * k;
       clampCam();
     }
     function toCanvas(e) {
@@ -3941,7 +3947,7 @@
   function start(cfg) {
     clearInterval(timer);
     clearTimeout(aiTimer);
-    const foeTank = cfg.tank === "laser" ? "hammer" : "laser";
+    const foeTank = pickRandomTank(Math.random, [cfg.tank]);
     session = new GameSession({ roomId: 1, mapId: cfg.map, mode: "team", turnSeconds: 20, players: [
       { userId: ME, nickname: "\uD3EC\uD0C4\uC655", team: "red", tankId: cfg.tank, items: cfg.bag },
       { userId: AI, nickname: "\uC5F0\uC2B5 \uC0C1\uB300", team: "blue", tankId: foeTank, items: ["repair", "power", "double", "shield"], bot: true }
