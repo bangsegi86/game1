@@ -23,6 +23,7 @@ export function createBattle({ socket, me, toast, onExit, onQuit }) {
     const mp = s.players.find(p => p.uid === me());
     bag = (mp?.items || []).map(id => ({ id, used: false })); ssUsed = false; ssWas = false; weapon = 0; power = 0; charging = false;
     ren = new Renderer(sim, { me: me() });
+    if (mp?.tankId === 'super') { ren.banner = { text: '★ 슈퍼탱크 당첨! ★', t0: 0 }; setTimeout(() => play('ssready'), 300); }
     ren.onFx = f => {
       if (f.type === 'fire') play('fire');
       else if (f.type === 'boom') play(f.kind === 'electric' || f.kind === 'beam' ? 'zap' : 'boom', (f.R || 24) > 34);

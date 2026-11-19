@@ -349,6 +349,34 @@ const TANKS = [
     circ(c, this.len + 1, 0, 5.5); fs(c, S.dead ? '#3a5560' : '#c8fbff', 2);
   },
 },
+{
+  id: 'super', name: '슈퍼탱크', role: '숨은 탱크', hp: 680, ang: '0~80°', hidden: true,
+  concept: "직접 고를 수 없는 숨은 탱크. '랜덤'을 고르면 10% 확률로 나온다. 등의 미사일 포드에서 유도 미사일 6발을 쏜다.",
+  notes: ['황금 장갑과 빨간 띠, 옆구리의 별', '등에 미사일 3발이 꽂힌 포드', '필살기 미사일은 날아가다 적을 향해 꺾인다'],
+  c: { main: '#f2b632', light: '#ffe58a', dark: '#a8701a' }, swatch: ['#f2b632', '#a8701a', '#e03131', '#f8f9fa'],
+  w: 104, pivot: [22, -76], len: 44, eyes: [[8, -66], [20, -66]], er: 5, box: [-48, -86, 50, -20], smoke: [-30, -84], flash: ['#fff6c2', '#ffb347'],
+  draw(c, S) {
+    tread(c, -50, 50, 20, S, ['#5a4632', '#2a1f14']);
+    // 등의 미사일 포드
+    rr(c, -46, -78, 30, 24, 5); fs(c, vg(c, -78, -54, '#e9ecef', '#868e96'));
+    [-40, -32, -24].forEach((x, i) => { const up = S.dead ? 0 : Math.sin(S.t * 3 + i) * 1.2; rr(c, x - 3, -92 + up, 6, 16, 2); fs(c, '#f8f9fa', 1.8); c.beginPath(); c.moveTo(x - 3, -92 + up); c.lineTo(x, -100 + up); c.lineTo(x + 3, -92 + up); c.closePath(); fs(c, '#e03131', 1.8); });
+    barrel(c, this, S);
+    // 차체
+    c.beginPath(); c.moveTo(-50, -20); c.lineTo(-48, -44); c.lineTo(-36, -54); c.lineTo(40, -54); c.lineTo(52, -40); c.lineTo(50, -20); c.closePath();
+    fs(c, vg(c, -56, -20, this.c.light, this.c.main, this.c.dark));
+    c.fillStyle = '#e03131'; c.fillRect(-48, -36, 99, 6); c.strokeStyle = OUT; c.lineWidth = 1.5; c.strokeRect(-48, -36, 99, 6);
+    star(c, -22, -44, 8, 3.6, 5, -Math.PI / 2); fs(c, S.dead ? '#888' : '#fff3bf', 2);
+    // 포탑
+    rr(c, -14, -82, 52, 30, 12); fs(c, vg(c, -82, -52, this.c.light, this.c.main, this.c.dark));
+    c.fillStyle = 'rgba(255,255,255,.45)'; ell(c, -2, -76, 10, 3.5, -.2); c.fill();
+    if (!S.dead) { c.save(); c.globalCompositeOperation = 'lighter'; const k = .25 + .2 * Math.sin(S.t * 4); c.fillStyle = `rgba(255,220,120,${k})`; star(c, 40, -88, 6, 2.4, 4, S.t * 2); c.fill(); c.restore(); }
+    face(c, this, S);
+  },
+  barrel(c, S) {
+    pipe(c, this.len, 11, '#ffe58a', '#a8701a', '#e03131');
+    rr(c, 12, -7, 5, 14, 2); fs(c, '#e03131', 1.5);
+  },
+},
 ];
 TANKS.forEach((T, i) => { T.seed = i * 0.73; [T.amin, T.amax] = T.ang.match(/\d+/g).map(Number); });
 const tankById = id => TANKS.find(T => T.id === id);
@@ -505,6 +533,11 @@ const SHELLS = {
     { n: '궁극 빔', d: '500', key: 'beacon', color: '#2fe0ff', trail: 'glow', boom: 'beam', R: 40, sp: 'ufo', desc: '신호탄을 따라 우주선이 내려와 땅을 꿰뚫는 수직 레이저를 쏜다.' } ],
 };
 
+SHELLS.super = [
+  { n: '황금 포탄', d: '230', key: 'superball', trail: 'spark', color: '#ffd43b', boom: 'dirt', R: 24, desc: '반짝이는 황금 포탄. 바람을 조금 덜 탄다.' },
+  { n: '쌍발탄', d: '140 × 2', key: 'superball', small: true, count: 2, trail: 'spark', color: '#ffd43b', boom: 'dirt', R: 18, desc: '나란히 날아가는 황금 포탄 두 발.' },
+  { n: '유도 미사일', d: '75 × 6', key: 'missile', count: 6, trail: 'fire', boom: 'fire', R: 20, desc: '미사일 6발이 부채꼴로 날아오르다 가장 가까운 적을 향해 꺾여 날아간다.' } ];
+
 /* 포탄 물리 (설계서 '포탄 물리와 지형 파임' 표와 같은 값)
    dmg 피해, r 피해 반경, cr 파임 반경(타원은 [가로, 세로]), wind 바람계수, wt 무게계수, shape 파임 모양, fx 특수 효과 */
 const PHYS = {
@@ -515,6 +548,7 @@ const PHYS = {
   magnet: [{ dmg: 190, r: 30, cr: 30, wind: 1, wt: 1 }, { dmg: 220, r: 30, cr: 30, wind: 1, wt: 1, fx: 'home' }, { dmg: 340, r: 64, cr: 40, wind: .8, wt: 1 }],
   shroom: [{ dmg: 170, r: 30, cr: 26, wind: 1.4, wt: .8 }, { dmg: 70, r: 20, cr: 14, wind: 1.4, wt: .8, spread: [-3, -1.5, 0, 1.5, 3], pspread: [.84, .92, 1, 1.08, 1.16] }, { dmg: 240, r: 60, cr: 30, wind: 1, wt: 1, fx: 'poison' }],
   whale:  [{ dmg: 200, r: 32, cr: 30, wind: .9, wt: 1.1 }, { dmg: 150, r: 32, cr: 16, wind: 1, wt: 1, fx: 'freeze' }, { dmg: 400, r: 62, cr: 40, wind: .6, wt: 1.2 }],
+  super:  [{ dmg: 230, r: 32, cr: 30, wind: .8, wt: 1 }, { dmg: 140, r: 26, cr: 22, wind: .8, wt: 1, spread: [-1, 1], pspread: [.97, 1.03] }, { dmg: 75, r: 26, cr: 18, wind: .3, wt: .8, spread: [-10, -6, -2, 2, 6, 10], pspread: [.92, .96, 1, 1, 1.04, 1.08], fx: 'missile' }],
   laser:  [{ dmg: 210, r: 28, cr: 28, wind: .7, wt: .9 }, { dmg: 170, r: 22, cr: 12, wind: 0, wt: 0, shape: 'line' }, { dmg: 500, r: 44, cr: 40, wind: 0, wt: 1, shape: 'down' }],
 };
 Object.keys(SHELLS).forEach(id => SHELLS[id].forEach((sh, k) => Object.assign(sh, PHYS[id][k])));
@@ -655,6 +689,12 @@ function drawShell(c, sh, t, ang) {
     case 'beacon': { const col = sh.color || '#ff7a3c'; c.save(); c.rotate(ang); rr(c, -10, -4.5, 18, 9, 4.5); fs(c, '#e8ecf2', 2); rr(c, 2, -4.5, 8, 9, 4); fs(c, col, 2); c.restore();
       const on = (t * 8) % 1 < .5; c.save(); c.globalCompositeOperation = 'lighter'; puff(c, 0, 0, on ? 14 : 9, col === '#2fe0ff' ? '47,224,255' : '255,122,60', on ? .55 : .3); c.restore(); break; }
     case 'bolt': c.save(); c.rotate(ang); c.shadowColor = '#2fe0ff'; c.shadowBlur = 14; rr(c, -18, -5, 28, 10, 5); c.fillStyle = '#2fe0ff'; c.fill(); rr(c, -12, -2.5, 20, 5, 2.5); c.fillStyle = '#ffffff'; c.fill(); c.restore(); break;
+    case 'superball': { const k = sh.small ? .75 : 1; c.save(); c.scale(k, k); const g = c.createRadialGradient(-3, -3, 1, 0, 0, 10); g.addColorStop(0, '#fff9db'); g.addColorStop(.5, '#ffd43b'); g.addColorStop(1, '#b07a12'); circ(c, 0, 0, 9); fs(c, g, 2.2);
+      star(c, 0, 0, 5, 2.2, 5, t * 6); c.fillStyle = '#fff'; c.fill(); c.restore(); break; }
+    case 'missile': c.save(); c.rotate(ang); c.save(); c.translate(-12, 0); c.rotate(-Math.PI / 2); flame(c, 0, 0, .55, t); c.restore();
+      c.beginPath(); c.moveTo(-12, -6); c.lineTo(-6, -2); c.lineTo(-6, 2); c.lineTo(-12, 6); c.closePath(); fs(c, '#e03131', 1.6);
+      rr(c, -10, -3.5, 18, 7, 3); fs(c, vg(c, -3.5, 3.5, '#ffffff', '#ced4da'), 1.8);
+      c.beginPath(); c.moveTo(8, -3.5); c.quadraticCurveTo(15, 0, 8, 3.5); c.closePath(); fs(c, '#e03131', 1.6); c.restore(); break;
     default: circ(c, 0, 0, 8); fs(c, '#ccc');
   }
 }

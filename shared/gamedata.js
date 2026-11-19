@@ -1,6 +1,9 @@
 // 서버와 클라이언트가 함께 쓰는 게임 기본 데이터 (그림 데이터는 mockup/art.js)
 export const TANK_IDS = ['mole', 'hammer', 'cloud', 'bee', 'magnet', 'shroom', 'whale', 'laser'];
-export const TANK_NAMES = { mole: '두더지', hammer: '망치', cloud: '구름열차', bee: '불꽃벌', magnet: '자석포', shroom: '버섯포', whale: '얼음고래', laser: '레이저로봇', random: '랜덤' };
+export const TANK_NAMES = { mole: '두더지', hammer: '망치', cloud: '구름열차', bee: '불꽃벌', magnet: '자석포', shroom: '버섯포', whale: '얼음고래', laser: '레이저로봇', super: '슈퍼탱크', random: '랜덤' };
+// 숨은 탱크: 직접 고를 수 없고, '랜덤'을 고른 사람에게 10% 확률로 나온다
+export const SECRET_TANK = 'super', SECRET_CHANCE = .1;
+export function pickRandomTank(rnd = Math.random) { return rnd() < SECRET_CHANCE ? SECRET_TANK : TANK_IDS[Math.floor(rnd() * TANK_IDS.length)]; }
 export const MAP_IDS = ['valley', 'temple', 'sky', 'bridge', 'cave'];
 export const MAP_NAMES = { valley: '골짜기', temple: '모래 신전', sky: '구름섬', bridge: '통나무 다리', cave: '수정 동굴', random: '무작위' };
 export const ITEM_SIZES = { double: 2, power: 1, repair: 1, teamrepair: 2, teleport: 2, calm: 1, shield: 1, fuel: 1 };
@@ -33,6 +36,7 @@ export const TANK_STATS = {
   magnet: { hp: 600, amin: 10, amax: 70, pivot: [30, -46], len: 36, w: 100 },
   shroom: { hp: 630, amin: 25, amax: 85, pivot: [32, -32], len: 34, w: 96 },
   whale:  { hp: 660, amin: 5,  amax: 65, pivot: [14, -60], len: 34, w: 104 },
+  super:  { hp: 680, amin: 0, amax: 80, pivot: [22, -76], len: 44, w: 104 },
   laser:  { hp: 510,  amin: 0,  amax: 45, pivot: [-20, -58], len: 44, w: 96 },
 };
 // dmg 피해, r 피해 반경, cr 파임 반경, wind 바람계수, wt 무게계수, R 폭발 그림 크기
@@ -46,6 +50,12 @@ export const SHELL_STATS = {
   whale:  [{ n: '얼음덩이', dmg: 200, r: 32, cr: 30, wind: .9, wt: 1.1, R: 24 }, { n: '빙결탄', dmg: 150, r: 32, cr: 16, wind: 1, wt: 1, R: 26, fx: 'freeze' }, { n: '해일', dmg: 400, r: 62, cr: 40, wind: .6, wt: 1.2, R: 42, sp: 'wave' }],
   laser:  [{ n: '빔탄', dmg: 210, r: 28, cr: 28, wind: .7, wt: .9, R: 22 }, { n: '관통 레이저', dmg: 170, r: 22, cr: 12, wind: 0, wt: 0, R: 20, shape: 'line' }, { n: '궁극 빔', dmg: 500, r: 44, cr: 40, wind: 0, wt: 1, R: 40, sp: 'ufo' }],
 };
+SHELL_STATS.super = [
+  { n: '황금 포탄', dmg: 230, r: 32, cr: 30, wind: .8, wt: 1, R: 24 },
+  { n: '쌍발탄', dmg: 140, r: 26, cr: 22, wind: .8, wt: 1, R: 18, spread: [-1, 1], pspread: [.97, 1.03] },
+  // 필살기: 유도 미사일 6발. 쏜 뒤 0.45초부터 가장 가까운 적을 향해 방향을 튼다 (꺾이는 정도에 한계가 있어 다 맞지는 않는다)
+  { n: '유도 미사일', dmg: 75, r: 26, cr: 18, wind: .3, wt: .8, R: 20, spread: [-10, -6, -2, 2, 6, 10], pspread: [.92, .96, 1, 1, 1.04, 1.08], fx: 'missile' },
+];
 export const SLOT_DELAY = [0, 60, 120];
 export const ITEM_INFO = {
   double: { n: '연발탄', delay: 150 }, power: { n: '강화탄', delay: 80 }, repair: { n: '수리킷', delay: 60 }, teamrepair: { n: '팀 수리킷', delay: 120 },

@@ -86,7 +86,9 @@ function slotHTML(s) {
 }
 function renderPicker() {
   const el = document.getElementById('picker');
-  el.innerHTML = TANKS.map(T => `<button class="pick" data-id="${T.id}" aria-pressed="${T.id === myTank}"><canvas data-tank="${T.id}" data-w="84" data-h="72" data-s=".46" style="width:84px;height:72px"></canvas><span>${T.name}</span></button>`).join('');
+  // 숨은 탱크(슈퍼탱크)는 목록에 없고, '랜덤'을 누르면 10% 확률로 나온다
+  el.innerHTML = TANKS.filter(T => !T.hidden).map(T => `<button class="pick" data-id="${T.id}" aria-pressed="${T.id === myTank}"><canvas data-tank="${T.id}" data-w="84" data-h="72" data-s=".46" style="width:84px;height:72px"></canvas><span>${T.name}</span></button>`).join('')
+    + `<button class="pick random" data-id="random" aria-pressed="${tankById(myTank).hidden}" title="10% 확률로 슈퍼탱크"><b style="display:grid;place-items:center;width:84px;height:72px;font:40px Jua,sans-serif;color:#ffb703">?</b><span>랜덤</span></button>`;
   paintTanks(el);
   const T = tankById(myTank), S = SHELLS[T.id];
   document.getElementById('tankInfo').innerHTML = `<p style="margin:0">${T.concept}</p><dl class="num">
@@ -96,7 +98,13 @@ function renderPicker() {
 }
 document.getElementById('picker').addEventListener('click', e => {
   const b = e.target.closest('.pick'); if (!b) return;
-  myTank = b.dataset.id; renderPicker(); renderSlots(); paintMe(); resetGame();
+  if (b.dataset.id === 'random') {
+    const normal = TANKS.filter(T => !T.hidden);
+    myTank = Math.random() < .1 ? 'super' : normal[Math.floor(Math.random() * normal.length)].id;
+    const T = tankById(myTank), msg = T.hidden ? '★ 슈퍼탱크 당첨! (10% 확률)' : `랜덤 결과: ${T.name}`;
+    let t = document.querySelector('.toast'); if (!t) { t = document.createElement('div'); t.className = 'toast'; document.body.append(t); } t.textContent = msg; t.hidden = false; clearTimeout(t._h); t._h = setTimeout(() => t.hidden = true, 2400);
+  } else myTank = b.dataset.id;
+  renderPicker(); renderSlots(); paintMe(); resetGame();
 });
 function renderRoomBag() {
   const el = document.getElementById('roomBag');

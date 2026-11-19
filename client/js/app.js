@@ -145,7 +145,7 @@ function renderRoom() {
   const pk = $('picker'); pk.innerHTML = '';
   [...TANK_IDS, 'random'].forEach(id => { const b = document.createElement('button'); b.className = 'pick' + (id === 'random' ? ' random' : ''); b.setAttribute('aria-pressed', me?.tankId === id); b.append(tankCanvas(id, 84, 66, .46)); b.insertAdjacentHTML('beforeend', `<span>${TANK_NAMES[id]}</span>`); b.onclick = () => act('room:update', { tankId: id }); pk.append(b); });
   const T = me && me.tankId !== 'random' ? tankById(me.tankId) : null, S = T && SHELLS[T.id];
-  $('tankInfo').innerHTML = T ? `<p style="margin:0">${T.concept}</p><dl class="num"><dt>체력</dt><dd>${T.hp}</dd><dt>각도</dt><dd>${T.ang}</dd><dt>주무기 1</dt><dd>${S[0].n} · ${S[0].d}</dd><dt>주무기 2</dt><dd>${S[1].n} · ${S[1].d}</dd><dt>필살기</dt><dd>${S[2].n} · ${S[2].d}</dd></dl>` : '<p style="margin:0">게임이 시작될 때 8종 중 하나가 무작위로 정해져요.</p>';
+  $('tankInfo').innerHTML = T ? `<p style="margin:0">${T.concept}</p><dl class="num"><dt>체력</dt><dd>${T.hp}</dd><dt>각도</dt><dd>${T.ang}</dd><dt>주무기 1</dt><dd>${S[0].n} · ${S[0].d}</dd><dt>주무기 2</dt><dd>${S[1].n} · ${S[1].d}</dd><dt>필살기</dt><dd>${S[2].n} · ${S[2].d}</dd></dl>` : '<p style="margin:0">게임이 시작될 때 8종 중 하나가 무작위로 정해져요. <b>10% 확률로 숨은 탱크 ‘슈퍼탱크’</b>가 나와요(필살기: 유도 미사일 6발).</p>';
   // 가방
   const items = me?.items || [], used = bagSize(items), bag = $('bag'); bag.innerHTML = '';
   items.forEach((id, i) => { const it = itemById(id), b = document.createElement('button'); b.className = 'item slotfill' + (it.size === 2 ? ' w2' : ''); b.title = '눌러서 빼기'; b.append(iconCanvas(id)); b.insertAdjacentHTML('beforeend', `<div><b>${it.n}</b><small>${it.size}칸</small></div>`); b.onclick = () => act('room:update', { items: items.filter((_, k) => k !== i) }); bag.append(b); });

@@ -1,5 +1,5 @@
 // 대기방 규칙 (소켓과 분리된 순수 로직이라 테스트하기 쉽다)
-import { TANK_IDS, MAP_IDS, TURN_SECONDS, MAX_PLAYERS, DEFAULT_BAG, validBag } from '../../shared/gamedata.js';
+import { TANK_IDS, MAP_IDS, TURN_SECONDS, MAX_PLAYERS, DEFAULT_BAG, validBag, pickRandomTank } from '../../shared/gamedata.js';
 
 export class RoomError extends Error {}
 const fail = msg => { throw new RoomError(msg); };
@@ -121,7 +121,7 @@ export class RoomManager {
     if (room.mode === 'team' && (!ps.some(p => p.team === 'red') || !ps.some(p => p.team === 'blue'))) fail('양쪽 팀에 한 명 이상 있어야 해요.');
     room.status = 'playing';
     const mapId = room.mapId === 'random' ? MAP_IDS[Math.floor(Math.random() * MAP_IDS.length)] : room.mapId;
-    const players = ps.map(p => ({ userId: p.userId, nickname: p.nickname, slot: p.slot, team: p.team, items: p.items, bot: !!p.bot, tankId: p.tankId === 'random' ? TANK_IDS[Math.floor(Math.random() * TANK_IDS.length)] : p.tankId }));
+    const players = ps.map(p => ({ userId: p.userId, nickname: p.nickname, slot: p.slot, team: p.team, items: p.items, bot: !!p.bot, tankId: p.tankId === 'random' ? pickRandomTank() : p.tankId }));
     return { room, setup: { roomId: room.id, mapId, mode: room.mode, turnSeconds: room.turnSeconds, players } };
   }
   finish(roomId) {

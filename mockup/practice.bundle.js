@@ -448,7 +448,7 @@
   }
 
   // ../shared/gamedata.js
-  var TANK_NAMES = { mole: "\uB450\uB354\uC9C0", hammer: "\uB9DD\uCE58", cloud: "\uAD6C\uB984\uC5F4\uCC28", bee: "\uBD88\uAF43\uBC8C", magnet: "\uC790\uC11D\uD3EC", shroom: "\uBC84\uC12F\uD3EC", whale: "\uC5BC\uC74C\uACE0\uB798", laser: "\uB808\uC774\uC800\uB85C\uBD07", random: "\uB79C\uB364" };
+  var TANK_NAMES = { mole: "\uB450\uB354\uC9C0", hammer: "\uB9DD\uCE58", cloud: "\uAD6C\uB984\uC5F4\uCC28", bee: "\uBD88\uAF43\uBC8C", magnet: "\uC790\uC11D\uD3EC", shroom: "\uBC84\uC12F\uD3EC", whale: "\uC5BC\uC74C\uACE0\uB798", laser: "\uB808\uC774\uC800\uB85C\uBD07", super: "\uC288\uD37C\uD0F1\uD06C", random: "\uB79C\uB364" };
   var TANK_STATS = {
     mole: { hp: 600, amin: 0, amax: 70, pivot: [-8, -50], len: 42, w: 96 },
     hammer: { hp: 720, amin: 20, amax: 60, pivot: [12, -60], len: 46, w: 112 },
@@ -457,6 +457,7 @@
     magnet: { hp: 600, amin: 10, amax: 70, pivot: [30, -46], len: 36, w: 100 },
     shroom: { hp: 630, amin: 25, amax: 85, pivot: [32, -32], len: 34, w: 96 },
     whale: { hp: 660, amin: 5, amax: 65, pivot: [14, -60], len: 34, w: 104 },
+    super: { hp: 680, amin: 0, amax: 80, pivot: [22, -76], len: 44, w: 104 },
     laser: { hp: 510, amin: 0, amax: 45, pivot: [-20, -58], len: 44, w: 96 }
   };
   var SHELL_STATS = {
@@ -469,6 +470,12 @@
     whale: [{ n: "\uC5BC\uC74C\uB369\uC774", dmg: 200, r: 32, cr: 30, wind: 0.9, wt: 1.1, R: 24 }, { n: "\uBE59\uACB0\uD0C4", dmg: 150, r: 32, cr: 16, wind: 1, wt: 1, R: 26, fx: "freeze" }, { n: "\uD574\uC77C", dmg: 400, r: 62, cr: 40, wind: 0.6, wt: 1.2, R: 42, sp: "wave" }],
     laser: [{ n: "\uBE54\uD0C4", dmg: 210, r: 28, cr: 28, wind: 0.7, wt: 0.9, R: 22 }, { n: "\uAD00\uD1B5 \uB808\uC774\uC800", dmg: 170, r: 22, cr: 12, wind: 0, wt: 0, R: 20, shape: "line" }, { n: "\uAD81\uADF9 \uBE54", dmg: 500, r: 44, cr: 40, wind: 0, wt: 1, R: 40, sp: "ufo" }]
   };
+  SHELL_STATS.super = [
+    { n: "\uD669\uAE08 \uD3EC\uD0C4", dmg: 230, r: 32, cr: 30, wind: 0.8, wt: 1, R: 24 },
+    { n: "\uC30D\uBC1C\uD0C4", dmg: 140, r: 26, cr: 22, wind: 0.8, wt: 1, R: 18, spread: [-1, 1], pspread: [0.97, 1.03] },
+    // 필살기: 유도 미사일 6발. 쏜 뒤 0.45초부터 가장 가까운 적을 향해 방향을 튼다 (꺾이는 정도에 한계가 있어 다 맞지는 않는다)
+    { n: "\uC720\uB3C4 \uBBF8\uC0AC\uC77C", dmg: 75, r: 26, cr: 18, wind: 0.3, wt: 0.8, R: 20, spread: [-10, -6, -2, 2, 6, 10], pspread: [0.92, 0.96, 1, 1, 1.04, 1.08], fx: "missile" }
+  ];
   var SLOT_DELAY = [0, 60, 120];
   var ITEM_INFO = {
     double: { n: "\uC5F0\uBC1C\uD0C4", delay: 150 },
@@ -800,6 +807,26 @@
       } };
       this.fx("fire", { uid: t.uid });
     }
+    // 유도 미사일: 가장 가까운 적 쪽으로 초당 최대 2.6라디안까지 방향을 틀고, 너무 느려지지 않게 한다
+    steerMissile(s, h) {
+      let best = null, bd = 1e9;
+      for (const t of this.tanks) {
+        if (t.dead || !this.enemies(s.owner, t)) continue;
+        const d = Math.hypot(t.x - s.x, t.y - 20 - s.y);
+        if (d < bd) {
+          bd = d;
+          best = t;
+        }
+      }
+      if (!best) return;
+      const v = Math.max(280, Math.hypot(s.vx, s.vy)), cur = Math.atan2(s.vy, s.vx), want = Math.atan2(best.y - 20 - s.y, best.x - s.x);
+      let dA = want - cur;
+      while (dA > Math.PI) dA -= 2 * Math.PI;
+      while (dA < -Math.PI) dA += 2 * Math.PI;
+      const a = cur + Math.max(-2.6 * h, Math.min(2.6 * h, dA));
+      s.vx = Math.cos(a) * v;
+      s.vy = Math.sin(a) * v;
+    }
     hitTank(s) {
       return this.tanks.find((t) => !t.dead && (t !== s.owner || s.age > 0.25) && Math.hypot(t.x - s.x, t.y - 36 * this.ts - s.y) < 40 * this.ts);
     }
@@ -1128,6 +1155,7 @@
               s.vy += (best.y - 18 - s.y) / bd * 600 * h;
             }
           }
+          if (sh.fx === "missile" && s.age > 0.45) this.steerMissile(s, h);
           s.x += s.vx * h;
           s.y += s.vy * h;
           if (this.shellVsEvents(s, h)) break;
@@ -2842,6 +2870,10 @@
       power = 0;
       charging = false;
       ren = new Renderer(sim, { me: me() });
+      if (mp?.tankId === "super") {
+        ren.banner = { text: "\u2605 \uC288\uD37C\uD0F1\uD06C \uB2F9\uCCA8! \u2605", t0: 0 };
+        setTimeout(() => play("ssready"), 300);
+      }
       ren.onFx = (f) => {
         if (f.type === "fire") play("fire");
         else if (f.type === "boom") play(f.kind === "electric" || f.kind === "beam" ? "zap" : "boom", (f.R || 24) > 34);

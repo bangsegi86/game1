@@ -163,6 +163,14 @@ export class Sim {
     if (o.double) this.queued = { wait: .4, fn: () => { if (t.dead) return; t.firedAt = this.clock; spawn(); this.fx('fire', { uid: t.uid, second: true }); } };
     this.fx('fire', { uid: t.uid });
   }
+  // 유도 미사일: 가장 가까운 적 쪽으로 초당 최대 2.6라디안까지 방향을 틀고, 너무 느려지지 않게 한다
+  steerMissile(s, h) {
+    let best = null, bd = 1e9; for (const t of this.tanks) { if (t.dead || !this.enemies(s.owner, t)) continue; const d = Math.hypot(t.x - s.x, t.y - 20 - s.y); if (d < bd) { bd = d; best = t; } }
+    if (!best) return;
+    const v = Math.max(280, Math.hypot(s.vx, s.vy)), cur = Math.atan2(s.vy, s.vx), want = Math.atan2(best.y - 20 - s.y, best.x - s.x);
+    let dA = want - cur; while (dA > Math.PI) dA -= 2 * Math.PI; while (dA < -Math.PI) dA += 2 * Math.PI;
+    const a = cur + Math.max(-2.6 * h, Math.min(2.6 * h, dA)); s.vx = Math.cos(a) * v; s.vy = Math.sin(a) * v;
+  }
   hitTank(s) { return this.tanks.find(t => !t.dead && (t !== s.owner || s.age > .25) && Math.hypot(t.x - s.x, t.y - 36 * this.ts - s.y) < 40 * this.ts); }
   impact(s, x, y, hitTank) {
     s.done = true; const sh = s.sh, k = s.k, owner = s.owner;
@@ -299,6 +307,7 @@ export class Sim {
         if (s.mode === 'dig') { s.x += s.vx * h; s.y += s.vy * h; s.dug += Math.hypot(s.vx, s.vy) * h; if (this.hitTank(s) || s.dug >= 80 || s.y > this.h - 4) { this.impact(s, s.x, s.y); break; } continue; }
         if (sh.shape !== 'line') { s.vx += wx * sh.wind * h; s.vy += (wy * sh.wind + this.g * sh.wt) * h; }
         if (sh.fx === 'home') { let best = null, bd = 150; for (const t of this.tanks) { if (t.dead || t === s.owner) continue; const d = Math.hypot(t.x - s.x, t.y - 18 - s.y); if (d < bd) { bd = d; best = t; } } if (best) { s.vx += (best.x - s.x) / bd * 600 * h; s.vy += (best.y - 18 - s.y) / bd * 600 * h; } }
+        if (sh.fx === 'missile' && s.age > .45) this.steerMissile(s, h);
         s.x += s.vx * h; s.y += s.vy * h;
         if (this.shellVsEvents(s, h)) break;
         if (s.x < -300 || s.x > this.w + 300 || s.y > this.h + 40) { s.done = true; if (liquid && s.y > this.liquidY - 4) this.fx('splash', { x: s.x }); break; }
