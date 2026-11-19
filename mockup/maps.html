@@ -91,17 +91,17 @@ section > .lead { margin-bottom: 14px; }
 
   <section>
     <h2>바람</h2>
-    <p class="lead">바람은 방향(360°)과 세기(0~10)가 있고, 턴마다 조금씩 바뀌다가 가끔 크게 바뀝니다. 맵마다 최대 세기가 다르고, 달기지는 바람이 없습니다.</p>
+    <p class="lead">바람은 방향(360°)과 세기(1~20)가 있고, 턴마다 조금씩 바뀌다가 가끔 크게 바뀝니다. 세기 한 칸의 힘은 작아서 바람을 세세하게 읽을 수 있습니다. 수정 동굴은 바람이 약합니다(최대 8).</p>
     <div class="wind">
       <div class="panel">
         <h3>같은 각도·파워라도 바람에 따라 이렇게 달라진다</h3>
         <canvas class="traj" id="traj" aria-label="바람별 탄도 비교"></canvas>
         <div class="legend">
           <span style="--c:#7fe36b">바람 없음 · 45° 파워 80</span>
-          <span style="--c:#ffd34d">순풍 10 · 45° 파워 80 (더 멀리)</span>
-          <span style="--c:#55aef0">역풍 10 · 45° 파워 80 (짧게)</span>
-          <span style="--c:#ff7a6a">역풍 10 · 85° 파워 100 (뒤로 떨어짐)</span>
-          <span style="--c:#d4a6ff">아래로 부는 바람 8 · 45° 파워 80</span>
+          <span style="--c:#ffd34d">순풍 20 · 45° 파워 80 (더 멀리)</span>
+          <span style="--c:#55aef0">역풍 20 · 45° 파워 80 (짧게)</span>
+          <span style="--c:#ff7a6a">역풍 20 · 85° 파워 100 (뒤로 떨어짐)</span>
+          <span style="--c:#d4a6ff">아래로 부는 바람 16 · 45° 파워 80</span>
         </div>
       </div>
       <div class="panel">
@@ -197,10 +197,10 @@ Object.entries(EVENTS).forEach(([key, e], i) => {
 /* ---------- 바람: 탄도 비교 ---------- */
 const TR = [
   { col: '#7fe36b', a: 45, p: 80, wa: 0, ws: 0 },
-  { col: '#ffd34d', a: 45, p: 80, wa: 0, ws: 10 },
-  { col: '#55aef0', a: 45, p: 80, wa: 180, ws: 10 },
-  { col: '#ff7a6a', a: 85, p: 100, wa: 180, ws: 10 },
-  { col: '#d4a6ff', a: 45, p: 80, wa: 270, ws: 8 },
+  { col: '#ffd34d', a: 45, p: 80, wa: 0, ws: 20 },
+  { col: '#55aef0', a: 45, p: 80, wa: 180, ws: 20 },
+  { col: '#ff7a6a', a: 85, p: 100, wa: 180, ws: 20 },
+  { col: '#d4a6ff', a: 45, p: 80, wa: 270, ws: 16 },
 ];
 const trajW = 800, trajH = 330, gy = 290, sx = 250;
 TR.forEach(r => { const pts = []; let x = sx, y = gy - 10, a = r.a * Math.PI / 180, vx = Math.cos(a) * r.p * SPEED, vy = -Math.sin(a) * r.p * SPEED; const wa = r.wa * Math.PI / 180, wx = Math.cos(wa) * r.ws * WINDK, wy = -Math.sin(wa) * r.ws * WINDK; for (let i = 0; i < 2000; i++) { const h = 1 / 120; vx += wx * h; vy += (wy + G0) * h; x += vx * h; y += vy * h; if (i % 3 === 0) pts.push([x, y]); if (y > gy) break; } r.pts = pts; });

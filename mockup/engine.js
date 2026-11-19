@@ -1,7 +1,7 @@
 /* 포탄대결 월드 엔진
    맵 지형(재질별 픽셀 채색), 자연스러운 땅 파임, 2D 바람, 낙사, 필살기 연출, 돌발 이벤트.
    art.js 다음에 불러온다. 화면 목업과 도감이 모두 이 파일을 쓴다. */
-const G0 = 380, SPEED = 5.6, WINDK = 14;
+const G0 = 380, SPEED = 5.6, WINDK = 5;
 const MAT = [['soil', 255, 0, 0], ['rock', 0, 0, 255], ['steel', 0, 255, 0], ['leaf', 255, 255, 0], ['wood', 255, 0, 255], ['cap', 0, 255, 255], ['ice', 255, 255, 255], ['plank', 128, 64, 0]];
 const MK = Object.fromEntries(MAT.map(([id, r, g, b]) => [id, `rgb(${r},${g},${b})`]));
 function hash2(x, y) { let h = (Math.imul(x, 374761393) + Math.imul(y, 668265263)) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; }
@@ -133,21 +133,21 @@ function caveDeco(c, w, h) {
 const MAPS = {
   valley: {
     n: '골짜기', d: '양쪽 높은 절벽에서 단을 따라 골짜기 아래까지 내려가는 맵. 높은 단이 유리하지만 비탈로 어디든 갈 수 있다.', tags: ['기본 맵', '높은 단', '강한 바람'],
-    grav: 1, windMax: 10, liquid: null, spawn: [.12, .88], ev: { tornado: .35, lightning: .2, meteors: .05 },
+    grav: 1, windMax: 20, liquid: null, spawn: [.12, .88], ev: { tornado: .35, lightning: .2, meteors: .05 },
     pal: { soil: ['#b98a52', '#6a4628'], crust: '#6fbf4a', rock: ['#c7a46c', '#7c6040'], steel: '#4a4038' },
     sky: { stops: ['#4f9de8', '#9fd0f5', '#e4f4fb'], clouds: 6, extra: valleyDeco, far: [['#6fae6a', .5, .03, 7, 1], ['#5c9e58', .56, .025, 11, 2]] },
     terrain(c, w, h) { ground(c, w, h, valleyY, u => valleyY(u) + .05); },
   },
   temple: {
     n: '모래 신전', d: '피라미드와 돌 석상이 보이는 사막 유적. 사암 단을 오르내리며 싸운다.', tags: ['계단 지형', '모래 회오리'],
-    grav: 1, windMax: 10, liquid: null, spawn: [.1, .9], ev: { tornado: .4, meteors: .1 },
+    grav: 1, windMax: 20, liquid: null, spawn: [.1, .9], ev: { tornado: .4, meteors: .1 },
     pal: { soil: ['#f0cf86', '#c09a5a'], crust: '#f8e2a8', rock: ['#e2b46a', '#9a6e3a'], steel: '#6a4a2a' },
     sky: { stops: ['#4a90e0', '#9cc8f2', '#f6e8c8'], clouds: 4, extra: templeDeco, far: [['#efd29a', .6, .02, 5, 0]] },
     terrain(c, w, h) { ground(c, w, h, templeY, u => templeY(u) + .03); },
   },
   sky: {
     n: '구름섬', d: '구름 위에 떠 있는 섬들. 섬 사이는 두꺼운 구름 바닥이라 걸어서 건너갈 수 있다.', tags: ['구름 바닥', '높은 섬'],
-    grav: 1, windMax: 10, liquid: null, spawn: [.1, .9], ev: { tornado: .35, lightning: .3 },
+    grav: 1, windMax: 20, liquid: null, spawn: [.1, .9], ev: { tornado: .35, lightning: .3 },
     pal: { soil: ['#a07a52', '#6a4a30'], crust: '#7cc95a', rock: ['#9a8a74', '#5e5446'], ice: ['#ffffff', '#c8d6ee'], steel: '#9aa8c8' },
     sky: { stops: ['#3f8ff0', '#8ec4f6', '#dcefff'], clouds: 9, extra: skyDeco },
     terrain(c, w, h) {
@@ -164,7 +164,7 @@ const MAPS = {
   },
   bridge: {
     n: '통나무 다리', d: '숲속 협곡 위에 놓인 긴 통나무 다리. 다리가 끊어지면 협곡 바닥으로 떨어져 다치지만, 비탈을 올라 다시 돌아올 수 있다.', tags: ['다리 끊기', '낙하 피해'],
-    grav: 1, windMax: 9, liquid: null, spawn: [.12, .88], ev: { tornado: .3, lightning: .2 },
+    grav: 1, windMax: 20, liquid: null, spawn: [.12, .88], ev: { tornado: .3, lightning: .2 },
     pal: { soil: ['#9a7448', '#5a3e26'], crust: '#6cb84a', rock: ['#b89a6a', '#6e5636'], plank: '#9a6638', steel: '#4a4038' },
     sky: { stops: ['#5aa0e6', '#a6d2f2', '#e6f4f2'], clouds: 5, extra: bridgeDeco },
     terrain(c, w, h) {
@@ -175,7 +175,7 @@ const MAPS = {
   },
   cave: {
     n: '수정 동굴', d: '종유석이 늘어진 커다란 동굴 속 바위 단. 바람이 약해 조준이 쉽다.', tags: ['약한 바람', '높은 단'],
-    grav: 1, windMax: 4, liquid: null, spawn: [.1, .9], ev: { meteors: .3, pillar: .2 },
+    grav: 1, windMax: 8, liquid: null, spawn: [.1, .9], ev: { meteors: .3, pillar: .2 },
     pal: { soil: ['#7a6aa8', '#43386e'], crust: '#9c8fd0', rock: ['#6a5c9c', '#3a3062'], steel: '#2e2850' },
     sky: { stops: ['#231d48', '#3a2f6e', '#5a4c8e'], extra: caveDeco },
     terrain(c, w, h) { ground(c, w, h, caveY, u => caveY(u) + .025); },

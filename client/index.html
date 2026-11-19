@@ -145,23 +145,23 @@
         </svg>
         <div><div class="deg num" id="deg">45°</div><div class="keys" id="degRange"></div></div>
       </div>
-      <div class="gauges">
-        <div class="gauge-row"><span>파워</span><div class="gauge"><div class="fill" id="powFill"></div><div class="ticks"></div><div class="last" id="powLast"></div></div><span class="num" id="powNum">0</span></div>
-        <div class="gauge-row"><span>연료</span><div class="gauge fuel"><div class="fill" id="fuelFill"></div></div><span class="num" id="fuelNum">100</span></div>
-        <div class="gauge-row"><span>체력</span><div class="gauge fuel"><div class="fill" id="hpFill" style="background:var(--red)"></div></div><span class="num" id="hpNum">0</span></div>
+      <div class="hud-mid">
+        <div class="itembar" id="gameItems"></div>
+        <div class="gauges">
+          <div class="gauge-row"><span>체력</span><div class="gauge thin"><div class="fill" id="hpFill" style="background:var(--red)"></div></div><span class="num" id="hpNum">0</span></div>
+          <div class="gauge-row"><span>이동</span><div class="gauge thin fuel"><div class="fill" id="fuelFill"></div></div><span class="num" id="fuelNum">100</span></div>
+          <div class="gauge-row"><span>파워</span><div class="gauge"><div class="fill" id="powFill"></div><div class="ticks"></div><div class="last" id="powLast"></div></div><span class="num" id="powNum">0</span></div>
+        </div>
       </div>
       <div class="lcdbox"><div class="lcd"><span>대기</span><b class="num" id="delayNum">0</b></div><div class="lcd big"><span>남은 시간</span><b class="num" id="timer">–</b></div></div>
       <div class="weapons" id="weapons"></div>
-    </div>
-    <div class="game-bottom">
-      <div class="itembar" id="gameItems"></div>
-      <div class="pad" aria-label="터치 조작">
-        <button data-hold="left" aria-label="왼쪽 이동">◀</button>
-        <button data-hold="right" aria-label="오른쪽 이동">▶</button>
-        <button data-hold="up" aria-label="각도 올리기">▲</button>
-        <button data-hold="down" aria-label="각도 내리기">▼</button>
-        <button class="pass" id="passBtn">턴 넘기기</button>
-        <button class="fire" id="fireBtn">눌러서 발사</button>
+      <div class="pad" aria-label="조작 버튼">
+        <button class="up" data-hold="up" aria-label="각도 올리기">▲</button>
+        <button class="left" data-hold="left" aria-label="왼쪽 이동">◀</button>
+        <button class="down" data-hold="down" aria-label="각도 내리기">▼</button>
+        <button class="right" data-hold="right" aria-label="오른쪽 이동">▶</button>
+        <button class="pass" id="passBtn">턴 넘기기 <kbd>P</kbd></button>
+        <button class="fire" id="fireBtn">발사<small>Space</small></button>
       </div>
     </div>
     <div class="panel chat game-chat">

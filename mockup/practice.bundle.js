@@ -214,7 +214,7 @@
       d: "\uC591\uCABD \uB192\uC740 \uC808\uBCBD\uC5D0\uC11C \uB2E8\uC744 \uB530\uB77C \uACE8\uC9DC\uAE30 \uC544\uB798\uAE4C\uC9C0 \uB0B4\uB824\uAC00\uB294 \uB9F5. \uB192\uC740 \uB2E8\uC774 \uC720\uB9AC\uD558\uC9C0\uB9CC \uBE44\uD0C8\uB85C \uC5B4\uB514\uB4E0 \uAC08 \uC218 \uC788\uB2E4.",
       tags: ["\uAE30\uBCF8 \uB9F5", "\uB192\uC740 \uB2E8", "\uAC15\uD55C \uBC14\uB78C"],
       grav: 1,
-      windMax: 10,
+      windMax: 20,
       liquid: null,
       spawn: [0.12, 0.88],
       ev: { tornado: 0.35, lightning: 0.2, meteors: 0.05 },
@@ -229,7 +229,7 @@
       d: "\uD53C\uB77C\uBBF8\uB4DC\uC640 \uB3CC \uC11D\uC0C1\uC774 \uBCF4\uC774\uB294 \uC0AC\uB9C9 \uC720\uC801. \uC0AC\uC554 \uB2E8\uC744 \uC624\uB974\uB0B4\uB9AC\uBA70 \uC2F8\uC6B4\uB2E4.",
       tags: ["\uACC4\uB2E8 \uC9C0\uD615", "\uBAA8\uB798 \uD68C\uC624\uB9AC"],
       grav: 1,
-      windMax: 10,
+      windMax: 20,
       liquid: null,
       spawn: [0.1, 0.9],
       ev: { tornado: 0.4, meteors: 0.1 },
@@ -244,7 +244,7 @@
       d: "\uAD6C\uB984 \uC704\uC5D0 \uB5A0 \uC788\uB294 \uC12C\uB4E4. \uC12C \uC0AC\uC774\uB294 \uB450\uAEBC\uC6B4 \uAD6C\uB984 \uBC14\uB2E5\uC774\uB77C \uAC78\uC5B4\uC11C \uAC74\uB108\uAC08 \uC218 \uC788\uB2E4.",
       tags: ["\uAD6C\uB984 \uBC14\uB2E5", "\uB192\uC740 \uC12C"],
       grav: 1,
-      windMax: 10,
+      windMax: 20,
       liquid: null,
       spawn: [0.1, 0.9],
       ev: { tornado: 0.35, lightning: 0.3 },
@@ -267,7 +267,7 @@
       d: "\uC232\uC18D \uD611\uACE1 \uC704\uC5D0 \uB193\uC778 \uAE34 \uD1B5\uB098\uBB34 \uB2E4\uB9AC. \uB2E4\uB9AC\uAC00 \uB04A\uC5B4\uC9C0\uBA74 \uD611\uACE1 \uBC14\uB2E5\uC73C\uB85C \uB5A8\uC5B4\uC838 \uB2E4\uCE58\uC9C0\uB9CC, \uBE44\uD0C8\uC744 \uC62C\uB77C \uB2E4\uC2DC \uB3CC\uC544\uC62C \uC218 \uC788\uB2E4.",
       tags: ["\uB2E4\uB9AC \uB04A\uAE30", "\uB099\uD558 \uD53C\uD574"],
       grav: 1,
-      windMax: 9,
+      windMax: 20,
       liquid: null,
       spawn: [0.12, 0.88],
       ev: { tornado: 0.3, lightning: 0.2 },
@@ -294,7 +294,7 @@
       d: "\uC885\uC720\uC11D\uC774 \uB298\uC5B4\uC9C4 \uCEE4\uB2E4\uB780 \uB3D9\uAD74 \uC18D \uBC14\uC704 \uB2E8. \uBC14\uB78C\uC774 \uC57D\uD574 \uC870\uC900\uC774 \uC27D\uB2E4.",
       tags: ["\uC57D\uD55C \uBC14\uB78C", "\uB192\uC740 \uB2E8"],
       grav: 1,
-      windMax: 4,
+      windMax: 8,
       liquid: null,
       spawn: [0.1, 0.9],
       ev: { meteors: 0.3, pillar: 0.2 },
@@ -493,7 +493,7 @@
   // ../shared/sim/world.js
   var G0 = 380;
   var SPEED = 6.6;
-  var WINDK = 14;
+  var WINDK = 5;
   var DT = 1 / 60;
   var WORLD_W = 1440;
   var WORLD_H = 600;
@@ -649,10 +649,10 @@
     static nextWind(prev, max, rnd = Math.random) {
       if (!max) return { ang: 0, str: 0 };
       let w = { ...prev };
-      if (rnd() < 0.18) w = { ang: rnd() * 360, str: rnd() * max };
+      if (rnd() < 0.18) w = { ang: rnd() * 360, str: 1 + rnd() * (max - 1) };
       else {
         w.ang = (w.ang + (rnd() - 0.5) * 80 + 360) % 360;
-        w.str = Math.max(0, Math.min(max, w.str + (rnd() - 0.5) * 5));
+        w.str = Math.max(1, Math.min(max, w.str + (rnd() - 0.5) * 8));
       }
       return { ang: Math.round(w.ang), str: Math.round(w.str) };
     }
@@ -3289,9 +3289,11 @@
       const el = $("gameItems");
       el.innerHTML = "";
       let key = 0;
+      if (!bag.some((b) => !b.used)) el.innerHTML = '<span class="empty">\uAC00\uBC29\uC774 \uBE44\uC5C8\uC5B4\uC694</span>';
       bag.forEach((b, i) => {
+        if (b.used) return;
         const it = itemById(b.id), k = "QWERTY"[key];
-        key += it.size;
+        key++;
         const btn = document.createElement("button");
         btn.className = `item ${it.size === 2 ? "w2" : ""} ${b.used ? "used" : ""}`;
         btn.disabled = b.used || turnItemUsed || !mine();
@@ -3722,11 +3724,8 @@
       }
       const qi = "qwerty".indexOf(letter);
       if (qi >= 0 && !e.repeat) {
-        let c = 0;
-        bag.forEach((b, i) => {
-          if (c === qi) useItem(i);
-          c += itemById(b.id).size;
-        });
+        const left = bag.map((b, i) => [b, i]).filter(([b]) => !b.used);
+        if (left[qi]) useItem(left[qi][1]);
       }
     });
     addEventListener("keyup", (e) => {

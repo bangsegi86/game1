@@ -5,7 +5,7 @@ import { MaskCtx, fillPolys, raggedPoly, hash } from './raster.js';
 import { TANK_STATS, SHELL_STATS, ITEM_INFO } from '../gamedata.js';
 
 // 맵은 화면(960×480)보다 넓은 1440×600. 화면은 카메라로 일부만 보여 준다
-export const G0 = 380, SPEED = 6.6, WINDK = 14, DT = 1 / 60, WORLD_W = 1440, WORLD_H = 600;
+export const G0 = 380, SPEED = 6.6, WINDK = 5, DT = 1 / 60, WORLD_W = 1440, WORLD_H = 600;
 const STEEL = MK.steel, LEAF = MK.leaf, WOOD = MK.wood, PLANK = MK.plank;
 const CLIMB = 24; // 구덩이 가장자리까지 이만큼(px) 이하로 깊으면 가파른 벽도 기어 나온다
 // 보급 비행기: 속도(px/초), 나는 높이, 떨어뜨리는 아이템
@@ -83,8 +83,9 @@ export class Sim {
   static nextWind(prev, max, rnd = Math.random) {
     if (!max) return { ang: 0, str: 0 };
     let w = { ...prev };
-    if (rnd() < .18) w = { ang: rnd() * 360, str: rnd() * max };
-    else { w.ang = (w.ang + (rnd() - .5) * 80 + 360) % 360; w.str = Math.max(0, Math.min(max, w.str + (rnd() - .5) * 5)); }
+    // 세기는 1~max(보통 20) 정수. 한 칸의 힘(WINDK)은 예전 10단계 때보다 작다
+    if (rnd() < .18) w = { ang: rnd() * 360, str: 1 + rnd() * (max - 1) };
+    else { w.ang = (w.ang + (rnd() - .5) * 80 + 360) % 360; w.str = Math.max(1, Math.min(max, w.str + (rnd() - .5) * 8)); }
     return { ang: Math.round(w.ang), str: Math.round(w.str) };
   }
 

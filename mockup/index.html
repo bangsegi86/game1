@@ -243,6 +243,39 @@ td.red { color: var(--red); font-weight: 700; } td.blue { color: var(--blue); fo
 .game-chat .log { display: none; }
 @media (max-width: 860px) { .hud { grid-template-columns: minmax(0, 1fr); } .lcdbox { grid-template-columns: 1fr 1fr; } }
 .dial svg.gaugeSvg { width: 118px; height: 118px; }
+/* 게임 화면: 전장 + 조작판이 스크롤 없이 한 화면에 들어가게. 전장은 남는 높이에 맞춰 줄어든다 */
+.game { --reserve: 290px; gap: 8px; }
+.game .field-wrap { width: min(100%, calc((100dvh - var(--reserve)) * 2)); margin-inline: auto; }
+.hud { grid-template-columns: auto minmax(0, 1fr) auto auto auto; gap: 10px; padding: 8px 12px; align-items: center; }
+.hud .dial svg.gaugeSvg { width: 92px; height: 92px; }
+.hud .dial { min-width: 96px; }
+.hud .dial .deg { font-size: 18px; }
+.hud-mid { display: grid; gap: 6px; min-width: 0; }
+.hud .itembar { grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 4px; min-height: 30px; }
+.hud .itembar .item { flex-direction: row; justify-content: flex-start; text-align: left; min-height: 30px; padding: 2px 6px; gap: 4px; }
+.hud .itembar .item canvas { width: 24px !important; height: 24px !important; }
+.hud .itembar .item small { display: none; }
+.hud .itembar .item b { font-size: 11.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hud .itembar .item.w2 { grid-column: auto; }
+.hud .itembar .empty { font-size: 12px; color: var(--muted); align-self: center; }
+.hud .gauges { gap: 5px; }
+.hud .gauge-row { grid-template-columns: 34px minmax(0, 1fr) 38px; gap: 6px; }
+.hud .gauge { height: 16px; }
+.hud .gauge.thin { height: 10px; }
+.hud .lcdbox { gap: 4px; }
+.hud .weapons { gap: 4px; }
+.hud .weapons button { min-width: 128px; padding: 3px 10px; font-size: 13px; }
+.hud .weapons .ss-tag { font-size: 10.5px; }
+.hud .pad { display: grid; grid-template-columns: repeat(3, 38px) 78px; grid-template-rows: repeat(3, 32px); grid-template-areas: ". up . fire" "left down right fire" "pass pass pass fire"; gap: 4px; }
+.hud .pad button { height: auto; font-size: 16px; padding: 0; }
+.hud .pad .up { grid-area: up; } .hud .pad .left { grid-area: left; } .hud .pad .down { grid-area: down; } .hud .pad .right { grid-area: right; }
+.hud .pad .pass { grid-area: pass; font-size: 12px; }
+.hud .pad .pass kbd { font-size: 10px; opacity: .8; }
+.hud .pad .fire { grid-area: fire; display: grid; place-content: center; gap: 2px; font-size: 20px; }
+.hud .pad .fire small { font-size: 11px; font-family: var(--font-body, sans-serif); opacity: .85; }
+@media (max-width: 1180px) { .hud { grid-template-columns: auto minmax(0, 1fr) auto; } .game { --reserve: 485px; } }
+@media (max-width: 860px) { .hud { grid-template-columns: minmax(0, 1fr); } .hud .pad { justify-self: center; } .hud .weapons { grid-template-columns: repeat(3, minmax(0, 1fr)); } .hud .weapons button { min-width: 0; } }
+@media (min-width: 1181px) { .game { --reserve: 380px; } } /* 목업은 위에 머리글과 안내 줄이 더 있다 */
 </style>
 
 <header class="topbar">
@@ -444,23 +477,23 @@ td.red { color: var(--red); font-weight: 700; } td.blue { color: var(--blue); fo
         </svg>
         <div><div class="deg num" id="deg">45°</div><div class="keys" id="degRange"></div></div>
       </div>
-      <div class="gauges">
-        <div class="gauge-row"><span>파워</span><div class="gauge"><div class="fill" id="powFill"></div><div class="ticks"></div><div class="last" id="powLast"></div></div><span class="num" id="powNum">0</span></div>
-        <div class="gauge-row"><span>연료</span><div class="gauge fuel"><div class="fill" id="fuelFill"></div></div><span class="num" id="fuelNum">100</span></div>
-        <div class="gauge-row"><span>체력</span><div class="gauge fuel"><div class="fill" id="hpFill" style="background:var(--red)"></div></div><span class="num" id="hpNum">0</span></div>
+      <div class="hud-mid">
+        <div class="itembar" id="gameItems"></div>
+        <div class="gauges">
+          <div class="gauge-row"><span>체력</span><div class="gauge thin"><div class="fill" id="hpFill" style="background:var(--red)"></div></div><span class="num" id="hpNum">0</span></div>
+          <div class="gauge-row"><span>이동</span><div class="gauge thin fuel"><div class="fill" id="fuelFill"></div></div><span class="num" id="fuelNum">100</span></div>
+          <div class="gauge-row"><span>파워</span><div class="gauge"><div class="fill" id="powFill"></div><div class="ticks"></div><div class="last" id="powLast"></div></div><span class="num" id="powNum">0</span></div>
+        </div>
       </div>
       <div class="lcdbox"><div class="lcd"><span>대기</span><b class="num" id="delayNum">0</b></div><div class="lcd big"><span>남은 시간</span><b class="num" id="timer">–</b></div></div>
       <div class="weapons" id="weapons"></div>
-    </div>
-    <div class="game-bottom">
-      <div class="itembar" id="gameItems"></div>
-      <div class="pad" aria-label="터치 조작">
-        <button data-hold="left" aria-label="왼쪽 이동">◀</button>
-        <button data-hold="right" aria-label="오른쪽 이동">▶</button>
-        <button data-hold="up" aria-label="각도 올리기">▲</button>
-        <button data-hold="down" aria-label="각도 내리기">▼</button>
-        <button class="pass" id="passBtn">턴 넘기기</button>
-        <button class="fire" id="fireBtn">눌러서 발사</button>
+      <div class="pad" aria-label="조작 버튼">
+        <button class="up" data-hold="up" aria-label="각도 올리기">▲</button>
+        <button class="left" data-hold="left" aria-label="왼쪽 이동">◀</button>
+        <button class="down" data-hold="down" aria-label="각도 내리기">▼</button>
+        <button class="right" data-hold="right" aria-label="오른쪽 이동">▶</button>
+        <button class="pass" id="passBtn">턴 넘기기 <kbd>P</kbd></button>
+        <button class="fire" id="fireBtn">발사<small>Space</small></button>
       </div>
     </div>
     <div class="panel chat game-chat">
