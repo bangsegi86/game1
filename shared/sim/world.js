@@ -11,7 +11,7 @@ const CLIMB = 24; // 구덩이 가장자리까지 이만큼(px) 이하로 깊으
 // 보급 비행기: 속도(px/초), 나는 높이, 떨어뜨리는 아이템
 export const PLANE_SPEED = 420, PLANE_Y = 70;
 const EVENT_RATE = .2; // 맵별 이벤트 확률에 곱하는 값 (작을수록 드물다)
-const SUPPLY_ITEMS = ['repair', 'power', 'double', 'teleport', 'shield', 'fuel', 'calm', 'repair', 'power'];
+const SUPPLY_ITEMS = ['repair', 'power', 'double', 'teleport', 'shield', 'fuel', 'repair', 'power'];
 const BASE = new Map();
 export function baseGrid(mapId, w, h) {
   const key = `${mapId}:${w}x${h}`;
@@ -181,6 +181,8 @@ export class Sim {
   hitTank(s) { return this.tanks.find(t => !t.dead && (t !== s.owner || s.age > .25) && Math.hypot(t.x - s.x, t.y - 36 * this.ts - s.y) < 40 * this.ts); }
   impact(s, x, y, hitTank) {
     s.done = true; const sh = s.sh, k = s.k, owner = s.owner;
+    // 순간이동탄: 탱크만 옮긴다. 피해도 없고 땅도 파지 않는다
+    if (s.teleport) { this.boom(x, y, { kind: 'electric', R: 16, color: '#b98cff', shake: 0 }); this.afterHit(s, x, y); return; }
     const base = { tankId: s.tankId, slot: s.slot, R: sh.R * k };
     if (sh.sp && sh.sp !== 'phoenix' && sh.sp !== 'erupt') {
       let gy = hitTank ? hitTank.y : this.ground(x, Math.max(0, y - 40)); if (gy > this.h) gy = y;
@@ -403,7 +405,6 @@ export class Sim {
     const heal = (x, n) => { if (x.dead) return; x.hp = Math.min(x.max, x.hp + n); this.float(x.x, x.y - 60, '+' + n, '#2f9e44'); };
     if (id === 'repair') heal(t, 150);
     if (id === 'teamrepair') this.tanks.filter(x => x === t || (t.team !== 'solo' && x.team === t.team)).forEach(x => heal(x, 90));
-    if (id === 'calm') this.wind = { ...this.wind, str: 0 };
     if (id === 'shield') t.shield = true;
     if (id === 'fuel') t.fuel = 200;
     this.fx('item', { uid: t.uid, id });

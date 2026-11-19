@@ -215,7 +215,9 @@ export function createBattle({ socket, me, toast, onExit, onQuit }) {
     if (camHold > 0 && !sim.shells.length && !sim.specials.length) { camHold -= dt; return; }
     const g = camGoal(); if (!g) return;
     const k = Math.min(1, dt * (sim.shells.length ? 5 : 3));
-    cam.x += (g[0] - VW / 2 - cam.x) * k; cam.y += (g[1] - VH * .55 - cam.y) * k; clampCam();
+    // 물(낙사)이 있는 맵에서는 포탄이 날지 않을 때 물가가 화면 아래에 보이도록 카메라를 조금 내린다
+    let gy = g[1] - VH * .55; if (!sim.shells.length && sim.liquidY < sim.h) gy = Math.max(gy, Math.min(sim.liquidY + 70, sim.h) - VH);
+    cam.x += (g[0] - VW / 2 - cam.x) * k; cam.y += (gy - cam.y) * k; clampCam();
   }
   function toCanvas(e) { const r = cv.getBoundingClientRect(); return [(e.clientX - r.left) * VW / r.width, (e.clientY - r.top) * VH / r.height]; }
   let drag = null;

@@ -4,10 +4,10 @@ export const TANK_NAMES = { mole: '두더지', hammer: '망치', cloud: '구름�
 // 숨은 탱크: 직접 고를 수 없고, '랜덤'을 고른 사람에게 10% 확률로 나온다
 export const SECRET_TANK = 'super', SECRET_CHANCE = .1;
 export function pickRandomTank(rnd = Math.random) { return rnd() < SECRET_CHANCE ? SECRET_TANK : TANK_IDS[Math.floor(rnd() * TANK_IDS.length)]; }
-export const MAP_IDS = ['valley', 'temple', 'sky', 'bridge', 'cave'];
-export const MAP_NAMES = { valley: '골짜기', temple: '모래 신전', sky: '구름섬', bridge: '통나무 다리', cave: '수정 동굴', random: '무작위' };
+export const MAP_IDS = ['valley', 'temple', 'sky', 'bridge', 'cave', 'bungee'];
+export const MAP_NAMES = { valley: '골짜기', temple: '모래 신전', sky: '구름섬', bridge: '통나무 다리', cave: '수정 동굴', bungee: '얼음 줄다리', random: '무작위' };
 // 모든 아이템은 1칸. 가방은 4칸
-export const ITEM_SIZES = { double: 1, power: 1, repair: 1, teamrepair: 1, teleport: 1, calm: 1, shield: 1, fuel: 1 };
+export const ITEM_SIZES = { double: 1, power: 1, repair: 1, teamrepair: 1, teleport: 1, shield: 1, fuel: 1 };
 export const BAG_CELLS = 4;
 export const TURN_SECONDS = [10, 20, 30];
 export const MAX_PLAYERS = 8;
@@ -46,7 +46,7 @@ export const SHELL_STATS = {
   hammer: [{ n: '철구', dmg: 260, r: 30, cr: 30, wind: .5, wt: 1.2, R: 24 }, { n: '지진탄', dmg: 230, r: 44, cr: [70, 24], wind: .6, wt: 1.2, R: 28, shape: 'ellipse' }, { n: '메테오', dmg: 480, r: 56, cr: 64, wind: .4, wt: 1.3, R: 44, sp: 'meteor' }],
   cloud:  [{ n: '물방울', dmg: 180, r: 30, cr: 18, wind: 1.2, wt: .9, R: 22 }, { n: '번개구름', dmg: 210, r: 30, cr: 26, wind: 0, wt: 1, R: 24 }, { n: '폭풍', dmg: 300, r: 70, cr: 20, wind: 1.5, wt: .8, R: 40, sp: 'tornado' }],
   bee:    [{ n: '불씨', dmg: 190, r: 30, cr: 30, wind: 1, wt: 1, R: 22 }, { n: '화염병', dmg: 160, r: 36, cr: 22, wind: 1, wt: 1, R: 26, fx: 'burn' }, { n: '불사조', dmg: 420, r: 50, cr: 48, wind: .7, wt: .9, R: 40, sp: 'phoenix' }],
-  magnet: [{ n: '자기탄', dmg: 190, r: 30, cr: 30, wind: 1, wt: 1, R: 22 }, { n: '끌어당김탄', dmg: 220, r: 30, cr: 30, wind: 1, wt: 1, R: 24, fx: 'home' }, { n: '자기폭풍', dmg: 340, r: 64, cr: 40, wind: .8, wt: 1, R: 40, sp: 'storm' }],
+  magnet: [{ n: '자기탄', dmg: 190, r: 30, cr: 30, wind: 1, wt: 1, R: 22 }, { n: '끌어당김탄', dmg: 95, r: 26, cr: 24, wind: 1, wt: 1, R: 24, fx: 'home' }, { n: '자기폭풍', dmg: 340, r: 64, cr: 40, wind: .8, wt: 1, R: 40, sp: 'storm' }],
   shroom: [{ n: '포자', dmg: 170, r: 30, cr: 26, wind: 1.4, wt: .8, R: 22 }, { n: '포자비', dmg: 70, r: 20, cr: 14, wind: 1.4, wt: .8, R: 12, spread: [-3, -1.5, 0, 1.5, 3], pspread: [.84, .92, 1, 1.08, 1.16] }, { n: '독버섯밭', dmg: 240, r: 60, cr: 30, wind: 1, wt: 1, R: 38, sp: 'shroom' }],
   whale:  [{ n: '얼음덩이', dmg: 200, r: 32, cr: 30, wind: .9, wt: 1.1, R: 24 }, { n: '빙결탄', dmg: 150, r: 32, cr: 16, wind: 1, wt: 1, R: 26, fx: 'freeze' }, { n: '해일', dmg: 400, r: 62, cr: 40, wind: .6, wt: 1.2, R: 42, sp: 'wave' }],
   laser:  [{ n: '빔탄', dmg: 210, r: 28, cr: 28, wind: .7, wt: .9, R: 22 }, { n: '관통 레이저', dmg: 170, r: 22, cr: 12, wind: 0, wt: 0, R: 20, shape: 'line' }, { n: '궁극 빔', dmg: 500, r: 44, cr: 40, wind: 0, wt: 1, R: 40, sp: 'ufo' }],
@@ -60,7 +60,7 @@ SHELL_STATS.super = [
 export const SLOT_DELAY = [0, 60, 120];
 export const ITEM_INFO = {
   double: { n: '연발탄', delay: 150 }, power: { n: '강화탄', delay: 80 }, repair: { n: '수리킷', delay: 60 }, teamrepair: { n: '팀 수리킷', delay: 120 },
-  teleport: { n: '순간이동탄', delay: 100 }, calm: { n: '바람정지', delay: 50 }, shield: { n: '보호막', delay: 70 }, fuel: { n: '연료통', delay: 30 },
+  teleport: { n: '순간이동탄', delay: 100 }, shield: { n: '보호막', delay: 70 }, fuel: { n: '연료통', delay: 30 },
 };
 export const TURN_BASE_DELAY = 100;
 export const SUDDEN_DEATH_TURN = 30;

@@ -208,6 +208,60 @@
       poly(c, 1, 1, [[x - s * 0.4, y + s], [x, y - s], [x + s * 0.4, y + s]], "#9ef0ff");
     });
   }
+  var iceRopeY = path([[0, 0.4], [0.1, 0.38], [0.22, 0.42], [0.36, 0.5], [0.5, 0.56], [0.6, 0.5], [0.72, 0.38], [0.86, 0.3], [1, 0.33]], 0.6);
+  var ropeTh = (u) => 0.03 + 7e-3 * Math.sin(u * 37) + 4e-3 * Math.sin(u * 91 + 2);
+  var lowRopeY = (u) => 0.735 + 0.03 * Math.sin((u - 0.3) * 26);
+  function rope(c, w, h, fn, th, u0, u1) {
+    const top = [], bot = [];
+    for (let u = u0; u <= u1 + 1e-9; u += 4e-3) {
+      top.push([u, fn(u)]);
+      bot.push([u, fn(u) + th(u)]);
+    }
+    blob(c, w, h, [...top, ...bot.reverse()], "ice");
+  }
+  function bungeeDeco(c, w, h) {
+    for (let i = 0; i < 16; i++) {
+      const u = 0.02 + i * 0.062 + hr(i) * 0.02, top = 0.1 + hr(i + 3) * 0.28, bw = 0.012 + hr(i + 7) * 0.012, x = u * w, tw = bw * w;
+      const g = c.createLinearGradient(x - tw, 0, x + tw, 0);
+      g.addColorStop(0, "#5f7a8e");
+      g.addColorStop(0.5, "#9fb6c4");
+      g.addColorStop(1, "#4a6273");
+      c.fillStyle = g;
+      c.fillRect(x - tw, top * h, tw * 2, (0.66 - top) * h);
+      c.beginPath();
+      c.ellipse(x, top * h, tw, tw * 0.9, 0, Math.PI, 0);
+      c.fill();
+      c.fillStyle = "#7d93a3";
+      c.fillRect(x - 1.5, (top - 0.06) * h, 3, 0.06 * h);
+      c.fillStyle = "rgba(230,190,90,.8)";
+      for (let k = 1; k < 4; k++) c.fillRect(x - tw, (top + (0.66 - top) * k / 4) * h, tw * 2, 2.5);
+    }
+    const lg = c.createRadialGradient(0.6 * w, 0.5 * h, 0, 0.6 * w, 0.5 * h, 0.3 * w);
+    lg.addColorStop(0, "rgba(255,255,240,.9)");
+    lg.addColorStop(1, "rgba(255,255,240,0)");
+    c.fillStyle = lg;
+    c.fillRect(0, 0, w, h);
+    const wg = c.createLinearGradient(0, 0.8 * h, 0, h);
+    wg.addColorStop(0, "#3f9fb2");
+    wg.addColorStop(1, "#114a5e");
+    c.fillStyle = wg;
+    c.fillRect(0, 0.82 * h, w, 0.18 * h);
+    c.fillStyle = "rgba(220,250,255,.55)";
+    for (let i = 0; i < 40; i++) c.fillRect(hr(i + 40) * w, (0.86 + hr(i + 41) * 0.12) * h, 8 + hr(i + 42) * 26, 2);
+    [[0, 0.66, 0.14], [0.16, 0.7, 0.09], [0.78, 0.68, 0.08], [0.88, 0.62, 0.12]].forEach(([u, v, s]) => {
+      poly(c, w, h, [[u, 0.85], [u + s * 0.05, v], [u + s * 0.9, v - 0.02], [u + s, 0.85]], "rgba(150,190,212,.9)");
+      poly(c, w, h, [[u + s * 0.05, v], [u + s * 0.9, v - 0.02], [u + s * 0.8, v + 0.03], [u + s * 0.1, v + 0.035]], "rgba(225,245,255,.8)");
+    });
+    c.strokeStyle = "#3c4a55";
+    c.lineWidth = 4;
+    [[0.04, 0.7], [0.08, 0.73], [0.12, 0.7], [0.2, 0.74], [0.3, 0.72]].forEach(([u, v]) => {
+      c.beginPath();
+      c.moveTo(u * w, 0.9 * h);
+      c.lineTo(u * w, (v + 0.02) * h);
+      c.lineTo((u + 0.015) * w, v * h);
+      c.stroke();
+    });
+  }
   var MAPS = {
     valley: {
       n: "\uACE8\uC9DC\uAE30",
@@ -302,6 +356,22 @@
       sky: { stops: ["#231d48", "#3a2f6e", "#5a4c8e"], extra: caveDeco },
       terrain(c, w, h) {
         ground(c, w, h, caveY, (u) => caveY(u) + 0.025);
+      }
+    },
+    bungee: {
+      n: "\uC5BC\uC74C \uC904\uB2E4\uB9AC",
+      d: "\uBB3C \uC704\uC5D0 \uAC78\uB9B0 \uC587\uC740 \uC5BC\uC74C \uC904. \uD3EC\uD0C4 \uD55C\uB450 \uBC1C\uC774\uBA74 \uB04A\uC5B4\uC9C4\uB2E4. \uD53C\uD574\uBCF4\uB2E4 \uC0C1\uB300 \uBC1C\uBC11\uC744 \uB04A\uC5B4 \uBB3C\uC5D0 \uBE60\uB728\uB9AC\uB294 \uAC8C \uBAA9\uD45C.",
+      tags: ["\uB099\uC0AC \uB9F5", "\uC587\uC740 \uC5BC\uC74C", "\uBE60\uB728\uB9AC\uAE30"],
+      grav: 1,
+      windMax: 20,
+      liquid: { y: 0.84, type: "water" },
+      spawn: [0.12, 0.88],
+      ev: { tornado: 0.3, lightning: 0.25 },
+      pal: { ice: ["#62b0f2", "#1f5aa8"], crust: "#d8f1ff", soil: ["#62b0f2", "#1f5aa8"], rock: ["#62b0f2", "#1f5aa8"] },
+      sky: { stops: ["#1d4f63", "#5e9fae", "#cfe7e6"], clouds: 2, cloudCol: "rgba(230,245,245,.5)", extra: bungeeDeco },
+      terrain(c, w, h) {
+        rope(c, w, h, iceRopeY, ropeTh, 0, 1);
+        rope(c, w, h, lowRopeY, (u) => 0.02 + 4e-3 * Math.sin(u * 53), 0.3, 0.62);
       }
     },
     demo: {
@@ -465,7 +535,7 @@
     hammer: [{ n: "\uCCA0\uAD6C", dmg: 260, r: 30, cr: 30, wind: 0.5, wt: 1.2, R: 24 }, { n: "\uC9C0\uC9C4\uD0C4", dmg: 230, r: 44, cr: [70, 24], wind: 0.6, wt: 1.2, R: 28, shape: "ellipse" }, { n: "\uBA54\uD14C\uC624", dmg: 480, r: 56, cr: 64, wind: 0.4, wt: 1.3, R: 44, sp: "meteor" }],
     cloud: [{ n: "\uBB3C\uBC29\uC6B8", dmg: 180, r: 30, cr: 18, wind: 1.2, wt: 0.9, R: 22 }, { n: "\uBC88\uAC1C\uAD6C\uB984", dmg: 210, r: 30, cr: 26, wind: 0, wt: 1, R: 24 }, { n: "\uD3ED\uD48D", dmg: 300, r: 70, cr: 20, wind: 1.5, wt: 0.8, R: 40, sp: "tornado" }],
     bee: [{ n: "\uBD88\uC528", dmg: 190, r: 30, cr: 30, wind: 1, wt: 1, R: 22 }, { n: "\uD654\uC5FC\uBCD1", dmg: 160, r: 36, cr: 22, wind: 1, wt: 1, R: 26, fx: "burn" }, { n: "\uBD88\uC0AC\uC870", dmg: 420, r: 50, cr: 48, wind: 0.7, wt: 0.9, R: 40, sp: "phoenix" }],
-    magnet: [{ n: "\uC790\uAE30\uD0C4", dmg: 190, r: 30, cr: 30, wind: 1, wt: 1, R: 22 }, { n: "\uB04C\uC5B4\uB2F9\uAE40\uD0C4", dmg: 220, r: 30, cr: 30, wind: 1, wt: 1, R: 24, fx: "home" }, { n: "\uC790\uAE30\uD3ED\uD48D", dmg: 340, r: 64, cr: 40, wind: 0.8, wt: 1, R: 40, sp: "storm" }],
+    magnet: [{ n: "\uC790\uAE30\uD0C4", dmg: 190, r: 30, cr: 30, wind: 1, wt: 1, R: 22 }, { n: "\uB04C\uC5B4\uB2F9\uAE40\uD0C4", dmg: 95, r: 26, cr: 24, wind: 1, wt: 1, R: 24, fx: "home" }, { n: "\uC790\uAE30\uD3ED\uD48D", dmg: 340, r: 64, cr: 40, wind: 0.8, wt: 1, R: 40, sp: "storm" }],
     shroom: [{ n: "\uD3EC\uC790", dmg: 170, r: 30, cr: 26, wind: 1.4, wt: 0.8, R: 22 }, { n: "\uD3EC\uC790\uBE44", dmg: 70, r: 20, cr: 14, wind: 1.4, wt: 0.8, R: 12, spread: [-3, -1.5, 0, 1.5, 3], pspread: [0.84, 0.92, 1, 1.08, 1.16] }, { n: "\uB3C5\uBC84\uC12F\uBC2D", dmg: 240, r: 60, cr: 30, wind: 1, wt: 1, R: 38, sp: "shroom" }],
     whale: [{ n: "\uC5BC\uC74C\uB369\uC774", dmg: 200, r: 32, cr: 30, wind: 0.9, wt: 1.1, R: 24 }, { n: "\uBE59\uACB0\uD0C4", dmg: 150, r: 32, cr: 16, wind: 1, wt: 1, R: 26, fx: "freeze" }, { n: "\uD574\uC77C", dmg: 400, r: 62, cr: 40, wind: 0.6, wt: 1.2, R: 42, sp: "wave" }],
     laser: [{ n: "\uBE54\uD0C4", dmg: 210, r: 28, cr: 28, wind: 0.7, wt: 0.9, R: 22 }, { n: "\uAD00\uD1B5 \uB808\uC774\uC800", dmg: 170, r: 22, cr: 12, wind: 0, wt: 0, R: 20, shape: "line" }, { n: "\uAD81\uADF9 \uBE54", dmg: 500, r: 44, cr: 40, wind: 0, wt: 1, R: 40, sp: "ufo" }]
@@ -483,7 +553,6 @@
     repair: { n: "\uC218\uB9AC\uD0B7", delay: 60 },
     teamrepair: { n: "\uD300 \uC218\uB9AC\uD0B7", delay: 120 },
     teleport: { n: "\uC21C\uAC04\uC774\uB3D9\uD0C4", delay: 100 },
-    calm: { n: "\uBC14\uB78C\uC815\uC9C0", delay: 50 },
     shield: { n: "\uBCF4\uD638\uB9C9", delay: 70 },
     fuel: { n: "\uC5F0\uB8CC\uD1B5", delay: 30 }
   };
@@ -505,7 +574,7 @@
   var PLANE_SPEED = 420;
   var PLANE_Y = 70;
   var EVENT_RATE = 0.2;
-  var SUPPLY_ITEMS = ["repair", "power", "double", "teleport", "shield", "fuel", "calm", "repair", "power"];
+  var SUPPLY_ITEMS = ["repair", "power", "double", "teleport", "shield", "fuel", "repair", "power"];
   var BASE = /* @__PURE__ */ new Map();
   function baseGrid(mapId, w, h) {
     const key = `${mapId}:${w}x${h}`;
@@ -844,6 +913,11 @@
     impact(s, x, y, hitTank) {
       s.done = true;
       const sh = s.sh, k = s.k, owner = s.owner;
+      if (s.teleport) {
+        this.boom(x, y, { kind: "electric", R: 16, color: "#b98cff", shake: 0 });
+        this.afterHit(s, x, y);
+        return;
+      }
       const base = { tankId: s.tankId, slot: s.slot, R: sh.R * k };
       if (sh.sp && sh.sp !== "phoenix" && sh.sp !== "erupt") {
         let gy = hitTank ? hitTank.y : this.ground(x, Math.max(0, y - 40));
@@ -1363,7 +1437,6 @@
       };
       if (id === "repair") heal(t, 150);
       if (id === "teamrepair") this.tanks.filter((x) => x === t || t.team !== "solo" && x.team === t.team).forEach((x) => heal(x, 90));
-      if (id === "calm") this.wind = { ...this.wind, str: 0 };
       if (id === "shield") t.shield = true;
       if (id === "fuel") t.fuel = 200;
       this.fx("item", { uid: t.uid, id });
@@ -2638,9 +2711,7 @@
       c.save();
       c.drawImage(this.sky, cam.x * 0.5, cam.y * 0.5, this.w, this.h);
       c.translate(sx, sy);
-      c.drawImage(this.back, 0, 0, this.w, this.h);
       c.drawImage(this.fg, 0, 0, this.w, this.h);
-      this.drawLiquid(c);
       S.zones.forEach((z) => {
         const gy = S.ground(z.x, 0), a = Math.min(1, (clock - (z.born || 0)) * 2);
         if (z.type === "poison") poisonFog(c, z.x, gy, z.r, this.t, a);
@@ -2668,6 +2739,21 @@
         }
         const art = SHELLS[s.tankId][s.slot];
         trail(c, art, s.trail.slice(1), this.t);
+        if (s.powered) {
+          c.save();
+          s.trail.forEach(([tx, ty], i) => {
+            if (i % 2) return;
+            const k = 1 - i / s.trail.length, rot = this.t * 6 + i, R = 4 + 6 * k;
+            c.globalAlpha = 0.35 + 0.65 * k;
+            star(c, tx + Math.sin(i * 2.3 + this.t * 9) * 3, ty + Math.cos(i * 1.7 + this.t * 7) * 3, R, R * 0.45, 5, rot);
+            c.fillStyle = i % 4 ? "#ffe066" : "#ffffff";
+            c.fill();
+            c.strokeStyle = "rgba(200,90,20,.8)";
+            c.lineWidth = 1;
+            c.stroke();
+          });
+          c.restore();
+        }
         if (s.powered || s.k > 1) {
           const g = c.createRadialGradient(s.x, s.y, 2, s.x, s.y, 20);
           g.addColorStop(0, "rgba(255,120,50,.75)");
@@ -3503,8 +3589,10 @@
       const g = camGoal();
       if (!g) return;
       const k = Math.min(1, dt * (sim.shells.length ? 5 : 3));
+      let gy = g[1] - VH * 0.55;
+      if (!sim.shells.length && sim.liquidY < sim.h) gy = Math.max(gy, Math.min(sim.liquidY + 70, sim.h) - VH);
       cam.x += (g[0] - VW / 2 - cam.x) * k;
-      cam.y += (g[1] - VH * 0.55 - cam.y) * k;
+      cam.y += (gy - cam.y) * k;
       clampCam();
     }
     function toCanvas(e) {

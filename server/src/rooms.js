@@ -1,5 +1,5 @@
 // 대기방 규칙 (소켓과 분리된 순수 로직이라 테스트하기 쉽다)
-import { TANK_IDS, MAP_IDS, TURN_SECONDS, MAX_PLAYERS, DEFAULT_BAG, validBag, pickRandomTank } from '../../shared/gamedata.js';
+import { TANK_IDS, MAP_IDS, TURN_SECONDS, MAX_PLAYERS, DEFAULT_BAG, validBag, pickRandomTank, ITEM_SIZES } from '../../shared/gamedata.js';
 
 export class RoomError extends Error {}
 const fail = msg => { throw new RoomError(msg); };
@@ -75,7 +75,7 @@ export class RoomManager {
     if (room.status !== 'waiting') fail('게임 중에는 바꿀 수 없어요.');
     let i = this.slotOf(room, userId); const p = room.slots[i];
     if (o.tankId !== undefined) { if (!TANK_IDS.includes(o.tankId) && o.tankId !== 'random') fail('없는 탱크예요.'); p.tankId = o.tankId; }
-    if (o.items !== undefined) { if (!validBag(o.items)) fail('가방은 4칸을 넘을 수 없어요.'); p.items = [...o.items]; }
+    if (o.items !== undefined) { if (Array.isArray(o.items) && o.items.some(id => !ITEM_SIZES[id])) fail('없는 아이템이에요.'); if (!validBag(o.items)) fail('가방은 4칸을 넘을 수 없어요.'); p.items = [...o.items]; }
     if (o.slot !== undefined) {
       const to = +o.slot; if (!(to >= 0 && to < MAX_PLAYERS)) fail('없는 자리예요.');
       if (room.slots[to]) fail('이미 누가 앉은 자리예요.');

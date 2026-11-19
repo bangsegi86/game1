@@ -25,9 +25,10 @@ test('비밀번호와 꽉 찬 방', () => {
 
 test('가방 4칸 제한과 탱크 선택', () => {
   const m = new RoomManager(); const r = m.create(U(1));
-  m.update(1, { tankId: 'laser', items: ['double', 'teleport', 'repair', 'calm'] });
+  m.update(1, { tankId: 'laser', items: ['double', 'teleport', 'repair', 'fuel'] });
   assert.equal(r.slots[0].tankId, 'laser');
-  assert.throws(() => m.update(1, { items: ['double', 'teleport', 'teamrepair', 'calm', 'fuel'] }), /4칸/);
+  assert.throws(() => m.update(1, { items: ['double', 'teleport', 'teamrepair', 'shield', 'fuel'] }), /4칸/);
+  assert.throws(() => m.update(1, { items: ['calm'] }), /없는 아이템/); // 바람정지는 없어진 아이템
   assert.throws(() => m.update(1, { tankId: 'nope' }), /없는 탱크/);
 });
 

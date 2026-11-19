@@ -1,4 +1,4 @@
-// 맵 5종: 지형(재질 격자)과 규칙. 서버와 화면이 같이 쓴다. 하늘 그림은 client/js/render.js
+// 맵 6종: 지형(재질 격자)과 규칙. 서버와 화면이 같이 쓴다. 하늘 그림은 client/js/render.js
 export const MAT = ['', 'soil', 'rock', 'steel', 'leaf', 'wood', 'cap', 'ice', 'plank'];
 export const MK = Object.fromEntries(MAT.map((m, i) => [m, i]).filter(([m]) => m));
 const TAU = Math.PI * 2;
@@ -112,6 +112,34 @@ function caveDeco(c, w, h) {
   [[.15, .62], [.42, .55], [.8, .6]].forEach(([u, v], i) => { const x = u * w, y = v * h, s = h * .03; c.fillStyle = 'rgba(150,230,255,.35)'; c.beginPath(); c.arc(x, y, s * 2.2, 0, TAU); c.fill(); poly(c, 1, 1, [[x - s * .4, y + s], [x, y - s], [x + s * .4, y + s]], '#9ef0ff'); });
 }
 
+// 얼음 줄다리: 물 위에 떠 있는 얇은 얼음 줄. 한두 발이면 끊어져서, 상대를 빠뜨리는(낙사) 싸움이 된다
+const iceRopeY = path([[0, .4], [.1, .38], [.22, .42], [.36, .5], [.5, .56], [.6, .5], [.72, .38], [.86, .3], [1, .33]], .6);
+const ropeTh = u => .03 + .007 * Math.sin(u * 37) + .004 * Math.sin(u * 91 + 2);
+const lowRopeY = u => .735 + .03 * Math.sin((u - .3) * 26);
+function rope(c, w, h, fn, th, u0, u1) {
+  const top = [], bot = []; for (let u = u0; u <= u1 + 1e-9; u += .004) { top.push([u, fn(u)]); bot.push([u, fn(u) + th(u)]); }
+  blob(c, w, h, [...top, ...bot.reverse()], 'ice');
+}
+function bungeeDeco(c, w, h) {
+  // 멀리 미래 도시의 뾰족한 탑들
+  for (let i = 0; i < 16; i++) {
+    const u = .02 + i * .062 + hr(i) * .02, top = .1 + hr(i + 3) * .28, bw = .012 + hr(i + 7) * .012, x = u * w, tw = bw * w;
+    const g = c.createLinearGradient(x - tw, 0, x + tw, 0); g.addColorStop(0, '#5f7a8e'); g.addColorStop(.5, '#9fb6c4'); g.addColorStop(1, '#4a6273'); c.fillStyle = g;
+    c.fillRect(x - tw, top * h, tw * 2, (.66 - top) * h);
+    c.beginPath(); c.ellipse(x, top * h, tw, tw * .9, 0, Math.PI, 0); c.fill();
+    c.fillStyle = '#7d93a3'; c.fillRect(x - 1.5, (top - .06) * h, 3, .06 * h);
+    c.fillStyle = 'rgba(230,190,90,.8)'; for (let k = 1; k < 4; k++) c.fillRect(x - tw, (top + (.66 - top) * k / 4) * h, tw * 2, 2.5);
+  }
+  // 가운데 밝은 빛
+  const lg = c.createRadialGradient(.6 * w, .5 * h, 0, .6 * w, .5 * h, .3 * w); lg.addColorStop(0, 'rgba(255,255,240,.9)'); lg.addColorStop(1, 'rgba(255,255,240,0)'); c.fillStyle = lg; c.fillRect(0, 0, w, h);
+  // 물: 짙은 청록 바다와 반짝이는 물결 (실제 물 높이는 맵의 liquid)
+  const wg = c.createLinearGradient(0, .8 * h, 0, h); wg.addColorStop(0, '#3f9fb2'); wg.addColorStop(1, '#114a5e'); c.fillStyle = wg; c.fillRect(0, .82 * h, w, .18 * h);
+  c.fillStyle = 'rgba(220,250,255,.55)'; for (let i = 0; i < 40; i++) c.fillRect(hr(i + 40) * w, (.86 + hr(i + 41) * .12) * h, 8 + hr(i + 42) * 26, 2);
+  // 물가의 얼음 덩어리와 물에 꽂힌 관
+  [[0, .66, .14], [.16, .7, .09], [.78, .68, .08], [.88, .62, .12]].forEach(([u, v, s]) => { poly(c, w, h, [[u, .85], [u + s * .05, v], [u + s * .9, v - .02], [u + s, .85]], 'rgba(150,190,212,.9)'); poly(c, w, h, [[u + s * .05, v], [u + s * .9, v - .02], [u + s * .8, v + .03], [u + s * .1, v + .035]], 'rgba(225,245,255,.8)'); });
+  c.strokeStyle = '#3c4a55'; c.lineWidth = 4; [[.04, .7], [.08, .73], [.12, .7], [.2, .74], [.3, .72]].forEach(([u, v]) => { c.beginPath(); c.moveTo(u * w, .9 * h); c.lineTo(u * w, (v + .02) * h); c.lineTo((u + .015) * w, v * h); c.stroke(); });
+}
+
 export const MAPS = {
   valley: {
     n: '골짜기', d: '양쪽 높은 절벽에서 단을 따라 골짜기 아래까지 내려가는 맵. 높은 단이 유리하지만 비탈로 어디든 갈 수 있다.', tags: ['기본 맵', '높은 단', '강한 바람'],
@@ -162,6 +190,13 @@ export const MAPS = {
     sky: { stops: ['#231d48', '#3a2f6e', '#5a4c8e'], extra: caveDeco },
     terrain(c, w, h) { ground(c, w, h, caveY, u => caveY(u) + .025); },
   },
+  bungee: {
+    n: '얼음 줄다리', d: '물 위에 걸린 얇은 얼음 줄. 포탄 한두 발이면 끊어진다. 피해보다 상대 발밑을 끊어 물에 빠뜨리는 게 목표.', tags: ['낙사 맵', '얇은 얼음', '빠뜨리기'],
+    grav: 1, windMax: 20, liquid: { y: .84, type: 'water' }, spawn: [.12, .88], ev: { tornado: .3, lightning: .25 },
+    pal: { ice: ['#62b0f2', '#1f5aa8'], crust: '#d8f1ff', soil: ['#62b0f2', '#1f5aa8'], rock: ['#62b0f2', '#1f5aa8'] },
+    sky: { stops: ['#1d4f63', '#5e9fae', '#cfe7e6'], clouds: 2, cloudCol: 'rgba(230,245,245,.5)', extra: bungeeDeco },
+    terrain(c, w, h) { rope(c, w, h, iceRopeY, ropeTh, 0, 1); rope(c, w, h, lowRopeY, u => .02 + .004 * Math.sin(u * 53), .3, .62); },
+  },
   demo: {
     n: '연습장', d: '도감용 평지', tags: [], grav: 1, windMax: 0, liquid: null, spawn: [.16, .82], ev: {},
     pal: { soil: ['#c98b4f', '#6a4228'], crust: '#e8c27a', rock: ['#8a8478', '#55504a'] },
@@ -170,4 +205,4 @@ export const MAPS = {
   },
 };
 
-export const MAP_ORDER = ['valley', 'temple', 'sky', 'bridge', 'cave'];
+export const MAP_ORDER = ['valley', 'temple', 'sky', 'bridge', 'cave', 'bungee'];

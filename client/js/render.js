@@ -329,7 +329,7 @@ export class Renderer {
     const sx = this.shake ? (hash(Math.floor(this.t * 60)) - .5) * this.shake * 12 : 0, sy = this.shake ? (hash(Math.floor(this.t * 60) + 7) - .5) * this.shake * 12 : 0;
     const cam = o.cam || { x: 0, y: 0 };
     c.save(); c.drawImage(this.sky, cam.x * .5, cam.y * .5, this.w, this.h); c.translate(sx, sy); // 하늘은 절반 속도로 움직여 깊이감을 준다
-    c.drawImage(this.back, 0, 0, this.w, this.h); c.drawImage(this.fg, 0, 0, this.w, this.h); this.drawLiquid(c); // 물(서든데스에 차오르는 물 포함)은 땅 위에 그려야 잠긴 곳이 보인다
+    c.drawImage(this.fg, 0, 0, this.w, this.h); // 파인 곳은 땅이 아예 없어지고 뒤의 배경(하늘)이 보인다 this.drawLiquid(c); // 물(서든데스에 차오르는 물 포함)은 땅 위에 그려야 잠긴 곳이 보인다
     S.zones.forEach(z => { const gy = S.ground(z.x, 0), a = Math.min(1, (clock - (z.born || 0)) * 2); if (z.type === 'poison') poisonFog(c, z.x, gy, z.r, this.t, a); else fireField(c, z.x, gy, z.r, this.t, a); if (this.labels) zoneLabel(c, z.x, gy - z.r - 20, (z.type === 'poison' ? '독 ' : '불 ') + z.turns + '턴', z.type === 'poison' ? '#d4a6ff' : '#ffb36b'); });
     S.events.forEach(e => this.drawEvent(c, e));
     (S.crates || []).forEach(cr => drawCrate(c, cr, this.t));
@@ -338,6 +338,8 @@ export class Renderer {
       if (s.sh.shape === 'line') { c.save(); c.lineCap = 'round'; c.strokeStyle = 'rgba(47,224,255,.55)'; c.lineWidth = 10; c.beginPath(); c.moveTo(s.sx, s.sy); c.lineTo(s.x, s.y); c.stroke(); c.strokeStyle = '#fff'; c.lineWidth = 3; c.stroke(); c.restore(); return; }
       const art = SHELLS[s.tankId][s.slot];
       trail(c, art, s.trail.slice(1), this.t);
+      // 불기둥을 지나온 탄: 뒤로 반짝이는 별이 줄지어 따라간다
+      if (s.powered) { c.save(); s.trail.forEach(([tx, ty], i) => { if (i % 2) return; const k = 1 - i / s.trail.length, rot = this.t * 6 + i, R = 4 + 6 * k; c.globalAlpha = .35 + .65 * k; star(c, tx + Math.sin(i * 2.3 + this.t * 9) * 3, ty + Math.cos(i * 1.7 + this.t * 7) * 3, R, R * .45, 5, rot); c.fillStyle = i % 4 ? '#ffe066' : '#ffffff'; c.fill(); c.strokeStyle = 'rgba(200,90,20,.8)'; c.lineWidth = 1; c.stroke(); }); c.restore(); }
       if (s.powered || s.k > 1) { const g = c.createRadialGradient(s.x, s.y, 2, s.x, s.y, 20); g.addColorStop(0, 'rgba(255,120,50,.75)'); g.addColorStop(1, 'rgba(255,90,40,0)'); c.fillStyle = g; circ(c, s.x, s.y, 20); c.fill(); }
       c.save(); c.translate(s.x, s.y); c.scale(.95, .95); drawShell(c, art, this.t, Math.atan2(s.vy, s.vx)); c.restore();
       if (s.y < 0) { c.fillStyle = '#c92a2a'; c.beginPath(); c.moveTo(s.x, 4); c.lineTo(s.x - 6, 14); c.lineTo(s.x + 6, 14); c.fill(); }

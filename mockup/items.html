@@ -4,7 +4,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jua&family=Noto+Sans+KR:wght@400;500;700&display=swap">
 <style>
-/* Layout: 아이템 칸(슬롯) 디자인 → 아이템 8종 카드(아이콘 + 사용 장면) → 가방 조합 예시. 탱크 도감과 같은 해질녘 팔레트. */
+/* Layout: 아이템 칸(슬롯) 디자인 → 아이템 7종 카드(아이콘 + 사용 장면) → 가방 조합 예시. 탱크 도감과 같은 해질녘 팔레트. */
 :root {
   --sky: #1f2d52;
   --panel: #283a66;
@@ -76,7 +76,7 @@ section > .lead { margin-bottom: 14px; }
   <header>
     <div class="eyebrow">포탄대결 · 아트 시안 v2</div>
     <h1>아이템 도감</h1>
-    <p class="lead">무료 아이템 8종의 아이콘과 실제로 썼을 때의 장면입니다. 방에 들어가면 4칸 가방을 채우고(아이템은 모두 1칸), 게임 중에는 턴마다 하나씩 쓸 수 있어요. 아이템을 쓰면 다음 차례가 그만큼 늦게 옵니다(딜레이).</p>
+    <p class="lead">무료 아이템 7종의 아이콘과 실제로 썼을 때의 장면입니다. 방에 들어가면 4칸 가방을 채우고(아이템은 모두 1칸), 게임 중에는 턴마다 하나씩 쓸 수 있어요. 아이템을 쓰면 다음 차례가 그만큼 늦게 옵니다(딜레이).</p>
   </header>
 
   <section>
@@ -96,7 +96,7 @@ section > .lead { margin-bottom: 14px; }
   </section>
 
   <section>
-    <h2>아이템 8종</h2>
+    <h2>아이템 7종</h2>
     <p class="lead">위쪽 그림이 쓰는 순간의 장면입니다. 공격 아이템은 실제 게임 엔진으로 쏘기 때문에 땅이 파이는 모습까지 보입니다.</p>
     <div class="items" id="items"></div>
   </section>
@@ -346,8 +346,8 @@ ITEMS.forEach(it => {
   addView(icon, 92 * it.size, 92, (c, w, h, t) => slotItem(c, 2, 2, 88, it, 'ready', t));
 });
 const combos = [
-  ['공격형', '한 방 크게', ['double', 'power', 'calm', 'fuel']],
-  ['생존형', '오래 버티기', ['repair', 'shield', 'teamrepair', 'calm']],
+  ['공격형', '한 방 크게', ['double', 'power', 'teleport', 'fuel']],
+  ['생존형', '오래 버티기', ['repair', 'shield', 'teamrepair', 'fuel']],
   ['기동형', '자리 싸움', ['teleport', 'fuel', 'shield', 'repair']],
 ];
 const cEl = document.getElementById('combos');

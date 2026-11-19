@@ -130,6 +130,34 @@ function caveDeco(c, w, h) {
   [[.15, .62], [.42, .55], [.8, .6]].forEach(([u, v], i) => { const x = u * w, y = v * h, s = h * .03; c.fillStyle = 'rgba(150,230,255,.35)'; c.beginPath(); c.arc(x, y, s * 2.2, 0, TAU); c.fill(); poly(c, 1, 1, [[x - s * .4, y + s], [x, y - s], [x + s * .4, y + s]], '#9ef0ff'); });
 }
 
+// 얼음 줄다리: 물 위에 떠 있는 얇은 얼음 줄. 한두 발이면 끊어져서, 상대를 빠뜨리는(낙사) 싸움이 된다
+const iceRopeY = path([[0, .4], [.1, .38], [.22, .42], [.36, .5], [.5, .56], [.6, .5], [.72, .38], [.86, .3], [1, .33]], .6);
+const ropeTh = u => .03 + .007 * Math.sin(u * 37) + .004 * Math.sin(u * 91 + 2);
+const lowRopeY = u => .735 + .03 * Math.sin((u - .3) * 26);
+function rope(c, w, h, fn, th, u0, u1) {
+  const top = [], bot = []; for (let u = u0; u <= u1 + 1e-9; u += .004) { top.push([u, fn(u)]); bot.push([u, fn(u) + th(u)]); }
+  blob(c, w, h, [...top, ...bot.reverse()], 'ice');
+}
+function bungeeDeco(c, w, h) {
+  // 멀리 미래 도시의 뾰족한 탑들
+  for (let i = 0; i < 16; i++) {
+    const u = .02 + i * .062 + hr(i) * .02, top = .1 + hr(i + 3) * .28, bw = .012 + hr(i + 7) * .012, x = u * w, tw = bw * w;
+    const g = c.createLinearGradient(x - tw, 0, x + tw, 0); g.addColorStop(0, '#5f7a8e'); g.addColorStop(.5, '#9fb6c4'); g.addColorStop(1, '#4a6273'); c.fillStyle = g;
+    c.fillRect(x - tw, top * h, tw * 2, (.66 - top) * h);
+    c.beginPath(); c.ellipse(x, top * h, tw, tw * .9, 0, Math.PI, 0); c.fill();
+    c.fillStyle = '#7d93a3'; c.fillRect(x - 1.5, (top - .06) * h, 3, .06 * h);
+    c.fillStyle = 'rgba(230,190,90,.8)'; for (let k = 1; k < 4; k++) c.fillRect(x - tw, (top + (.66 - top) * k / 4) * h, tw * 2, 2.5);
+  }
+  // 가운데 밝은 빛
+  const lg = c.createRadialGradient(.6 * w, .5 * h, 0, .6 * w, .5 * h, .3 * w); lg.addColorStop(0, 'rgba(255,255,240,.9)'); lg.addColorStop(1, 'rgba(255,255,240,0)'); c.fillStyle = lg; c.fillRect(0, 0, w, h);
+  // 물: 짙은 청록 바다와 반짝이는 물결 (실제 물 높이는 맵의 liquid)
+  const wg = c.createLinearGradient(0, .8 * h, 0, h); wg.addColorStop(0, '#3f9fb2'); wg.addColorStop(1, '#114a5e'); c.fillStyle = wg; c.fillRect(0, .82 * h, w, .18 * h);
+  c.fillStyle = 'rgba(220,250,255,.55)'; for (let i = 0; i < 40; i++) c.fillRect(hr(i + 40) * w, (.86 + hr(i + 41) * .12) * h, 8 + hr(i + 42) * 26, 2);
+  // 물가의 얼음 덩어리와 물에 꽂힌 관
+  [[0, .66, .14], [.16, .7, .09], [.78, .68, .08], [.88, .62, .12]].forEach(([u, v, s]) => { poly(c, w, h, [[u, .85], [u + s * .05, v], [u + s * .9, v - .02], [u + s, .85]], 'rgba(150,190,212,.9)'); poly(c, w, h, [[u + s * .05, v], [u + s * .9, v - .02], [u + s * .8, v + .03], [u + s * .1, v + .035]], 'rgba(225,245,255,.8)'); });
+  c.strokeStyle = '#3c4a55'; c.lineWidth = 4; [[.04, .7], [.08, .73], [.12, .7], [.2, .74], [.3, .72]].forEach(([u, v]) => { c.beginPath(); c.moveTo(u * w, .9 * h); c.lineTo(u * w, (v + .02) * h); c.lineTo((u + .015) * w, v * h); c.stroke(); });
+}
+
 const MAPS = {
   valley: {
     n: '골짜기', d: '양쪽 높은 절벽에서 단을 따라 골짜기 아래까지 내려가는 맵. 높은 단이 유리하지만 비탈로 어디든 갈 수 있다.', tags: ['기본 맵', '높은 단', '강한 바람'],
@@ -180,6 +208,13 @@ const MAPS = {
     sky: { stops: ['#231d48', '#3a2f6e', '#5a4c8e'], extra: caveDeco },
     terrain(c, w, h) { ground(c, w, h, caveY, u => caveY(u) + .025); },
   },
+  bungee: {
+    n: '얼음 줄다리', d: '물 위에 걸린 얇은 얼음 줄. 포탄 한두 발이면 끊어진다. 피해보다 상대 발밑을 끊어 물에 빠뜨리는 게 목표.', tags: ['낙사 맵', '얇은 얼음', '빠뜨리기'],
+    grav: 1, windMax: 20, liquid: { y: .84, type: 'water' }, spawn: [.12, .88], ev: { tornado: .3, lightning: .25 },
+    pal: { ice: ['#62b0f2', '#1f5aa8'], crust: '#d8f1ff', soil: ['#62b0f2', '#1f5aa8'], rock: ['#62b0f2', '#1f5aa8'] },
+    sky: { stops: ['#1d4f63', '#5e9fae', '#cfe7e6'], clouds: 2, cloudCol: 'rgba(230,245,245,.5)', extra: bungeeDeco },
+    terrain(c, w, h) { rope(c, w, h, iceRopeY, ropeTh, 0, 1); rope(c, w, h, lowRopeY, u => .02 + .004 * Math.sin(u * 53), .3, .62); },
+  },
   demo: {
     n: '연습장', d: '도감용 평지', tags: [], grav: 1, windMax: 0, liquid: null, spawn: [.16, .82], ev: {},
     pal: { soil: ['#c98b4f', '#6a4228'], crust: '#e8c27a', rock: ['#8a8478', '#55504a'] },
@@ -188,7 +223,7 @@ const MAPS = {
   },
 };
 
-const MAP_ORDER = ['valley', 'temple', 'sky', 'bridge', 'cave'];
+const MAP_ORDER = ['valley', 'temple', 'sky', 'bridge', 'cave', 'bungee'];
 
 /* ---------- 재질 채색 ---------- */
 function palette(m) {
@@ -520,6 +555,7 @@ class World {
   /* 착탄 */
   impact(s, x, y, hitTank) {
     s.done = true; const sh = s.sh, k = s.k;
+    if (s.teleport) { this.afterHit(s, x, y); return; } // 순간이동탄: 옮기기만, 피해·파임 없음
     if (sh.sp && SPECIALS[sh.sp] && sh.sp !== 'phoenix' && sh.sp !== 'erupt') {
       const sp = { type: sh.sp, x, y, gy: hitTank ? hitTank.y : this.ground(x, Math.max(0, y - 40)), t: 0, sh, k, owner: s.owner, side: s.vx >= 0 ? 1 : -1, dir: (s.owner && s.owner.facing) || 1, hit: new Set(), done: [], flash: [] };
       if (sp.gy > this.h) sp.gy = y; if (sh.sp === 'tornado') sp.dir = Math.sign(this.windVec()[0]) || sp.dir; sp.wx = x;
@@ -666,13 +702,14 @@ class World {
   draw(c, o = {}) {
     const sx = this.shake ? (hash(Math.floor(this.clock * 60)) - .5) * this.shake * 12 : 0, sy = this.shake ? (hash(Math.floor(this.clock * 60) + 7) - .5) * this.shake * 12 : 0;
     c.save(); c.drawImage(this.baked.sky, 0, 0, this.w, this.h); c.translate(sx, sy);
-    c.drawImage(this.baked.back, 0, 0, this.w, this.h); c.drawImage(this.tc, 0, 0, this.w, this.h); this.drawLiquid(c);
+    c.drawImage(this.tc, 0, 0, this.w, this.h); // 파인 곳은 배경만 보인다 this.drawLiquid(c);
     this.zones.forEach(z => { const gy = this.ground(z.x, 0), a = Math.min(1, (this.clock - (z.born || 0)) * 2); if (z.type === 'poison') poisonFog(c, z.x, gy, z.r, this.clock, a); else fireField(c, z.x, gy, z.r, this.clock, a); if (this.labels) zoneLabel(c, z.x, gy - z.r - 20, (z.type === 'poison' ? '독 ' : '불 ') + z.turns + '턴', z.type === 'poison' ? '#d4a6ff' : '#ffb36b'); });
     this.events.forEach(e => this.drawEvent(c, e));
     this.tanks.forEach(t => this.drawTank(c, t, o));
     this.shells.forEach(s => {
       if (s.sh.shape === 'line') { c.save(); c.lineCap = 'round'; c.strokeStyle = 'rgba(47,224,255,.55)'; c.lineWidth = 10; c.beginPath(); c.moveTo(s.sx, s.sy); c.lineTo(s.x, s.y); c.stroke(); c.strokeStyle = '#fff'; c.lineWidth = 3; c.stroke(); c.restore(); return; }
       trail(c, s.sh, s.trail.slice(1), this.clock);
+      if (s.powered) { c.save(); s.trail.forEach(([tx, ty], j) => { if (j % 2) return; const k = 1 - j / s.trail.length, R = 4 + 6 * k; c.globalAlpha = .35 + .65 * k; star(c, tx + Math.sin(j * 2.3 + this.clock * 9) * 3, ty + Math.cos(j * 1.7 + this.clock * 7) * 3, R, R * .45, 5, this.clock * 6 + j); c.fillStyle = j % 4 ? '#ffe066' : '#ffffff'; c.fill(); c.strokeStyle = 'rgba(200,90,20,.8)'; c.lineWidth = 1; c.stroke(); }); c.restore(); } // 불기둥을 지나온 탄: 별 꼬리
       c.save(); c.translate(s.x, s.y); c.scale(.95, .95); drawShell(c, s.sh, this.clock, Math.atan2(s.vy, s.vx)); c.restore();
       if (s.y < 0) { c.fillStyle = '#c92a2a'; c.beginPath(); c.moveTo(s.x, 4); c.lineTo(s.x - 6, 14); c.lineTo(s.x + 6, 14); c.fill(); }
     });

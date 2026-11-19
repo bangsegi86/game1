@@ -517,7 +517,7 @@ const SHELLS = {
     { n: '불사조', d: '420', key: 'phoenix', trail: 'fire', boom: 'fire', R: 40, sp: 'phoenix', desc: '불새가 돌진해 불기둥을 세우고 바닥을 2턴 동안 불태운다.' } ],
   magnet: [
     { n: '자기탄', d: '190', key: 'magball', trail: 'spark', boom: 'electric', color: '#b98cff', R: 22, desc: '전자가 도는 쇠구슬.' },
-    { n: '끌어당김탄', d: '220', key: 'horseshoe', trail: 'spark', boom: 'electric', color: '#ff7a7a', R: 24, desc: '가까운 탱크 쪽으로 휘어 날아간다.' },
+    { n: '끌어당김탄', d: '95', key: 'horseshoe', trail: 'spark', boom: 'electric', color: '#ff7a7a', R: 24, desc: '가까운 탱크 쪽으로 휘어 날아간다.' },
     { n: '자기폭풍', d: '340', key: 'emorb', trail: 'glow', color: '#b98cff', boom: 'electric', R: 40, sp: 'storm', desc: '먹구름이 몰려와 떨어진 자리 주변에 벼락 다섯 줄기가 내리친다.' } ],
   shroom: [
     { n: '포자', d: '170', key: 'spore', trail: 'glow', color: '#c8f06a', boom: 'toxic', R: 22, desc: '반짝이는 포자 덩어리.' },
@@ -545,7 +545,7 @@ const PHYS = {
   hammer: [{ dmg: 260, r: 30, cr: 30, wind: .5, wt: 1.2 }, { dmg: 230, r: 44, cr: [70, 24], wind: .6, wt: 1.2, shape: 'ellipse' }, { dmg: 480, r: 56, cr: 64, wind: .4, wt: 1.3 }],
   cloud:  [{ dmg: 180, r: 30, cr: 18, wind: 1.2, wt: .9 }, { dmg: 210, r: 30, cr: 26, wind: 0, wt: 1 }, { dmg: 300, r: 70, cr: 20, wind: 1.5, wt: .8, fx: 'push' }],
   bee:    [{ dmg: 190, r: 30, cr: 30, wind: 1, wt: 1 }, { dmg: 160, r: 36, cr: 22, wind: 1, wt: 1, fx: 'burn' }, { dmg: 420, r: 50, cr: 48, wind: .7, wt: .9 }],
-  magnet: [{ dmg: 190, r: 30, cr: 30, wind: 1, wt: 1 }, { dmg: 220, r: 30, cr: 30, wind: 1, wt: 1, fx: 'home' }, { dmg: 340, r: 64, cr: 40, wind: .8, wt: 1 }],
+  magnet: [{ dmg: 190, r: 30, cr: 30, wind: 1, wt: 1 }, { dmg: 95, r: 26, cr: 24, wind: 1, wt: 1, fx: 'home' }, { dmg: 340, r: 64, cr: 40, wind: .8, wt: 1 }],
   shroom: [{ dmg: 170, r: 30, cr: 26, wind: 1.4, wt: .8 }, { dmg: 70, r: 20, cr: 14, wind: 1.4, wt: .8, spread: [-3, -1.5, 0, 1.5, 3], pspread: [.84, .92, 1, 1.08, 1.16] }, { dmg: 240, r: 60, cr: 30, wind: 1, wt: 1, fx: 'poison' }],
   whale:  [{ dmg: 200, r: 32, cr: 30, wind: .9, wt: 1.1 }, { dmg: 150, r: 32, cr: 16, wind: 1, wt: 1, fx: 'freeze' }, { dmg: 400, r: 62, cr: 40, wind: .6, wt: 1.2 }],
   super:  [{ dmg: 230, r: 32, cr: 30, wind: .8, wt: 1 }, { dmg: 140, r: 26, cr: 22, wind: .8, wt: 1, spread: [-1, 1], pspread: [.97, 1.03] }, { dmg: 75, r: 26, cr: 18, wind: .3, wt: .8, spread: [-10, -6, -2, 2, 6, 10], pspread: [.92, .96, 1, 1, 1.04, 1.08], fx: 'missile' }],
@@ -560,7 +560,6 @@ const ITEMS = [
   { id: 'repair', n: '수리킷', size: 1, delay: 60, d: '내 탱크 체력을 150 회복한다.', tip: '체력 +150' },
   { id: 'teamrepair', n: '팀 수리킷', size: 1, delay: 120, d: '우리 팀 전원의 체력을 90씩 회복한다.', tip: '팀 전원 +90' },
   { id: 'teleport', n: '순간이동탄', size: 1, delay: 100, d: '포탄이 떨어진 자리로 내 탱크가 옮겨 간다.', tip: '떨어진 곳으로 이동' },
-  { id: 'calm', n: '바람정지', size: 1, delay: 50, d: '이번 턴만 바람이 0이 된다.', tip: '바람 0' },
   { id: 'shield', n: '보호막', size: 1, delay: 70, d: '다음 내 턴까지 받는 피해가 절반이 된다.', tip: '받는 피해 -50%' },
   { id: 'fuel', n: '연료통', size: 1, delay: 30, d: '이번 턴 이동 연료가 두 배가 된다.', tip: '이동 연료 ×2' },
 ];

@@ -51,7 +51,7 @@ test('로비 채팅, 방 만들기·입장·준비·시작, 중복 접속', asyn
   assert.equal((await emit(sb, 'room:join', { roomId: made.room.id, password: 'x' })).ok, false);
   const joined = await emit(sb, 'room:join', { roomId: made.room.id, password: '7' });
   assert.ok(joined.ok); assert.equal(joined.room.slots[4].nickname, '각도장인');
-  assert.ok((await emit(sb, 'room:update', { tankId: 'laser', items: ['teleport', 'repair', 'shield', 'calm'] })).ok);
+  assert.ok((await emit(sb, 'room:update', { tankId: 'laser', items: ['teleport', 'repair', 'shield', 'fuel'] })).ok);
   assert.equal((await emit(sa, 'room:start')).ok, false, '준비 전에는 시작 불가');
   assert.ok((await emit(sb, 'room:ready', { ready: true })).ok);
   const started = once(sb, 'game:start'), firstTurn = once(sb, 'game:turn');
