@@ -335,6 +335,8 @@ export class Renderer {
     (S.crates || []).forEach(cr => drawCrate(c, cr, this.t));
     S.tanks.forEach(t => this.drawTank(c, t, o));
     S.shells.forEach(s => {
+      // 순간이동탄은 탱크와 상관없이 같은 보라색 차원문 구슬로 그린다
+      if (s.teleport) { drawWarpShell(c, s.x, s.y, this.t, Math.atan2(s.vy, s.vx), s.trail.slice(1)); if (s.y < 0) { c.fillStyle = '#7b2fbf'; c.beginPath(); c.moveTo(s.x, 4); c.lineTo(s.x - 6, 14); c.lineTo(s.x + 6, 14); c.fill(); } return; }
       if (s.sh.shape === 'line') { c.save(); c.lineCap = 'round'; c.strokeStyle = 'rgba(47,224,255,.55)'; c.lineWidth = 10; c.beginPath(); c.moveTo(s.sx, s.sy); c.lineTo(s.x, s.y); c.stroke(); c.strokeStyle = '#fff'; c.lineWidth = 3; c.stroke(); c.restore(); return; }
       const art = SHELLS[s.tankId][s.slot];
       trail(c, art, s.trail.slice(1), this.t);

@@ -629,6 +629,21 @@ function rock(c, s, rot, seed) {
   c.closePath(); fs(c, vg(c, -s, s, '#c9b196', '#8a7058', '#5a4636'), 2.2);
   c.fillStyle = 'rgba(255,255,255,.35)'; ell(c, -s * .3, -s * .35, s * .3, s * .15, -.5); c.fill(); c.restore();
 }
+// 순간이동탄: 어느 탱크가 쏘든 같은 모양. 보라색 빛 구슬 + 두 겹으로 도는 차원문 고리 + 반짝이 꼬리
+function drawWarpShell(c, x, y, t, ang, trailPts) {
+  c.save();
+  if (trailPts) trailPts.forEach(([tx, ty], i) => {
+    const k = 1 - i / trailPts.length; c.globalAlpha = .7 * k;
+    c.fillStyle = i % 2 ? '#b98cff' : '#7b2fbf'; c.beginPath(); c.arc(tx, ty, 2 + 6 * k, 0, Math.PI * 2); c.fill();
+    if (i % 3 === 1) { c.globalAlpha = k; c.fillStyle = '#f3ecff'; star(c, tx + Math.sin(i * 2.1 + t * 8) * 6, ty + Math.cos(i * 1.7 + t * 7) * 6, 4 * k + 1.5, 1.4, 4, t * 4 + i); c.fill(); }
+  });
+  c.globalAlpha = 1; c.translate(x, y);
+  const halo = c.createRadialGradient(0, 0, 2, 0, 0, 22); halo.addColorStop(0, 'rgba(214,184,255,.9)'); halo.addColorStop(1, 'rgba(123,47,191,0)'); c.fillStyle = halo; c.beginPath(); c.arc(0, 0, 22, 0, Math.PI * 2); c.fill();
+  for (let k = 0; k < 2; k++) { c.save(); c.rotate(t * (k ? -5 : 6) + k); c.scale(1, .42); c.beginPath(); c.arc(0, 0, 15 - k * 3, 0, Math.PI * 1.6); c.strokeStyle = k ? '#efe4ff' : '#9d5cf0'; c.lineWidth = 3.2; c.lineCap = 'round'; c.stroke(); c.restore(); }
+  const core = c.createRadialGradient(-2, -2, 1, 0, 0, 8); core.addColorStop(0, '#ffffff'); core.addColorStop(.45, '#d4b8ff'); core.addColorStop(1, '#5b2a9e'); c.fillStyle = core; c.beginPath(); c.arc(0, 0, 7.5, 0, Math.PI * 2); c.fill();
+  c.strokeStyle = '#2a1347'; c.lineWidth = 1.6; c.stroke();
+  c.restore();
+}
 function drawShell(c, sh, t, ang) {
   c.lineJoin = 'round'; c.lineCap = 'round';
   switch (sh.key) {
