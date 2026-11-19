@@ -3281,6 +3281,37 @@
       }).join("");
       ssPop = false;
     }
+    const markStore = { get() {
+      try {
+        const v = localStorage.getItem("powMark");
+        return v == null ? null : +v;
+      } catch {
+        return null;
+      }
+    }, set(v) {
+      try {
+        localStorage.setItem("powMark", v);
+      } catch {
+      }
+    } };
+    function showMark(v) {
+      const m = $("powMark");
+      if (v == null || !isFinite(v)) {
+        m.hidden = true;
+        return;
+      }
+      m.hidden = false;
+      m.style.left = v + "%";
+      $("powMarkNum").textContent = Math.round(v);
+    }
+    showMark(markStore.get());
+    $("powGauge").addEventListener("pointerdown", (e) => {
+      const r = $("powGauge").getBoundingClientRect();
+      const v = Math.max(0, Math.min(100, (e.clientX - r.left) / r.width * 100));
+      const rv = Math.round(v * 10) / 10;
+      markStore.set(rv);
+      showMark(rv);
+    });
     $("weapons").addEventListener("click", (e) => {
       const b = e.target.closest("button");
       if (b && !b.disabled) {

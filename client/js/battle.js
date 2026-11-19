@@ -118,6 +118,11 @@ export function createBattle({ socket, me, toast, onExit, onQuit }) {
     }).join('');
     ssPop = false;
   }
+  // 파워 게이지를 누르면 그 자리(0~100)에 표시를 남긴다. 새로 누르면 옮겨지고, 다음 판에도 남는다(이 브라우저에 저장)
+  const markStore = { get() { try { const v = localStorage.getItem('powMark'); return v == null ? null : +v; } catch { return null; } }, set(v) { try { localStorage.setItem('powMark', v); } catch {} } };
+  function showMark(v) { const m = $('powMark'); if (v == null || !isFinite(v)) { m.hidden = true; return; } m.hidden = false; m.style.left = v + '%'; $('powMarkNum').textContent = Math.round(v); }
+  showMark(markStore.get());
+  $('powGauge').addEventListener('pointerdown', e => { const r = $('powGauge').getBoundingClientRect(); const v = Math.max(0, Math.min(100, (e.clientX - r.left) / r.width * 100)); const rv = Math.round(v * 10) / 10; markStore.set(rv); showMark(rv); });
   $('weapons').addEventListener('click', e => { const b = e.target.closest('button'); if (b && !b.disabled) { weapon = +b.dataset.w; renderWeapons(); } });
   function renderItems() {
     // 쓴 아이템은 가방에서 사라진다. 단축키 Q~Y는 남은 아이템 순서대로 붙는다

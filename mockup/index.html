@@ -276,6 +276,14 @@ td.red { color: var(--red); font-weight: 700; } td.blue { color: var(--blue); fo
 @media (max-width: 1180px) { .hud { grid-template-columns: auto minmax(0, 1fr) auto; } .game { --reserve: 485px; } }
 @media (max-width: 860px) { .hud { grid-template-columns: minmax(0, 1fr); } .hud .pad { justify-self: center; } .hud .weapons { grid-template-columns: repeat(3, minmax(0, 1fr)); } .hud .weapons button { min-width: 0; } }
 @media (min-width: 1181px) { .game { --reserve: 380px; } } /* 목업은 위에 머리글과 안내 줄이 더 있다 */
+
+/* 파워 게이지 표시: 누른 자리에 보라색 뒤집힌 세모를 남겨 "이 파워면 이만큼 날아간다"를 기억해 둔다 */
+.hud .gauge.pow { overflow: visible; cursor: pointer; }
+.gauge.pow .fill { border-radius: 5px 0 0 5px; }
+.gauge.pow .mark { position: absolute; top: -9px; bottom: -2px; width: 0; transform: translateX(-50%); pointer-events: none; }
+.gauge.pow .mark::before { content: ''; position: absolute; left: -7px; top: 0; border: 7px solid transparent; border-top: 9px solid #b46cff; border-bottom: 0; filter: drop-shadow(0 1px 1px rgba(0,0,0,.6)); }
+.gauge.pow .mark::after { content: ''; position: absolute; left: -1px; top: 8px; bottom: 0; width: 2px; background: rgba(190,130,255,.85); }
+.gauge.pow .mark b { position: absolute; top: 9px; left: 4px; font-size: 10px; line-height: 14px; color: #e3ccff; font-weight: 700; white-space: nowrap; text-shadow: 0 1px 2px rgba(0,0,0,.8); }
 </style>
 
 <header class="topbar">
@@ -482,7 +490,7 @@ td.red { color: var(--red); font-weight: 700; } td.blue { color: var(--blue); fo
         <div class="gauges">
           <div class="gauge-row"><span>체력</span><div class="gauge thin"><div class="fill" id="hpFill" style="background:var(--red)"></div></div><span class="num" id="hpNum">0</span></div>
           <div class="gauge-row"><span>이동</span><div class="gauge thin fuel"><div class="fill" id="fuelFill"></div></div><span class="num" id="fuelNum">100</span></div>
-          <div class="gauge-row"><span>파워</span><div class="gauge"><div class="fill" id="powFill"></div><div class="ticks"></div><div class="last" id="powLast"></div></div><span class="num" id="powNum">0</span></div>
+          <div class="gauge-row"><span>파워</span><div class="gauge pow" id="powGauge" title="누르면 그 자리에 표시가 남아요 (다시 누르면 옮겨져요)"><div class="fill" id="powFill"></div><div class="ticks"></div><div class="last" id="powLast"></div><div class="mark" id="powMark" hidden><b id="powMarkNum"></b></div></div><span class="num" id="powNum">0</span></div>
         </div>
       </div>
       <div class="lcdbox"><div class="lcd"><span>대기</span><b class="num" id="delayNum">0</b></div><div class="lcd big"><span>남은 시간</span><b class="num" id="timer">–</b></div></div>

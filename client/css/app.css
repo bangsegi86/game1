@@ -294,3 +294,11 @@ td.win { color: var(--good); font-weight: 700; } td.lose { color: var(--muted); 
 .hud .pad .fire small { font-size: 11px; font-family: var(--font-body, sans-serif); opacity: .85; }
 @media (max-width: 1180px) { .hud { grid-template-columns: auto minmax(0, 1fr) auto; } .game { --reserve: 430px; } }
 @media (max-width: 860px) { .hud { grid-template-columns: minmax(0, 1fr); } .hud .pad { justify-self: center; } .hud .weapons { grid-template-columns: repeat(3, minmax(0, 1fr)); } .hud .weapons button { min-width: 0; } }
+
+/* 파워 게이지 표시: 누른 자리에 보라색 뒤집힌 세모를 남겨 "이 파워면 이만큼 날아간다"를 기억해 둔다 */
+.hud .gauge.pow { overflow: visible; cursor: pointer; }
+.gauge.pow .fill { border-radius: 5px 0 0 5px; }
+.gauge.pow .mark { position: absolute; top: -9px; bottom: -2px; width: 0; transform: translateX(-50%); pointer-events: none; }
+.gauge.pow .mark::before { content: ''; position: absolute; left: -7px; top: 0; border: 7px solid transparent; border-top: 9px solid #b46cff; border-bottom: 0; filter: drop-shadow(0 1px 1px rgba(0,0,0,.6)); }
+.gauge.pow .mark::after { content: ''; position: absolute; left: -1px; top: 8px; bottom: 0; width: 2px; background: rgba(190,130,255,.85); }
+.gauge.pow .mark b { position: absolute; top: 9px; left: 4px; font-size: 10px; line-height: 14px; color: #e3ccff; font-weight: 700; white-space: nowrap; text-shadow: 0 1px 2px rgba(0,0,0,.8); }
