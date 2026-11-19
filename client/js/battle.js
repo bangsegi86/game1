@@ -14,6 +14,7 @@ export function createBattle({ socket, me, toast, onExit, onQuit }) {
   let cam = { x: 0, y: 0 }, camHold = 0, chatLines = [];
   let sim = null, ren = null, start = null, bag = [], ssUsed = false, turn = null, deadline = 0, phase = 'idle', order = [];
   let lastTick = 0, flags = {}, weapon = 0, power = 0, charging = false, turnItemUsed = false, keys = {}, sentDir = 0, lastAimSent = 0, aimDirty = false, acc = 0, last = 0, running = false;
+  const BAG_SLOTS = 6; // 가방 칸 수(빈칸도 보여 준다)
   const myTank = () => sim?.tankOf(me());
   const mine = () => phase === 'aim' && turn?.uid === me();
 
@@ -72,7 +73,7 @@ export function createBattle({ socket, me, toast, onExit, onQuit }) {
     },
     'game:pickup': d => {
       if (!sim) return;
-      if (d.uid === me()) { bag.push({ id: d.item, used: false }); renderItems(); play('item'); toast(`보급품을 주웠어요: ${itemById(d.item).n}`); }
+      if (d.uid === me()) { bag[d.index] = { id: d.item, used: false }; renderItems(); play('item'); toast(`보급품을 주웠어요: ${itemById(d.item).n}`); }
       else { const t = sim.tankOf(d.uid); if (t) toast(`${t.name}님이 보급품(${itemById(d.item).n})을 주웠어요.`); }
     },
     'game:shot': d => {
@@ -125,18 +126,20 @@ export function createBattle({ socket, me, toast, onExit, onQuit }) {
   $('powGauge').addEventListener('pointerdown', e => { const r = $('powGauge').getBoundingClientRect(); const v = Math.max(0, Math.min(100, (e.clientX - r.left) / r.width * 100)); const rv = Math.round(v * 10) / 10; markStore.set(rv); showMark(rv); });
   $('weapons').addEventListener('click', e => { const b = e.target.closest('button'); if (b && !b.disabled) { weapon = +b.dataset.w; renderWeapons(); } });
   function renderItems() {
-    // 쓴 아이템은 가방에서 사라진다. 단축키 Q~Y는 남은 아이템 순서대로 붙는다
-    const el = $('gameItems'); el.innerHTML = ''; let key = 0;
-    if (!bag.some(b => !b.used)) el.innerHTML = '<span class="empty">가방이 비었어요</span>';
-    bag.forEach((b, i) => {
-      if (b.used) return;
-      const it = itemById(b.id), k = 'QWERTY'[key]; key++;
-      const btn = document.createElement('button'); btn.className = `item ${it.size === 2 ? 'w2' : ''} ${b.used ? 'used' : ''}`; btn.disabled = b.used || turnItemUsed || !mine(); btn.title = it.d;
-      const c = document.createElement('canvas'); c.style.width = c.style.height = '36px'; c.width = c.height = 36 * DPR; const g = c.getContext('2d'); g.setTransform(DPR, 0, 0, DPR, 0, 0); g.translate(18, 18); g.scale(36 / 64, 36 / 64); drawItemIcon(g, b.id, 0, true);
-      btn.append(c); btn.insertAdjacentHTML('beforeend', `<div><b>${k ? `<kbd>${k}</kbd> ` : ''}${it.n}</b><small>${b.used ? '사용함' : it.tip}</small></div>`);
+    // 가방 칸은 그대로 두고, 쓴 아이템 칸만 비운다. 단축키 Q~Y는 칸 자리마다 고정. 보급품은 빈칸에 들어온다
+    const el = $('gameItems'); el.innerHTML = ''; const n = Math.max(BAG_SLOTS, bag.length), can = !turnItemUsed && mine();
+    for (let i = 0; i < n; i++) {
+      const b = bag[i], k = 'QWERTY'[i] || '';
+      const btn = document.createElement('button'); btn.type = 'button';
+      if (!b || b.used) { btn.className = 'tile empty'; btn.disabled = true; btn.setAttribute('aria-label', `${k} 빈칸`); btn.innerHTML = k ? `<span class="k">${k}</span>` : ''; el.append(btn); continue; }
+      const it = itemById(b.id);
+      btn.className = 'tile' + (can ? '' : ' off'); btn.disabled = !can; btn.setAttribute('aria-label', `${k} ${it.n}`);
+      const c = document.createElement('canvas'); c.width = c.height = 34 * DPR; const g = c.getContext('2d'); g.setTransform(DPR, 0, 0, DPR, 0, 0); g.translate(17, 17); g.scale(34 / 64, 34 / 64); drawItemIcon(g, b.id, 0, true);
+      btn.append(c); btn.insertAdjacentHTML('beforeend', `${k ? `<span class="k">${k}</span>` : ''}<span class="tip">${it.n}<small>${it.tip}</small></span>`);
       btn.onclick = () => useItem(i); el.append(btn);
-    });
+    }
   }
+
   function useItem(i) { if (!mine() || turnItemUsed || bag[i]?.used) return; socket().emit('game:item', { index: i }, r => { if (r && !r.ok) toast(r.error, true); }); }
   (function ticks() { const g = $('dialTicks'); if (!g || g.childNodes.length) return; let h = ''; for (let d = 0; d < 360; d += 15) { const r0 = d % 45 ? 46 : 42, a = d * Math.PI / 180; h += `<line x1="${60 + r0 * Math.cos(a)}" y1="${60 - r0 * Math.sin(a)}" x2="${60 + 50 * Math.cos(a)}" y2="${60 - 50 * Math.sin(a)}" stroke="#4a62a0" stroke-width="${d % 45 ? 1 : 1.6}"/>`; } g.innerHTML = h; })();
   function hud() {
@@ -302,7 +305,7 @@ export function createBattle({ socket, me, toast, onExit, onQuit }) {
     if (letter === 'p' && !e.repeat) pass();
     if (num === 1 || num === 2) { weapon = num - 1; renderWeapons(); }
     if (num === 3 && !e.repeat) { if (ssReady()) { weapon = 2; renderWeapons(); } else { const t = myTank(); toast(ssUsed ? '필살기는 이미 썼어요.' : `필살기는 체력 50% 이하에서 쓸 수 있어요. (지금 ${t ? Math.round(t.hp / t.max * 100) : 0}%)`, true); } }
-    const qi = 'qwerty'.indexOf(letter); if (qi >= 0 && !e.repeat) { const left = bag.map((b, i) => [b, i]).filter(([b]) => !b.used); if (left[qi]) useItem(left[qi][1]); }
+    const qi = 'qwerty'.indexOf(letter); if (qi >= 0 && !e.repeat && bag[qi] && !bag[qi].used) useItem(qi);
   });
   addEventListener('keyup', e => { const k = KEYMAP[e.key]; if (k) keys[k] = false; if (e.code === 'Space' && active()) { e.preventDefault(); release(); } });
   addEventListener('blur', () => { keys = {}; });

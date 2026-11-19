@@ -284,6 +284,21 @@ td.red { color: var(--red); font-weight: 700; } td.blue { color: var(--blue); fo
 .gauge.pow .mark::before { content: ''; position: absolute; left: -7px; top: 0; border: 7px solid transparent; border-top: 9px solid #b46cff; border-bottom: 0; filter: drop-shadow(0 1px 1px rgba(0,0,0,.6)); }
 .gauge.pow .mark::after { content: ''; position: absolute; left: -1px; top: 8px; bottom: 0; width: 2px; background: rgba(190,130,255,.85); }
 .gauge.pow .mark b { position: absolute; top: 9px; left: 4px; font-size: 10px; line-height: 14px; color: #e3ccff; font-weight: 700; white-space: nowrap; text-shadow: 0 1px 2px rgba(0,0,0,.8); }
+
+/* 아이템 가방: 그림만, 단축키는 왼쪽 위에 겹쳐서. 쓴 칸은 빈칸으로 남는다 */
+.hud .itembar { display: flex; flex-wrap: wrap; gap: 6px; padding-top: 5px; padding-left: 5px; min-height: 0; }
+.hud .itembar .tile { --s: 40px; position: relative; width: var(--s); height: var(--s); border-radius: 9px; border: 1.5px solid var(--amber); background: radial-gradient(circle at 50% 40%, #33497f, #1f2d52 70%); display: grid; place-items: center; padding: 0; cursor: pointer; transition: transform .12s; }
+.hud .itembar .tile:not(:disabled):hover { transform: translateY(-2px); }
+.hud .itembar .tile canvas { width: 34px; height: 34px; }
+.hud .itembar .tile .k { position: absolute; top: -5px; left: -5px; min-width: 15px; height: 15px; padding: 0 3px; border-radius: 5px; background: var(--amber); color: var(--amber-ink); font: 12px/15px var(--font-display, sans-serif); text-align: center; box-shadow: 0 1px 2px rgba(0,0,0,.5); }
+.hud .itembar .tile .tip { position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%); background: #0d1630; border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px; font-size: 12px; white-space: nowrap; color: var(--ink); opacity: 0; pointer-events: none; transition: opacity .12s; z-index: 5; }
+.hud .itembar .tile .tip small { color: var(--muted); margin-left: 4px; }
+.hud .itembar .tile:hover .tip, .hud .itembar .tile:focus-visible .tip { opacity: 1; }
+.hud .itembar .tile.off { border-color: var(--line); opacity: .5; filter: grayscale(.5); cursor: not-allowed; }
+.hud .itembar .tile.off .k { background: #6f7da3; }
+.hud .itembar .tile.empty { border: 1.5px dashed color-mix(in srgb, var(--line) 80%, transparent); background: rgba(13,22,48,.45); cursor: default; opacity: 1; filter: none; }
+.hud .itembar .tile.empty .k { background: #3b4a75; color: #9aa6c8; }
+@media (prefers-reduced-motion: reduce) { .hud .itembar .tile, .hud .itembar .tile .tip { transition: none; } }
 </style>
 
 <header class="topbar">
@@ -488,9 +503,9 @@ td.red { color: var(--red); font-weight: 700; } td.blue { color: var(--blue); fo
       <div class="hud-mid">
         <div class="itembar" id="gameItems"></div>
         <div class="gauges">
-          <div class="gauge-row"><span>체력</span><div class="gauge thin"><div class="fill" id="hpFill" style="background:var(--red)"></div></div><span class="num" id="hpNum">0</span></div>
-          <div class="gauge-row"><span>이동</span><div class="gauge thin fuel"><div class="fill" id="fuelFill"></div></div><span class="num" id="fuelNum">100</span></div>
+          <div class="gauge-row"><span>체력</span><div class="gauge"><div class="fill" id="hpFill" style="background:var(--red)"></div><div class="ticks"></div></div><span class="num" id="hpNum">0</span></div>
           <div class="gauge-row"><span>파워</span><div class="gauge pow" id="powGauge" title="누르면 그 자리에 표시가 남아요 (다시 누르면 옮겨져요)"><div class="fill" id="powFill"></div><div class="ticks"></div><div class="last" id="powLast"></div><div class="mark" id="powMark" hidden><b id="powMarkNum"></b></div></div><span class="num" id="powNum">0</span></div>
+          <div class="gauge-row"><span>이동</span><div class="gauge fuel"><div class="fill" id="fuelFill"></div><div class="ticks"></div></div><span class="num" id="fuelNum">100</span></div>
         </div>
       </div>
       <div class="lcdbox"><div class="lcd"><span>대기</span><b class="num" id="delayNum">0</b></div><div class="lcd big"><span>남은 시간</span><b class="num" id="timer">–</b></div></div>

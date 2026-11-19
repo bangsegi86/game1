@@ -41,7 +41,7 @@ export class GameSession {
     if (this.phase === 'aim' && this.moveDir) { const t = sim.tankOf(this.cur.uid); const used = sim.move(t, this.moveDir, dt); if (used) { this.moveUsed += used; this.dirty = true; } }
     sim.step(dt); sim.fxq.length = 0;
     // 탱크가 보급 상자를 주우면 그 사람 가방에 아이템을 더한다 (이번 턴에 바로 써도 된다)
-    for (const g of sim.picked) { const p = this.player(g.uid); if (!p) continue; p.items.push({ id: g.item, used: false }); this.send('game:pickup', { uid: g.uid, item: g.item, index: p.items.length - 1 }); }
+    for (const g of sim.picked) { const p = this.player(g.uid); if (!p) continue; let i = p.items.findIndex(x => x.used); if (i < 0) i = p.items.length; p.items[i] = { id: g.item, used: false }; this.send('game:pickup', { uid: g.uid, item: g.item, index: i }); } // 빈칸(쓴 칸)에 먼저 넣는다
     sim.picked.length = 0;
     if (this.phase === 'aim') {
       const t = sim.tankOf(this.cur.uid);

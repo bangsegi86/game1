@@ -1579,8 +1579,10 @@
       for (const g of sim.picked) {
         const p = this.player(g.uid);
         if (!p) continue;
-        p.items.push({ id: g.item, used: false });
-        this.send("game:pickup", { uid: g.uid, item: g.item, index: p.items.length - 1 });
+        let i = p.items.findIndex((x) => x.used);
+        if (i < 0) i = p.items.length;
+        p.items[i] = { id: g.item, used: false };
+        this.send("game:pickup", { uid: g.uid, item: g.item, index: i });
       }
       sim.picked.length = 0;
       if (this.phase === "aim") {
@@ -3061,6 +3063,7 @@
     let cam = { x: 0, y: 0 }, camHold = 0, chatLines = [];
     let sim = null, ren = null, start2 = null, bag = [], ssUsed = false, turn = null, deadline = 0, phase = "idle", order = [];
     let lastTick = 0, flags = {}, weapon = 0, power = 0, charging = false, turnItemUsed = false, keys = {}, sentDir = 0, lastAimSent = 0, aimDirty = false, acc = 0, last = 0, running = false;
+    const BAG_SLOTS = 6;
     const myTank = () => sim?.tankOf(me());
     const mine = () => phase === "aim" && turn?.uid === me();
     function begin(s) {
@@ -3191,7 +3194,7 @@
       "game:pickup": (d) => {
         if (!sim) return;
         if (d.uid === me()) {
-          bag.push({ id: d.item, used: false });
+          bag[d.index] = { id: d.item, used: false };
           renderItems();
           play("item");
           toast2(`\uBCF4\uAE09\uD488\uC744 \uC8FC\uC6E0\uC5B4\uC694: ${itemById(d.item).n}`);
@@ -3322,29 +3325,35 @@
     function renderItems() {
       const el = $("gameItems");
       el.innerHTML = "";
-      let key = 0;
-      if (!bag.some((b) => !b.used)) el.innerHTML = '<span class="empty">\uAC00\uBC29\uC774 \uBE44\uC5C8\uC5B4\uC694</span>';
-      bag.forEach((b, i) => {
-        if (b.used) return;
-        const it = itemById(b.id), k = "QWERTY"[key];
-        key++;
+      const n = Math.max(BAG_SLOTS, bag.length), can = !turnItemUsed && mine();
+      for (let i = 0; i < n; i++) {
+        const b = bag[i], k = "QWERTY"[i] || "";
         const btn = document.createElement("button");
-        btn.className = `item ${it.size === 2 ? "w2" : ""} ${b.used ? "used" : ""}`;
-        btn.disabled = b.used || turnItemUsed || !mine();
-        btn.title = it.d;
+        btn.type = "button";
+        if (!b || b.used) {
+          btn.className = "tile empty";
+          btn.disabled = true;
+          btn.setAttribute("aria-label", `${k} \uBE48\uCE78`);
+          btn.innerHTML = k ? `<span class="k">${k}</span>` : "";
+          el.append(btn);
+          continue;
+        }
+        const it = itemById(b.id);
+        btn.className = "tile" + (can ? "" : " off");
+        btn.disabled = !can;
+        btn.setAttribute("aria-label", `${k} ${it.n}`);
         const c = document.createElement("canvas");
-        c.style.width = c.style.height = "36px";
-        c.width = c.height = 36 * DPR;
+        c.width = c.height = 34 * DPR;
         const g = c.getContext("2d");
         g.setTransform(DPR, 0, 0, DPR, 0, 0);
-        g.translate(18, 18);
-        g.scale(36 / 64, 36 / 64);
+        g.translate(17, 17);
+        g.scale(34 / 64, 34 / 64);
         drawItemIcon(g, b.id, 0, true);
         btn.append(c);
-        btn.insertAdjacentHTML("beforeend", `<div><b>${k ? `<kbd>${k}</kbd> ` : ""}${it.n}</b><small>${b.used ? "\uC0AC\uC6A9\uD568" : it.tip}</small></div>`);
+        btn.insertAdjacentHTML("beforeend", `${k ? `<span class="k">${k}</span>` : ""}<span class="tip">${it.n}<small>${it.tip}</small></span>`);
         btn.onclick = () => useItem(i);
         el.append(btn);
-      });
+      }
     }
     function useItem(i) {
       if (!mine() || turnItemUsed || bag[i]?.used) return;
@@ -3757,10 +3766,7 @@
         }
       }
       const qi = "qwerty".indexOf(letter);
-      if (qi >= 0 && !e.repeat) {
-        const left = bag.map((b, i) => [b, i]).filter(([b]) => !b.used);
-        if (left[qi]) useItem(left[qi][1]);
-      }
+      if (qi >= 0 && !e.repeat && bag[qi] && !bag[qi].used) useItem(qi);
     });
     addEventListener("keyup", (e) => {
       const k = KEYMAP[e.key];
