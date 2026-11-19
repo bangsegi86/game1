@@ -342,7 +342,7 @@ const SPECIALS = {
     step(W, s, dt) {
       W.shake = Math.max(W.shake, s.t < .7 ? .25 : 0);
       if (s.t >= .7 && !s.fired) { s.fired = true; W.carveRound(s.x, s.y, s.sh.cr * s.k); const top = W.ground(s.x, 0); if (top < s.y) W.carveRect(s.x - 12, top - 4, 24, s.y - top + 4);
-        W.hurtArea(s.x, Math.min(s.y, top + 10), s.sh.r * s.k + 20, s.sh.dmg * s.k, s.owner, { tall: s.y - top }); W.boomAt(s.sh, s.x, top + 6, s.k); W.debris(s.x, top, 30, 2); W.shake += .8; }
+        W.hurtArea(s.x, Math.min(s.y, top + 10), s.sh.r * s.k, s.sh.dmg * s.k, s.owner, { tall: s.y - top }); W.boomAt(s.sh, s.x, top + 6, s.k); W.debris(s.x, top, 30, 2); W.shake += .8; }
       return s.t < 1.6;
     },
     draw(c, W, s) { if (s.t < .7) { const top = W.ground(s.x, 0), k = s.t / .7; c.strokeStyle = `rgba(40,20,10,${.4 + k * .5})`; c.lineWidth = 2; [-1, 1].forEach(d => { c.beginPath(); c.moveTo(s.x, top + 2); for (let j = 1; j <= 4; j++) c.lineTo(s.x + d * j * 10 * k, top + 2 + (j % 2 ? 5 : 0)); c.stroke(); }); } },

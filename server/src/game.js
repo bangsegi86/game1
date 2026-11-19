@@ -4,6 +4,7 @@ export { opsHash };
 import { botTurn } from './bot.js';
 import { SHELL_STATS, SLOT_DELAY, ITEM_INFO, TURN_BASE_DELAY, SUDDEN_DEATH_TURN } from '../../shared/gamedata.js';
 
+const SUPPLY_CHANCE = .25;
 const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 
 export class GameSession {
@@ -39,6 +40,9 @@ export class GameSession {
     if (this.phase === 'aim' && this.cur?.bot) { this.botWait -= dt; if (this.botWait <= 0) { this.botWait = Infinity; try { botTurn(this, this.cur.uid); } catch (e) { try { this.onPass(this.cur.uid); } catch {} } } }
     if (this.phase === 'aim' && this.moveDir) { const t = sim.tankOf(this.cur.uid); const used = sim.move(t, this.moveDir, dt); if (used) { this.moveUsed += used; this.dirty = true; } }
     sim.step(dt); sim.fxq.length = 0;
+    // 탱크가 보급 상자를 주우면 그 사람 가방에 아이템을 더한다 (이번 턴에 바로 써도 된다)
+    for (const g of sim.picked) { const p = this.player(g.uid); if (!p) continue; p.items.push({ id: g.item, used: false }); this.send('game:pickup', { uid: g.uid, item: g.item, index: p.items.length - 1 }); }
+    sim.picked.length = 0;
     if (this.phase === 'aim') {
       const t = sim.tankOf(this.cur.uid);
       if (t.dead) return this.endTurn();
@@ -71,6 +75,8 @@ export class GameSession {
     sim.turnStart(t);
     if (this.turnNo > 1) sim.wind = Sim.nextWind(sim.wind, sim.map.windMax);
     let event = null; if (this.turnNo > 2) { event = Sim.pickEvent(sim); if (event) sim.addEvent(event); }
+    // 보급 비행기: 다른 돌발 이벤트가 없는 턴에 가끔 지나가며 아이템 상자를 떨어뜨린다 (맵에 상자는 최대 2개)
+    if (!event && this.turnNo > 1 && sim.crates.length < 2 && Math.random() < SUPPLY_CHANCE) { event = Sim.pickSupply(sim); sim.addEvent(event); }
     const sd = this.turnNo > SUDDEN_DEATH_TURN; if (sd) sim.suddenDeath();
     sim.fxq.length = 0;
     this.turnState = { itemUsed: false, flags: {}, itemDelay: 0 }; this.moveUsed = 0; this.moveDir = 0;

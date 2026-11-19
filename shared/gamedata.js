@@ -41,7 +41,7 @@ export const TANK_STATS = {
 };
 // dmg 피해, r 피해 반경, cr 파임 반경, wind 바람계수, wt 무게계수, R 폭발 그림 크기
 export const SHELL_STATS = {
-  mole:   [{ n: '돌탄', dmg: 200, r: 34, cr: 34, wind: 1, wt: 1, R: 24 }, { n: '파편탄', dmg: 110, r: 24, cr: 20, wind: 1, wt: 1, R: 15, spread: [-1.5, 0, 1.5], pspread: [.91, 1, 1.09] }, { n: '땅굴 폭탄', dmg: 380, r: 60, cr: 50, wind: .8, wt: 1.1, R: 36, shape: 'tunnel', sp: 'erupt' }],
+  mole:   [{ n: '돌탄', dmg: 200, r: 34, cr: 34, wind: 1, wt: 1, R: 24 }, { n: '파편탄', dmg: 110, r: 24, cr: 20, wind: 1, wt: 1, R: 15, spread: [-1.5, 0, 1.5], pspread: [.91, 1, 1.09] }, { n: '땅굴 폭탄', dmg: 380, r: 38, cr: 34, wind: .8, wt: 1.1, R: 28, shape: 'tunnel', sp: 'erupt' }],
   hammer: [{ n: '철구', dmg: 260, r: 30, cr: 30, wind: .5, wt: 1.2, R: 24 }, { n: '지진탄', dmg: 230, r: 44, cr: [70, 24], wind: .6, wt: 1.2, R: 28, shape: 'ellipse' }, { n: '메테오', dmg: 480, r: 56, cr: 64, wind: .4, wt: 1.3, R: 44, sp: 'meteor' }],
   cloud:  [{ n: '물방울', dmg: 180, r: 30, cr: 18, wind: 1.2, wt: .9, R: 22 }, { n: '번개구름', dmg: 210, r: 30, cr: 26, wind: 0, wt: 1, R: 24 }, { n: '폭풍', dmg: 300, r: 70, cr: 20, wind: 1.5, wt: .8, R: 40, sp: 'tornado' }],
   bee:    [{ n: '불씨', dmg: 190, r: 30, cr: 30, wind: 1, wt: 1, R: 22 }, { n: '화염병', dmg: 160, r: 36, cr: 22, wind: 1, wt: 1, R: 26, fx: 'burn' }, { n: '불사조', dmg: 420, r: 50, cr: 48, wind: .7, wt: .9, R: 40, sp: 'phoenix' }],

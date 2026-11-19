@@ -70,6 +70,11 @@ export function createBattle({ socket, me, toast, onExit, onQuit }) {
       sim.restore(d.snapshot);
       if (d.uid === me()) { bag[d.index].used = true; flags = { ...(d.flags || {}) }; } turnItemUsed = true; renderItems(); play('item');
     },
+    'game:pickup': d => {
+      if (!sim) return;
+      if (d.uid === me()) { bag.push({ id: d.item, used: false }); renderItems(); play('item'); toast(`보급품을 주웠어요: ${itemById(d.item).n}`); }
+      else { const t = sim.tankOf(d.uid); if (t) toast(`${t.name}님이 보급품(${itemById(d.item).n})을 주웠어요.`); }
+    },
     'game:shot': d => {
       if (!sim) return; sim.restore(d.snapshot); const t = sim.tankOf(d.uid); t.angle = d.angle; t.movingVis = false;
       sim.fire(t, d.slot, d.power, d.opts); phase = 'resolve'; charging = false;
@@ -120,7 +125,7 @@ export function createBattle({ socket, me, toast, onExit, onQuit }) {
       const it = itemById(b.id), k = 'QWERTY'[key]; key += it.size;
       const btn = document.createElement('button'); btn.className = `item ${it.size === 2 ? 'w2' : ''} ${b.used ? 'used' : ''}`; btn.disabled = b.used || turnItemUsed || !mine(); btn.title = it.d;
       const c = document.createElement('canvas'); c.style.width = c.style.height = '36px'; c.width = c.height = 36 * DPR; const g = c.getContext('2d'); g.setTransform(DPR, 0, 0, DPR, 0, 0); g.translate(18, 18); g.scale(36 / 64, 36 / 64); drawItemIcon(g, b.id, 0, true);
-      btn.append(c); btn.insertAdjacentHTML('beforeend', `<div><b><kbd>${k}</kbd> ${it.n}</b><small>${b.used ? '사용함' : it.tip}</small></div>`);
+      btn.append(c); btn.insertAdjacentHTML('beforeend', `<div><b>${k ? `<kbd>${k}</kbd> ` : ''}${it.n}</b><small>${b.used ? '사용함' : it.tip}</small></div>`);
       btn.onclick = () => useItem(i); el.append(btn);
     });
   }
@@ -164,6 +169,7 @@ export function createBattle({ socket, me, toast, onExit, onQuit }) {
     if (sim && !$('s-game').hidden) {
       acc = Math.min(acc + dt, .5);
       while (acc >= DT) { acc -= DT; sim.step(DT); }
+      sim.picked.length = 0; // 가방에 넣는 건 서버가 알려 준다 (game:pickup)
       ren.update(dt);
       if (mine()) {
         const t = myTank(), dir = keys.left ? -1 : keys.right ? 1 : 0;

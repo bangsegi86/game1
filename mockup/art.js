@@ -502,7 +502,7 @@ const SHELLS = {
   mole: [
     { n: '돌탄', d: '200', key: 'rock', trail: 'dust', boom: 'dirt', R: 24, desc: '빙글빙글 구르며 날아가는 단단한 돌덩이.' },
     { n: '파편탄', d: '110 × 3', key: 'pebble', count: 3, trail: 'dust', boom: 'dirt', R: 15, desc: '세 갈래로 흩어지는 자갈 세 발.' },
-    { n: '땅굴 폭탄', d: '380', key: 'drill', trail: 'smoke', boom: 'dirt', R: 36, sp: 'erupt', desc: '드릴이 땅속으로 파고든 뒤 땅이 갈라지며 아래에서 터져 오른다.' } ],
+    { n: '땅굴 폭탄', d: '380', key: 'drill', trail: 'smoke', boom: 'dirt', R: 28, sp: 'erupt', desc: '드릴이 땅속으로 파고든 뒤 땅이 갈라지며 아래에서 터져 오른다.' } ],
   hammer: [
     { n: '철구', d: '260', key: 'ironball', trail: 'smoke', boom: 'dirt', R: 24, desc: '쇠사슬 달린 쇠공. 무거워서 바람을 덜 탄다.' },
     { n: '지진탄', d: '230', key: 'quake', trail: 'smoke', boom: 'quake', R: 28, desc: '주변 땅을 흔들어 탱크를 미끄러뜨린다.' },
@@ -541,7 +541,7 @@ SHELLS.super = [
 /* 포탄 물리 (설계서 '포탄 물리와 지형 파임' 표와 같은 값)
    dmg 피해, r 피해 반경, cr 파임 반경(타원은 [가로, 세로]), wind 바람계수, wt 무게계수, shape 파임 모양, fx 특수 효과 */
 const PHYS = {
-  mole:   [{ dmg: 200, r: 34, cr: 34, wind: 1, wt: 1 }, { dmg: 110, r: 24, cr: 20, wind: 1, wt: 1, spread: [-1.5, 0, 1.5], pspread: [.91, 1, 1.09] }, { dmg: 380, r: 60, cr: 50, wind: .8, wt: 1.1, shape: 'tunnel' }],
+  mole:   [{ dmg: 200, r: 34, cr: 34, wind: 1, wt: 1 }, { dmg: 110, r: 24, cr: 20, wind: 1, wt: 1, spread: [-1.5, 0, 1.5], pspread: [.91, 1, 1.09] }, { dmg: 380, r: 38, cr: 34, wind: .8, wt: 1.1, shape: 'tunnel' }],
   hammer: [{ dmg: 260, r: 30, cr: 30, wind: .5, wt: 1.2 }, { dmg: 230, r: 44, cr: [70, 24], wind: .6, wt: 1.2, shape: 'ellipse' }, { dmg: 480, r: 56, cr: 64, wind: .4, wt: 1.3 }],
   cloud:  [{ dmg: 180, r: 30, cr: 18, wind: 1.2, wt: .9 }, { dmg: 210, r: 30, cr: 26, wind: 0, wt: 1 }, { dmg: 300, r: 70, cr: 20, wind: 1.5, wt: .8, fx: 'push' }],
   bee:    [{ dmg: 190, r: 30, cr: 30, wind: 1, wt: 1 }, { dmg: 160, r: 36, cr: 22, wind: 1, wt: 1, fx: 'burn' }, { dmg: 420, r: 50, cr: 48, wind: .7, wt: .9 }],

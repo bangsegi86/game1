@@ -2,12 +2,15 @@
 // 화면에 보여줄 일(폭발, 숫자, 땅 파기 등)은 this.fxq에 쌓고 화면이 꺼내 쓴다.
 import { MAPS, MK } from './maps.js';
 import { MaskCtx, fillPolys, raggedPoly, hash } from './raster.js';
-import { TANK_STATS, SHELL_STATS } from '../gamedata.js';
+import { TANK_STATS, SHELL_STATS, ITEM_INFO } from '../gamedata.js';
 
 // 맵은 화면(960×480)보다 넓은 1440×600. 화면은 카메라로 일부만 보여 준다
 export const G0 = 380, SPEED = 6.6, WINDK = 14, DT = 1 / 60, WORLD_W = 1440, WORLD_H = 600;
 const STEEL = MK.steel, LEAF = MK.leaf, WOOD = MK.wood, PLANK = MK.plank;
 const CLIMB = 24; // 구덩이 가장자리까지 이만큼(px) 이하로 깊으면 가파른 벽도 기어 나온다
+// 보급 비행기: 속도(px/초), 나는 높이, 떨어뜨리는 아이템
+export const PLANE_SPEED = 420, PLANE_Y = 70;
+const SUPPLY_ITEMS = ['repair', 'power', 'double', 'teleport', 'shield', 'fuel', 'calm', 'repair', 'power'];
 const BASE = new Map();
 export function baseGrid(mapId, w, h) {
   const key = `${mapId}:${w}x${h}`;
@@ -20,7 +23,7 @@ const ease = u => u < 0 ? 0 : u > 1 ? 1 : u * u * (3 - 2 * u);
 const r1 = v => Math.round(v * 10) / 10;
 
 export const EVENT_INFO = {
-  tornado: { n: '회오리', turns: 2 }, pillar: { n: '불기둥', turns: 2 }, meteors: { n: '운석 소나기', turns: 0 }, lightning: { n: '벼락', turns: 0 },
+  supply: { n: '보급 비행기', turns: 0 }, tornado: { n: '회오리', turns: 2 }, pillar: { n: '불기둥', turns: 2 }, meteors: { n: '운석 소나기', turns: 0 }, lightning: { n: '벼락', turns: 0 },
 };
 
 export class Sim {
@@ -31,6 +34,7 @@ export class Sim {
     this.grid = baseGrid(this.mapId, this.w, this.h); this.ops = [];
     this.g = G0 * this.map.grav; this.liquidY = this.map.liquid ? this.map.liquid.y * this.h : this.h + 30;
     this.tanks = []; this.shells = []; this.specials = []; this.events = []; this.zones = []; this.pending = [];
+    this.crates = []; this.crateId = 0; this.picked = []; // 보급 상자와, 이번에 주운 것(서버가 가방에 넣는다)
     this.clock = 0; this.wind = { ang: 0, str: 0 }; this.fxq = []; this.teleported = false;
   }
   fx(type, d = {}) { this.fxq.push({ type, ...d }); }
@@ -209,7 +213,7 @@ export class Sim {
         if (s.t >= 1.15 && !s.fired) { s.fired = true; W.carveRound(s.x, s.gy, s.sh.cr * s.k); W.hurtArea(s.x, s.gy - 10, s.sh.r * s.k, s.sh.dmg * s.k, s.owner); W.boom(s.x, s.gy, { ...s.base, R: s.base.R * 1.2, debris: 26, power: 1.6, shake: 1.1 }); }
         return s.t < 2;
       case 'erupt':
-        if (s.t >= .7 && !s.fired) { s.fired = true; W.carveRound(s.x, s.y, s.sh.cr * s.k); const top = W.ground(s.x, 0); if (top < s.y) W.carveRect(s.x - 12, top - 4, 24, s.y - top + 4); W.hurtArea(s.x, Math.min(s.y, top + 10), s.sh.r * s.k + 20, s.sh.dmg * s.k, s.owner, { tall: s.y - top }); W.boom(s.x, top + 6, { ...s.base, debris: 30, power: 2, shake: .8 }); }
+        if (s.t >= .7 && !s.fired) { s.fired = true; W.carveRound(s.x, s.y, s.sh.cr * s.k); const top = W.ground(s.x, 0); if (top < s.y) W.carveRect(s.x - 12, top - 4, 24, s.y - top + 4); W.hurtArea(s.x, Math.min(s.y, top + 10), s.sh.r * s.k, s.sh.dmg * s.k, s.owner, { tall: s.y - top }); W.boom(s.x, top + 6, { ...s.base, debris: 30, power: 2, shake: .8 }); }
         return s.t < 1.6;
       case 'tornado':
         if (s.t < 2.6) { s.x += s.dir * 130 * dt; s.gy = W.ground(s.x, 0); }
@@ -242,7 +246,12 @@ export class Sim {
     if (type === 'meteors') e.xs = [0, 1, 2].map(() => Math.round(80 + rnd() * (sim.w - 160)));
     return e;
   }
-  addEvent(spec) { const e = { ...spec, t: 0, turns: EVENT_INFO[spec.type].turns, hit: new Set(), done: [] }; this.events.push(e); this.fx('banner', { text: '돌발! ' + EVENT_INFO[spec.type].n }); return e; }
+  // 보급 비행기: 화면 한쪽에서 날아와 정한 자리에 낙하산 상자를 떨어뜨린다
+  static pickSupply(sim, rnd = Math.random) {
+    return { type: 'supply', x: Math.round(140 + rnd() * (sim.w - 280)), dir: rnd() < .5 ? 1 : -1, item: SUPPLY_ITEMS[Math.floor(rnd() * SUPPLY_ITEMS.length)] };
+  }
+  static planeX(sim, e) { return e.dir > 0 ? -90 + PLANE_SPEED * e.t : sim.w + 90 - PLANE_SPEED * e.t; }
+  addEvent(spec) { const e = { ...spec, t: 0, turns: EVENT_INFO[spec.type].turns, hit: new Set(), done: [] }; this.events.push(e); this.fx('banner', { text: spec.type === 'supply' ? '보급 비행기가 지나가요!' : '돌발! ' + EVENT_INFO[spec.type].n }); return e; }
   stepEvents(dt) {
     for (const e of this.events) {
       e.t += dt;
@@ -250,9 +259,23 @@ export class Sim {
       if (e.type === 'tornado') e.gy = Math.min(this.ground(e.x, 0), this.liquidY);
       if (e.type === 'pillar') { e.gy = this.ground(e.x, 0); if (e.t > 1 && !e.done[0]) { e.done[0] = true; this.fx('shake', { v: .3 }); } }
       if (e.type === 'meteors') e.xs.forEach((x, i) => { const tt = .4 + i * .45; if (e.t > tt + .7 && !e.done[i]) { e.done[i] = true; const y = this.ground(x, 0); this.carveRound(x, y, 26); this.hurtArea(x, y - 10, 26, 90, null); this.boom(x, y, { kind: 'fire', R: 28, debris: 12, shake: .3 }); } });
+      if (e.type === 'supply' && !e.done[0] && (e.dir > 0 ? Sim.planeX(this, e) >= e.x : Sim.planeX(this, e) <= e.x)) { e.done[0] = true; this.crates.push({ id: ++this.crateId, x: e.x, y: PLANE_Y + 14, vy: 0, item: e.item, para: true, landed: false }); }
       if (e.type === 'lightning' && e.t > .7 && !e.done[0]) { e.done[0] = true; const y = this.ground(e.x, 0); this.carveRound(e.x, y, 18); this.hurtArea(e.x, y - 10, 24, 110, null); this.boom(e.x, y, { kind: 'electric', R: 22, color: '#bfe0ff', shake: .35 }); }
     }
-    this.events = this.events.filter(e => e.type === 'meteors' ? e.t < 2.4 : e.type === 'lightning' ? e.t < 1.3 : true);
+    this.events = this.events.filter(e => e.type === 'meteors' ? e.t < 2.4 : e.type === 'lightning' ? e.t < 1.3 : e.type === 'supply' ? e.t < (this.w + 180) / PLANE_SPEED : true);
+    this.stepCrates(dt);
+  }
+  // 보급 상자: 낙하산으로 천천히 내려앉고, 밑의 땅이 파이면 다시 떨어진다. 탱크가 닿으면 줍는다
+  stepCrates(dt) {
+    for (const c of this.crates) {
+      const g = this.ground(c.x, Math.max(0, c.y - 2));
+      if (c.y < g - .5) { c.landed = false; c.vy = Math.min(c.vy + 300 * dt, c.para ? 70 : 420); c.y = Math.min(g, c.y + c.vy * dt); if (c.y >= g) { c.landed = true; c.para = false; c.vy = 0; } }
+      else { c.y = g; c.landed = true; c.para = false; c.vy = 0; }
+      if (c.y > this.liquidY || c.y > this.h) { c.gone = true; this.fx('splash', { x: c.x }); continue; }
+      const t = this.tanks.find(t => !t.dead && !t.sunk && Math.abs(t.x - c.x) < 30 && t.y > c.y - 46 && t.y < c.y + 40);
+      if (t) { c.gone = true; this.picked.push({ uid: t.uid, item: c.item }); this.float(c.x, c.y - 50, '보급품: ' + ITEM_INFO[c.item].n, '#2b8a3e'); this.fx('pickup', { uid: t.uid, item: c.item, x: c.x, y: c.y }); }
+    }
+    if (this.crates.some(c => c.gone)) this.crates = this.crates.filter(c => !c.gone);
   }
   shellVsEvents(s, dt) {
     for (const e of this.events) {
@@ -367,7 +390,7 @@ export class Sim {
   }
   busy() {
     return this.shells.length > 0 || this.pending.length > 0 || !!this.queued || this.specials.length > 0 || this.tanks.some(t => !t.sunk && !t.left && (t.air || this.ground(t.x, t.y - 3, t.y) > t.y + 1))
-      || this.events.some(e => (e.type === 'meteors' && e.t < 2.4) || (e.type === 'lightning' && e.t < 1.3) || (e.type === 'pillar' && e.t < 1.6));
+      || this.crates.some(c => !c.landed) || this.events.some(e => (e.type === 'meteors' && e.t < 2.4) || (e.type === 'lightning' && e.t < 1.3) || (e.type === 'pillar' && e.t < 1.6));
   }
 
   /* ---------- 아이템 (즉시 효과는 여기서, 발사에 붙는 효과는 표시만) ---------- */
@@ -386,7 +409,8 @@ export class Sim {
     return {
       clock: this.clock, wind: { ...this.wind }, liquidY: this.liquidY, sdLiquid: !!this.sdLiquid, ops: this.ops.length,
       tanks: this.tanks.map(t => ({ uid: t.uid, x: t.x, y: t.y, vx: t.vx, vy: t.vy, air: t.air, fallFrom: t.fallFrom, hp: t.hp, angle: t.angle, facing: t.facing, fuel: t.fuel, tilt: t.tilt, shield: t.shield, frozen: t.frozen, canMove: t.canMove, dead: t.dead, sunk: t.sunk, left: t.left, kills: t.kills, dealt: t.dealt, lastHitBy: t.lastHitBy, delay: t.delay })),
-      events: this.events.map(e => ({ type: e.type, x: e.x, xs: e.xs, gy: e.gy, t: e.t, turns: e.turns, done: e.done })),
+      events: this.events.map(e => ({ type: e.type, x: e.x, xs: e.xs, gy: e.gy, t: e.t, turns: e.turns, done: e.done, dir: e.dir, item: e.item })),
+      crates: this.crates.map(c => ({ ...c })), crateId: this.crateId,
       zones: this.zones.map(z => ({ ...z })),
     };
   }
@@ -395,6 +419,7 @@ export class Sim {
     for (const d of s.tanks) { const t = this.tankOf(d.uid); if (t) Object.assign(t, d); }
     this.events = s.events.map(e => ({ ...e, hit: new Set(), done: [...(e.done || [])] }));
     this.zones = s.zones.map(z => ({ ...z }));
+    this.crates = (s.crates || []).map(c => ({ ...c })); this.crateId = s.crateId || 0;
     this.shells = []; this.specials = []; this.pending = []; this.queued = null;
   }
   // 바람·지형을 반영해 목표 x에 닿는 파워 (도움말·테스트용)

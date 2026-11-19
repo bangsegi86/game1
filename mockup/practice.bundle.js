@@ -461,7 +461,7 @@
     laser: { hp: 510, amin: 0, amax: 45, pivot: [-20, -58], len: 44, w: 96 }
   };
   var SHELL_STATS = {
-    mole: [{ n: "\uB3CC\uD0C4", dmg: 200, r: 34, cr: 34, wind: 1, wt: 1, R: 24 }, { n: "\uD30C\uD3B8\uD0C4", dmg: 110, r: 24, cr: 20, wind: 1, wt: 1, R: 15, spread: [-1.5, 0, 1.5], pspread: [0.91, 1, 1.09] }, { n: "\uB545\uAD74 \uD3ED\uD0C4", dmg: 380, r: 60, cr: 50, wind: 0.8, wt: 1.1, R: 36, shape: "tunnel", sp: "erupt" }],
+    mole: [{ n: "\uB3CC\uD0C4", dmg: 200, r: 34, cr: 34, wind: 1, wt: 1, R: 24 }, { n: "\uD30C\uD3B8\uD0C4", dmg: 110, r: 24, cr: 20, wind: 1, wt: 1, R: 15, spread: [-1.5, 0, 1.5], pspread: [0.91, 1, 1.09] }, { n: "\uB545\uAD74 \uD3ED\uD0C4", dmg: 380, r: 38, cr: 34, wind: 0.8, wt: 1.1, R: 28, shape: "tunnel", sp: "erupt" }],
     hammer: [{ n: "\uCCA0\uAD6C", dmg: 260, r: 30, cr: 30, wind: 0.5, wt: 1.2, R: 24 }, { n: "\uC9C0\uC9C4\uD0C4", dmg: 230, r: 44, cr: [70, 24], wind: 0.6, wt: 1.2, R: 28, shape: "ellipse" }, { n: "\uBA54\uD14C\uC624", dmg: 480, r: 56, cr: 64, wind: 0.4, wt: 1.3, R: 44, sp: "meteor" }],
     cloud: [{ n: "\uBB3C\uBC29\uC6B8", dmg: 180, r: 30, cr: 18, wind: 1.2, wt: 0.9, R: 22 }, { n: "\uBC88\uAC1C\uAD6C\uB984", dmg: 210, r: 30, cr: 26, wind: 0, wt: 1, R: 24 }, { n: "\uD3ED\uD48D", dmg: 300, r: 70, cr: 20, wind: 1.5, wt: 0.8, R: 40, sp: "tornado" }],
     bee: [{ n: "\uBD88\uC528", dmg: 190, r: 30, cr: 30, wind: 1, wt: 1, R: 22 }, { n: "\uD654\uC5FC\uBCD1", dmg: 160, r: 36, cr: 22, wind: 1, wt: 1, R: 26, fx: "burn" }, { n: "\uBD88\uC0AC\uC870", dmg: 420, r: 50, cr: 48, wind: 0.7, wt: 0.9, R: 40, sp: "phoenix" }],
@@ -502,6 +502,9 @@
   var WOOD = MK.wood;
   var PLANK = MK.plank;
   var CLIMB = 24;
+  var PLANE_SPEED = 420;
+  var PLANE_Y = 70;
+  var SUPPLY_ITEMS = ["repair", "power", "double", "teleport", "shield", "fuel", "calm", "repair", "power"];
   var BASE = /* @__PURE__ */ new Map();
   function baseGrid(mapId, w, h) {
     const key = `${mapId}:${w}x${h}`;
@@ -527,12 +530,13 @@
   }
   var r1 = (v) => Math.round(v * 10) / 10;
   var EVENT_INFO = {
+    supply: { n: "\uBCF4\uAE09 \uBE44\uD589\uAE30", turns: 0 },
     tornado: { n: "\uD68C\uC624\uB9AC", turns: 2 },
     pillar: { n: "\uBD88\uAE30\uB465", turns: 2 },
     meteors: { n: "\uC6B4\uC11D \uC18C\uB098\uAE30", turns: 0 },
     lightning: { n: "\uBCBC\uB77D", turns: 0 }
   };
-  var Sim = class {
+  var Sim = class _Sim {
     constructor({ w = WORLD_W, h = WORLD_H, map = "hills", tankScale = 0.5 } = {}) {
       this.w = w;
       this.h = h;
@@ -554,6 +558,9 @@
       this.events = [];
       this.zones = [];
       this.pending = [];
+      this.crates = [];
+      this.crateId = 0;
+      this.picked = [];
       this.clock = 0;
       this.wind = { ang: 0, str: 0 };
       this.fxq = [];
@@ -911,7 +918,7 @@
             W.carveRound(s.x, s.y, s.sh.cr * s.k);
             const top = W.ground(s.x, 0);
             if (top < s.y) W.carveRect(s.x - 12, top - 4, 24, s.y - top + 4);
-            W.hurtArea(s.x, Math.min(s.y, top + 10), s.sh.r * s.k + 20, s.sh.dmg * s.k, s.owner, { tall: s.y - top });
+            W.hurtArea(s.x, Math.min(s.y, top + 10), s.sh.r * s.k, s.sh.dmg * s.k, s.owner, { tall: s.y - top });
             W.boom(s.x, top + 6, { ...s.base, debris: 30, power: 2, shake: 0.8 });
           }
           return s.t < 1.6;
@@ -1003,10 +1010,17 @@
       if (type === "meteors") e.xs = [0, 1, 2].map(() => Math.round(80 + rnd() * (sim.w - 160)));
       return e;
     }
+    // 보급 비행기: 화면 한쪽에서 날아와 정한 자리에 낙하산 상자를 떨어뜨린다
+    static pickSupply(sim, rnd = Math.random) {
+      return { type: "supply", x: Math.round(140 + rnd() * (sim.w - 280)), dir: rnd() < 0.5 ? 1 : -1, item: SUPPLY_ITEMS[Math.floor(rnd() * SUPPLY_ITEMS.length)] };
+    }
+    static planeX(sim, e) {
+      return e.dir > 0 ? -90 + PLANE_SPEED * e.t : sim.w + 90 - PLANE_SPEED * e.t;
+    }
     addEvent(spec) {
       const e = { ...spec, t: 0, turns: EVENT_INFO[spec.type].turns, hit: /* @__PURE__ */ new Set(), done: [] };
       this.events.push(e);
-      this.fx("banner", { text: "\uB3CC\uBC1C! " + EVENT_INFO[spec.type].n });
+      this.fx("banner", { text: spec.type === "supply" ? "\uBCF4\uAE09 \uBE44\uD589\uAE30\uAC00 \uC9C0\uB098\uAC00\uC694!" : "\uB3CC\uBC1C! " + EVENT_INFO[spec.type].n });
       return e;
     }
     stepEvents(dt) {
@@ -1030,6 +1044,10 @@
             this.boom(x, y, { kind: "fire", R: 28, debris: 12, shake: 0.3 });
           }
         });
+        if (e.type === "supply" && !e.done[0] && (e.dir > 0 ? _Sim.planeX(this, e) >= e.x : _Sim.planeX(this, e) <= e.x)) {
+          e.done[0] = true;
+          this.crates.push({ id: ++this.crateId, x: e.x, y: PLANE_Y + 14, vy: 0, item: e.item, para: true, landed: false });
+        }
         if (e.type === "lightning" && e.t > 0.7 && !e.done[0]) {
           e.done[0] = true;
           const y = this.ground(e.x, 0);
@@ -1038,7 +1056,42 @@
           this.boom(e.x, y, { kind: "electric", R: 22, color: "#bfe0ff", shake: 0.35 });
         }
       }
-      this.events = this.events.filter((e) => e.type === "meteors" ? e.t < 2.4 : e.type === "lightning" ? e.t < 1.3 : true);
+      this.events = this.events.filter((e) => e.type === "meteors" ? e.t < 2.4 : e.type === "lightning" ? e.t < 1.3 : e.type === "supply" ? e.t < (this.w + 180) / PLANE_SPEED : true);
+      this.stepCrates(dt);
+    }
+    // 보급 상자: 낙하산으로 천천히 내려앉고, 밑의 땅이 파이면 다시 떨어진다. 탱크가 닿으면 줍는다
+    stepCrates(dt) {
+      for (const c of this.crates) {
+        const g = this.ground(c.x, Math.max(0, c.y - 2));
+        if (c.y < g - 0.5) {
+          c.landed = false;
+          c.vy = Math.min(c.vy + 300 * dt, c.para ? 70 : 420);
+          c.y = Math.min(g, c.y + c.vy * dt);
+          if (c.y >= g) {
+            c.landed = true;
+            c.para = false;
+            c.vy = 0;
+          }
+        } else {
+          c.y = g;
+          c.landed = true;
+          c.para = false;
+          c.vy = 0;
+        }
+        if (c.y > this.liquidY || c.y > this.h) {
+          c.gone = true;
+          this.fx("splash", { x: c.x });
+          continue;
+        }
+        const t = this.tanks.find((t2) => !t2.dead && !t2.sunk && Math.abs(t2.x - c.x) < 30 && t2.y > c.y - 46 && t2.y < c.y + 40);
+        if (t) {
+          c.gone = true;
+          this.picked.push({ uid: t.uid, item: c.item });
+          this.float(c.x, c.y - 50, "\uBCF4\uAE09\uD488: " + ITEM_INFO[c.item].n, "#2b8a3e");
+          this.fx("pickup", { uid: t.uid, item: c.item, x: c.x, y: c.y });
+        }
+      }
+      if (this.crates.some((c) => c.gone)) this.crates = this.crates.filter((c) => !c.gone);
     }
     shellVsEvents(s, dt) {
       for (const e of this.events) {
@@ -1294,7 +1347,7 @@
       }
     }
     busy() {
-      return this.shells.length > 0 || this.pending.length > 0 || !!this.queued || this.specials.length > 0 || this.tanks.some((t) => !t.sunk && !t.left && (t.air || this.ground(t.x, t.y - 3, t.y) > t.y + 1)) || this.events.some((e) => e.type === "meteors" && e.t < 2.4 || e.type === "lightning" && e.t < 1.3 || e.type === "pillar" && e.t < 1.6);
+      return this.shells.length > 0 || this.pending.length > 0 || !!this.queued || this.specials.length > 0 || this.tanks.some((t) => !t.sunk && !t.left && (t.air || this.ground(t.x, t.y - 3, t.y) > t.y + 1)) || this.crates.some((c) => !c.landed) || this.events.some((e) => e.type === "meteors" && e.t < 2.4 || e.type === "lightning" && e.t < 1.3 || e.type === "pillar" && e.t < 1.6);
     }
     /* ---------- 아이템 (즉시 효과는 여기서, 발사에 붙는 효과는 표시만) ---------- */
     useItem(t, id) {
@@ -1319,7 +1372,9 @@
         sdLiquid: !!this.sdLiquid,
         ops: this.ops.length,
         tanks: this.tanks.map((t) => ({ uid: t.uid, x: t.x, y: t.y, vx: t.vx, vy: t.vy, air: t.air, fallFrom: t.fallFrom, hp: t.hp, angle: t.angle, facing: t.facing, fuel: t.fuel, tilt: t.tilt, shield: t.shield, frozen: t.frozen, canMove: t.canMove, dead: t.dead, sunk: t.sunk, left: t.left, kills: t.kills, dealt: t.dealt, lastHitBy: t.lastHitBy, delay: t.delay })),
-        events: this.events.map((e) => ({ type: e.type, x: e.x, xs: e.xs, gy: e.gy, t: e.t, turns: e.turns, done: e.done })),
+        events: this.events.map((e) => ({ type: e.type, x: e.x, xs: e.xs, gy: e.gy, t: e.t, turns: e.turns, done: e.done, dir: e.dir, item: e.item })),
+        crates: this.crates.map((c) => ({ ...c })),
+        crateId: this.crateId,
         zones: this.zones.map((z) => ({ ...z }))
       };
     }
@@ -1334,6 +1389,8 @@
       }
       this.events = s.events.map((e) => ({ ...e, hit: /* @__PURE__ */ new Set(), done: [...e.done || []] }));
       this.zones = s.zones.map((z) => ({ ...z }));
+      this.crates = (s.crates || []).map((c) => ({ ...c }));
+      this.crateId = s.crateId || 0;
       this.shells = [];
       this.specials = [];
       this.pending = [];
@@ -1434,6 +1491,7 @@
   }
 
   // src/game.js
+  var SUPPLY_CHANCE = 0.25;
   var shuffle = (a) => {
     for (let i = a.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
@@ -1512,6 +1570,13 @@
       }
       sim.step(dt);
       sim.fxq.length = 0;
+      for (const g of sim.picked) {
+        const p = this.player(g.uid);
+        if (!p) continue;
+        p.items.push({ id: g.item, used: false });
+        this.send("game:pickup", { uid: g.uid, item: g.item, index: p.items.length - 1 });
+      }
+      sim.picked.length = 0;
       if (this.phase === "aim") {
         const t = sim.tankOf(this.cur.uid);
         if (t.dead) return this.endTurn();
@@ -1572,6 +1637,10 @@
       if (this.turnNo > 2) {
         event = Sim.pickEvent(sim);
         if (event) sim.addEvent(event);
+      }
+      if (!event && this.turnNo > 1 && sim.crates.length < 2 && Math.random() < SUPPLY_CHANCE) {
+        event = Sim.pickSupply(sim);
+        sim.addEvent(event);
       }
       const sd = this.turnNo > SUDDEN_DEATH_TURN;
       if (sd) sim.suddenDeath();
@@ -1791,6 +1860,120 @@
         c.fill();
       });
     }
+  }
+  function drawPlane(c, x, y, dir, t) {
+    c.save();
+    c.translate(x, y + Math.sin(t * 3) * 3);
+    c.scale(dir, 1);
+    const OUT2 = "#2a2140";
+    c.lineJoin = "round";
+    c.strokeStyle = OUT2;
+    c.lineWidth = 2.5;
+    c.beginPath();
+    c.moveTo(-50, -6);
+    c.lineTo(-62, -26);
+    c.lineTo(-48, -26);
+    c.lineTo(-36, -8);
+    c.closePath();
+    c.fillStyle = "#d9480f";
+    c.fill();
+    c.stroke();
+    c.beginPath();
+    c.ellipse(0, 0, 54, 15, 0, 0, Math.PI * 2);
+    const g = c.createLinearGradient(0, -15, 0, 15);
+    g.addColorStop(0, "#f1f3f5");
+    g.addColorStop(1, "#adb5bd");
+    c.fillStyle = g;
+    c.fill();
+    c.stroke();
+    c.beginPath();
+    c.moveTo(-10, 2);
+    c.lineTo(18, 2);
+    c.lineTo(4, 26);
+    c.lineTo(-22, 26);
+    c.closePath();
+    c.fillStyle = "#e8590c";
+    c.fill();
+    c.stroke();
+    c.beginPath();
+    c.ellipse(32, -5, 11, 6, 0, 0, Math.PI * 2);
+    c.fillStyle = "#74c0fc";
+    c.fill();
+    c.stroke();
+    c.fillStyle = "#2b8a3e";
+    c.fillRect(-26, -6, 14, 12);
+    c.fillStyle = "#fff";
+    c.fillRect(-21, -4, 4, 8);
+    c.fillRect(-23, -2, 8, 4);
+    c.fillStyle = "#495057";
+    c.fillRect(52, -3, 6, 6);
+    const p = Math.sin(t * 40) * 16;
+    c.fillStyle = "rgba(60,60,70,.6)";
+    c.fillRect(57, -Math.abs(p) - 2, 3, Math.abs(p) * 2 + 4);
+    c.restore();
+  }
+  function drawCrate(c, cr, t) {
+    const x = cr.x, y = cr.y, sway = cr.para && !cr.landed ? Math.sin(t * 2.4 + cr.id) * 0.12 : 0;
+    c.save();
+    c.translate(x, y);
+    c.rotate(sway);
+    if (cr.para && !cr.landed) {
+      c.strokeStyle = "rgba(60,50,40,.8)";
+      c.lineWidth = 1.2;
+      c.beginPath();
+      [-24, -8, 8, 24].forEach((dx) => {
+        c.moveTo(dx, -54);
+        c.lineTo(dx * 0.4, -24);
+      });
+      c.stroke();
+      c.beginPath();
+      c.moveTo(-28, -54);
+      c.quadraticCurveTo(0, -88, 28, -54);
+      c.quadraticCurveTo(14, -60, 0, -54);
+      c.quadraticCurveTo(-14, -60, -28, -54);
+      c.closePath();
+      const g = c.createLinearGradient(-28, 0, 28, 0);
+      g.addColorStop(0, "#fa5252");
+      g.addColorStop(0.5, "#fff5f5");
+      g.addColorStop(1, "#fa5252");
+      c.fillStyle = g;
+      c.fill();
+      c.strokeStyle = "#2a2140";
+      c.lineWidth = 2;
+      c.stroke();
+    }
+    const bob = cr.landed ? Math.sin(t * 3 + cr.id) * 1.5 : 0;
+    c.translate(0, bob);
+    c.fillStyle = "#b07a3c";
+    c.strokeStyle = "#2a2140";
+    c.lineWidth = 2.2;
+    c.beginPath();
+    c.rect(-13, -26, 26, 26);
+    c.fill();
+    c.stroke();
+    c.strokeStyle = "#7a4f22";
+    c.lineWidth = 2;
+    c.beginPath();
+    c.moveTo(-13, -26);
+    c.lineTo(13, 0);
+    c.moveTo(13, -26);
+    c.lineTo(-13, 0);
+    c.stroke();
+    if (typeof drawItemIcon === "function") {
+      c.save();
+      c.translate(0, -13);
+      c.scale(0.3, 0.3);
+      drawItemIcon(c, cr.item, t, true);
+      c.restore();
+    }
+    if (cr.landed) {
+      c.globalAlpha = 0.55 + 0.45 * Math.sin(t * 5);
+      c.fillStyle = "#ffe066";
+      c.font = "700 12px Jua, sans-serif";
+      c.textAlign = "center";
+      c.fillText("\uBCF4\uAE09\uD488", 0, -32);
+    }
+    c.restore();
   }
   function drawUFO(c, x, y, t, glow) {
     c.save();
@@ -2053,7 +2236,7 @@
           W.carveRound(s.x, s.y, s.sh.cr * s.k);
           const top = W.ground(s.x, 0);
           if (top < s.y) W.carveRect(s.x - 12, top - 4, 24, s.y - top + 4);
-          W.hurtArea(s.x, Math.min(s.y, top + 10), s.sh.r * s.k + 20, s.sh.dmg * s.k, s.owner, { tall: s.y - top });
+          W.hurtArea(s.x, Math.min(s.y, top + 10), s.sh.r * s.k, s.sh.dmg * s.k, s.owner, { tall: s.y - top });
           W.boomAt(s.sh, s.x, top + 6, s.k);
           W.debris(s.x, top, 30, 2);
           W.shake += 0.8;
@@ -2407,6 +2590,7 @@
         if (this.labels) zoneLabel(c, z.x, gy - z.r - 20, (z.type === "poison" ? "\uB3C5 " : "\uBD88 ") + z.turns + "\uD134", z.type === "poison" ? "#d4a6ff" : "#ffb36b");
       });
       S.events.forEach((e) => this.drawEvent(c, e));
+      (S.crates || []).forEach((cr) => drawCrate(c, cr, this.t));
       S.tanks.forEach((t) => this.drawTank(c, t, o));
       S.shells.forEach((s) => {
         if (s.sh.shape === "line") {
@@ -2531,6 +2715,10 @@
     }
     drawEvent(c, e) {
       const S = this.sim, t = this.t;
+      if (e.type === "supply") {
+        drawPlane(c, Sim.planeX(S, e), PLANE_Y, e.dir, t);
+        return;
+      }
       if (e.type === "tornado") drawTornado(c, e.x, e.gy ?? S.ground(e.x, 0), 170, t, Math.min(1, e.t * 2), "200,210,220");
       if (e.type === "pillar") {
         const gy = e.gy ?? S.ground(e.x, 0);
@@ -2980,6 +3168,18 @@
         renderItems();
         play("item");
       },
+      "game:pickup": (d) => {
+        if (!sim) return;
+        if (d.uid === me()) {
+          bag.push({ id: d.item, used: false });
+          renderItems();
+          play("item");
+          toast2(`\uBCF4\uAE09\uD488\uC744 \uC8FC\uC6E0\uC5B4\uC694: ${itemById(d.item).n}`);
+        } else {
+          const t = sim.tankOf(d.uid);
+          if (t) toast2(`${t.name}\uB2D8\uC774 \uBCF4\uAE09\uD488(${itemById(d.item).n})\uC744 \uC8FC\uC6E0\uC5B4\uC694.`);
+        }
+      },
       "game:shot": (d) => {
         if (!sim) return;
         sim.restore(d.snapshot);
@@ -3088,7 +3288,7 @@
         g.scale(36 / 64, 36 / 64);
         drawItemIcon(g, b.id, 0, true);
         btn.append(c);
-        btn.insertAdjacentHTML("beforeend", `<div><b><kbd>${k}</kbd> ${it.n}</b><small>${b.used ? "\uC0AC\uC6A9\uD568" : it.tip}</small></div>`);
+        btn.insertAdjacentHTML("beforeend", `<div><b>${k ? `<kbd>${k}</kbd> ` : ""}${it.n}</b><small>${b.used ? "\uC0AC\uC6A9\uD568" : it.tip}</small></div>`);
         btn.onclick = () => useItem(i);
         el.append(btn);
       });
@@ -3175,6 +3375,7 @@
           acc -= DT;
           sim.step(DT);
         }
+        sim.picked.length = 0;
         ren.update(dt);
         if (mine()) {
           const t = myTank(), dir = keys.left ? -1 : keys.right ? 1 : 0;

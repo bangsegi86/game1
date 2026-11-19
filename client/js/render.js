@@ -1,7 +1,7 @@
 // 전투 화면 그리기: 시뮬레이션(shared/sim/world.js) 상태를 받아 그린다.
 // 탱크·포탄·폭발 그림은 /art/art.js 전역 함수를 쓴다.
 import { MAPS, MAT } from '../../shared/sim/maps.js';
-import { baseGrid, backGrid } from '../../shared/sim/world.js';
+import { baseGrid, backGrid, Sim, PLANE_Y } from '../../shared/sim/world.js';
 import { raggedPoly } from '../../shared/sim/raster.js';
 
 const hex3 = s => { const n = parseInt(s.slice(1), 16); return [n >> 16, (n >> 8) & 255, n & 255]; };
@@ -42,6 +42,36 @@ function skyPaint(c, w, h, o) {
 
 
 /* ---------- 연출용 그림 ---------- */
+// 보급 비행기: 통통한 화물기, 돌아가는 프로펠러, 배에 보급 표시
+function drawPlane(c, x, y, dir, t) {
+  c.save(); c.translate(x, y + Math.sin(t * 3) * 3); c.scale(dir, 1);
+  const OUT = '#2a2140'; c.lineJoin = 'round'; c.strokeStyle = OUT; c.lineWidth = 2.5;
+  c.beginPath(); c.moveTo(-50, -6); c.lineTo(-62, -26); c.lineTo(-48, -26); c.lineTo(-36, -8); c.closePath(); c.fillStyle = '#d9480f'; c.fill(); c.stroke();
+  c.beginPath(); c.ellipse(0, 0, 54, 15, 0, 0, Math.PI * 2); const g = c.createLinearGradient(0, -15, 0, 15); g.addColorStop(0, '#f1f3f5'); g.addColorStop(1, '#adb5bd'); c.fillStyle = g; c.fill(); c.stroke();
+  c.beginPath(); c.moveTo(-10, 2); c.lineTo(18, 2); c.lineTo(4, 26); c.lineTo(-22, 26); c.closePath(); c.fillStyle = '#e8590c'; c.fill(); c.stroke();
+  c.beginPath(); c.ellipse(32, -5, 11, 6, 0, 0, Math.PI * 2); c.fillStyle = '#74c0fc'; c.fill(); c.stroke();
+  c.fillStyle = '#2b8a3e'; c.fillRect(-26, -6, 14, 12); c.fillStyle = '#fff'; c.fillRect(-21, -4, 4, 8); c.fillRect(-23, -2, 8, 4);
+  c.fillStyle = '#495057'; c.fillRect(52, -3, 6, 6); const p = Math.sin(t * 40) * 16; c.fillStyle = 'rgba(60,60,70,.6)'; c.fillRect(57, -Math.abs(p) - 2, 3, Math.abs(p) * 2 + 4);
+  c.restore();
+}
+// 보급 상자: 나무 상자 + 아이템 그림, 내려오는 동안 낙하산
+function drawCrate(c, cr, t) {
+  const x = cr.x, y = cr.y, sway = cr.para && !cr.landed ? Math.sin(t * 2.4 + cr.id) * .12 : 0;
+  c.save(); c.translate(x, y); c.rotate(sway);
+  if (cr.para && !cr.landed) {
+    c.strokeStyle = 'rgba(60,50,40,.8)'; c.lineWidth = 1.2; c.beginPath(); [-24, -8, 8, 24].forEach(dx => { c.moveTo(dx, -54); c.lineTo(dx * .4, -24); }); c.stroke();
+    c.beginPath(); c.moveTo(-28, -54); c.quadraticCurveTo(0, -88, 28, -54); c.quadraticCurveTo(14, -60, 0, -54); c.quadraticCurveTo(-14, -60, -28, -54); c.closePath();
+    const g = c.createLinearGradient(-28, 0, 28, 0); g.addColorStop(0, '#fa5252'); g.addColorStop(.5, '#fff5f5'); g.addColorStop(1, '#fa5252'); c.fillStyle = g; c.fill(); c.strokeStyle = '#2a2140'; c.lineWidth = 2; c.stroke();
+  }
+  const bob = cr.landed ? Math.sin(t * 3 + cr.id) * 1.5 : 0;
+  c.translate(0, bob);
+  c.fillStyle = '#b07a3c'; c.strokeStyle = '#2a2140'; c.lineWidth = 2.2; c.beginPath(); c.rect(-13, -26, 26, 26); c.fill(); c.stroke();
+  c.strokeStyle = '#7a4f22'; c.lineWidth = 2; c.beginPath(); c.moveTo(-13, -26); c.lineTo(13, 0); c.moveTo(13, -26); c.lineTo(-13, 0); c.stroke();
+  if (typeof drawItemIcon === 'function') { c.save(); c.translate(0, -13); c.scale(.3, .3); drawItemIcon(c, cr.item, t, true); c.restore(); }
+  if (cr.landed) { c.globalAlpha = .55 + .45 * Math.sin(t * 5); c.fillStyle = '#ffe066'; c.font = '700 12px Jua, sans-serif'; c.textAlign = 'center'; c.fillText('보급품', 0, -32); }
+  c.restore();
+}
+
 function drawUFO(c, x, y, t, glow) {
   c.save(); c.translate(x, y);
   if (glow) { const g = c.createRadialGradient(0, 14, 2, 0, 14, 60 * glow); g.addColorStop(0, 'rgba(160,250,255,.9)'); g.addColorStop(1, 'rgba(47,224,255,0)'); c.fillStyle = g; circ(c, 0, 14, 60 * glow); c.fill(); }
@@ -142,7 +172,7 @@ const SPECIALS = {
     step(W, s, dt) {
       W.shake = Math.max(W.shake, s.t < .7 ? .25 : 0);
       if (s.t >= .7 && !s.fired) { s.fired = true; W.carveRound(s.x, s.y, s.sh.cr * s.k); const top = W.ground(s.x, 0); if (top < s.y) W.carveRect(s.x - 12, top - 4, 24, s.y - top + 4);
-        W.hurtArea(s.x, Math.min(s.y, top + 10), s.sh.r * s.k + 20, s.sh.dmg * s.k, s.owner, { tall: s.y - top }); W.boomAt(s.sh, s.x, top + 6, s.k); W.debris(s.x, top, 30, 2); W.shake += .8; }
+        W.hurtArea(s.x, Math.min(s.y, top + 10), s.sh.r * s.k, s.sh.dmg * s.k, s.owner, { tall: s.y - top }); W.boomAt(s.sh, s.x, top + 6, s.k); W.debris(s.x, top, 30, 2); W.shake += .8; }
       return s.t < 1.6;
     },
     draw(c, W, s) { if (s.t < .7) { const top = W.ground(s.x, 0), k = s.t / .7; c.strokeStyle = `rgba(40,20,10,${.4 + k * .5})`; c.lineWidth = 2; [-1, 1].forEach(d => { c.beginPath(); c.moveTo(s.x, top + 2); for (let j = 1; j <= 4; j++) c.lineTo(s.x + d * j * 10 * k, top + 2 + (j % 2 ? 5 : 0)); c.stroke(); }); } },
@@ -281,6 +311,7 @@ export class Renderer {
     c.drawImage(this.back, 0, 0, this.w, this.h); this.drawLiquid(c); c.drawImage(this.fg, 0, 0, this.w, this.h); // 물·용암은 땅 뒤: 웅덩이·틈 안에서만 보인다
     S.zones.forEach(z => { const gy = S.ground(z.x, 0), a = Math.min(1, (clock - (z.born || 0)) * 2); if (z.type === 'poison') poisonFog(c, z.x, gy, z.r, this.t, a); else fireField(c, z.x, gy, z.r, this.t, a); if (this.labels) zoneLabel(c, z.x, gy - z.r - 20, (z.type === 'poison' ? '독 ' : '불 ') + z.turns + '턴', z.type === 'poison' ? '#d4a6ff' : '#ffb36b'); });
     S.events.forEach(e => this.drawEvent(c, e));
+    (S.crates || []).forEach(cr => drawCrate(c, cr, this.t));
     S.tanks.forEach(t => this.drawTank(c, t, o));
     S.shells.forEach(s => {
       if (s.sh.shape === 'line') { c.save(); c.lineCap = 'round'; c.strokeStyle = 'rgba(47,224,255,.55)'; c.lineWidth = 10; c.beginPath(); c.moveTo(s.sx, s.sy); c.lineTo(s.x, s.y); c.stroke(); c.strokeStyle = '#fff'; c.lineWidth = 3; c.stroke(); c.restore(); return; }
@@ -314,6 +345,7 @@ export class Renderer {
   }
   drawEvent(c, e) {
     const S = this.sim, t = this.t;
+    if (e.type === 'supply') { drawPlane(c, Sim.planeX(S, e), PLANE_Y, e.dir, t); return; }
     if (e.type === 'tornado') drawTornado(c, e.x, e.gy ?? S.ground(e.x, 0), 170, t, Math.min(1, e.t * 2), '200,210,220');
     if (e.type === 'pillar') { const gy = e.gy ?? S.ground(e.x, 0); if (e.t < 1) { const k = (e.t * 6) % 1 < .5; c.fillStyle = `rgba(255,120,40,${k ? .8 : .4})`; ell(c, e.x, gy, 22, 6); c.fill(); } else drawPillar(c, e.x, gy, 150 * ease((e.t - 1) / .3), t, 1); }
     if (e.type === 'meteors') e.xs.forEach((x, i) => { const tt = .4 + i * .45, u = (e.t - tt) / .7; if (u < 0 || u > 1) return; const gy = S.ground(x, 0), px = lerp(x - 160, x, u), py = lerp(-40, gy, u); c.save(); c.translate(px, py); c.scale(1.2, 1.2); drawShell(c, { key: 'meteor' }, t, .8); c.restore(); });
