@@ -114,7 +114,7 @@ export function createBattle({ socket, me, toast, onExit, onQuit }) {
       // 필살기 버튼: 잠김(체력 50% 넘음) · 준비됨(빛나며 흔들림) · 사용함 세 가지로 분명히 보이게
       const st = ssUsed ? 'used' : ready ? 'ready' : 'locked';
       const tag = st === 'ready' ? '<span class="ss-tag">사용 가능!</span>' : st === 'used' ? '<span class="ss-tag">사용함</span>' : `<span class="ss-tag">체력 ${Math.round(t.hp / t.max * 100)}% · 50% 이하에서</span>`;
-      return `<button class="ss ss-${st}${st === 'ready' && ssPop ? ' ss-pop' : ''}" data-w="2" aria-pressed="${weapon === 2}" ${st === 'ready' ? '' : 'disabled'}><kbd>SS</kbd>${info}${tag}</button>`;
+      return `<button class="ss ss-${st}${st === 'ready' && ssPop ? ' ss-pop' : ''}" data-w="2" aria-pressed="${weapon === 2}" ${st === 'ready' ? '' : 'disabled'}><kbd>3</kbd><b class="ss-badge">SS</b>${info}${tag}</button>`;
     }).join('');
     ssPop = false;
   }
@@ -222,7 +222,15 @@ export function createBattle({ socket, me, toast, onExit, onQuit }) {
     c.drawImage(ren.sky, x, y, w, h); c.drawImage(ren.fg, x, y, w, h);
     if (sim.map.liquid && sim.map.liquid.type !== 'void' || sim.sdLiquid) { c.fillStyle = sim.map.liquid?.type === 'lava' ? 'rgba(255,120,40,.8)' : 'rgba(80,160,230,.8)'; c.fillRect(x, y + sim.liquidY * k, w, h - sim.liquidY * k); }
     c.globalAlpha = 1;
-    sim.events.forEach(e => { c.fillStyle = e.type === 'pillar' ? '#ff7a3c' : '#e6eef5'; c.fillRect(x + e.x * k - 1.5, y + (e.gy ?? sim.h) * k - 14, 3, 14); });
+    // 회오리(흰 소용돌이 기둥)·불기둥(주황 기둥)은 땅에서 위 끝까지, 보급 비행기·상자도 표시
+    sim.events.forEach(e => {
+      const ex = x + e.x * k, gy = y + (e.gy ?? sim.ground(e.x, 0)) * k;
+      if (e.type === 'tornado') { const g = c.createLinearGradient(0, y, 0, gy); g.addColorStop(0, 'rgba(230,238,245,.25)'); g.addColorStop(1, 'rgba(230,238,245,.95)'); c.fillStyle = g; c.beginPath(); c.moveTo(ex - 2, gy); c.lineTo(ex - 7, y); c.lineTo(ex + 7, y); c.lineTo(ex + 2, gy); c.closePath(); c.fill(); c.strokeStyle = 'rgba(80,90,110,.9)'; c.lineWidth = 1; for (let j = 1; j < 5; j++) { const yy = gy - (gy - y) * j / 5, r = 2 + j * 1.2; c.beginPath(); c.ellipse(ex, yy, r, 1.3, 0, 0, Math.PI * 2); c.stroke(); } }
+      else if (e.type === 'pillar' && e.t > 1) { const g = c.createLinearGradient(0, y, 0, gy); g.addColorStop(0, 'rgba(255,200,90,.35)'); g.addColorStop(1, 'rgba(255,110,30,1)'); c.fillStyle = g; c.fillRect(ex - 3, y, 6, gy - y); }
+      else if (e.type === 'pillar') { c.fillStyle = (performance.now() / 150) % 2 < 1 ? '#ff7a3c' : '#7a2a10'; c.fillRect(ex - 3, gy - 3, 6, 3); }
+      else if (e.type === 'supply') { const px = x + Sim.planeX(sim, e) * k; if (px > x && px < x + w) { c.fillStyle = '#f1f3f5'; c.fillRect(px - 5, y + 3, 10, 3); c.fillStyle = '#e8590c'; c.fillRect(px - 2, y + 2, 4, 5); } }
+    });
+    (sim.crates || []).forEach(cr => { c.fillStyle = '#ffd43b'; c.strokeStyle = '#5a3a10'; c.lineWidth = 1; c.fillRect(x + cr.x * k - 2.5, y + cr.y * k - 5, 5, 5); c.strokeRect(x + cr.x * k - 2.5, y + cr.y * k - 5, 5, 5); });
     sim.tanks.forEach(t => { if (t.left || t.sunk) return; c.fillStyle = t.dead ? '#555' : teamCol(t); c.beginPath(); c.arc(x + t.x * k, y + t.y * k - 3, t.uid === turn?.uid ? 4 : 3, 0, 7); c.fill(); });
     sim.shells.forEach(s => { c.fillStyle = '#fff'; c.fillRect(x + s.x * k - 1.5, y + s.y * k - 1.5, 3, 3); });
     c.strokeStyle = '#ffd34d'; c.lineWidth = 1.5; c.strokeRect(x + cam.x * k, y + cam.y * k, VW * k, VH * k);
@@ -280,9 +288,13 @@ export function createBattle({ socket, me, toast, onExit, onQuit }) {
     if (e.key === 'Enter') { e.preventDefault(); keys = {}; $('gameMsg').focus(); return; }
     const k = KEYMAP[e.key]; if (k) { keys[k] = true; e.preventDefault(); }
     if (e.code === 'Space') { e.preventDefault(); if (!e.repeat) startCharge(); }
-    if (e.key.toLowerCase() === 'p' && !e.repeat) pass();
-    if (e.key === '1') { weapon = 0; renderWeapons(); } if (e.key === '2') { weapon = 1; renderWeapons(); } if (e.key === '3' && ssReady()) { weapon = 2; renderWeapons(); }
-    const qi = 'qwerty'.indexOf(e.key.toLowerCase()); if (qi >= 0 && !e.repeat) { let c = 0; bag.forEach((b, i) => { if (c === qi) useItem(i); c += itemById(b.id).size; }); }
+    // 한글 입력 상태에서도 되도록 글자(e.key) 대신 키 위치(e.code)로 본다. 숫자 키패드도 된다
+    const code = e.code || '', num = /^(Digit|Numpad)[1-3]$/.test(code) ? +code.slice(-1) : ['1', '2', '3'].includes(e.key) ? +e.key : 0;
+    const letter = /^Key[A-Z]$/.test(code) ? code.slice(3).toLowerCase() : (e.key || '').toLowerCase();
+    if (letter === 'p' && !e.repeat) pass();
+    if (num === 1 || num === 2) { weapon = num - 1; renderWeapons(); }
+    if (num === 3 && !e.repeat) { if (ssReady()) { weapon = 2; renderWeapons(); } else { const t = myTank(); toast(ssUsed ? '필살기는 이미 썼어요.' : `필살기는 체력 50% 이하에서 쓸 수 있어요. (지금 ${t ? Math.round(t.hp / t.max * 100) : 0}%)`, true); } }
+    const qi = 'qwerty'.indexOf(letter); if (qi >= 0 && !e.repeat) { let c = 0; bag.forEach((b, i) => { if (c === qi) useItem(i); c += itemById(b.id).size; }); }
   });
   addEventListener('keyup', e => { const k = KEYMAP[e.key]; if (k) keys[k] = false; if (e.code === 'Space' && active()) { e.preventDefault(); release(); } });
   addEventListener('blur', () => { keys = {}; });

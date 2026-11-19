@@ -504,6 +504,7 @@
   var CLIMB = 24;
   var PLANE_SPEED = 420;
   var PLANE_Y = 70;
+  var EVENT_RATE = 0.2;
   var SUPPLY_ITEMS = ["repair", "power", "double", "teleport", "shield", "fuel", "calm", "repair", "power"];
   var BASE = /* @__PURE__ */ new Map();
   function baseGrid(mapId, w, h) {
@@ -988,13 +989,14 @@
       const ev = sim.map.ev || {};
       let r = rnd(), type = null;
       for (const k in ev) {
-        r -= ev[k] * 0.45;
+        r -= ev[k] * EVENT_RATE;
         if (r < 0) {
           type = k;
           break;
         }
       }
       if (!type) return null;
+      if ((type === "tornado" || type === "pillar") && sim.events.some((e2) => e2.type === type)) return null;
       const live = sim.tanks.filter((t) => !t.dead), e = { type, x: Math.round(120 + rnd() * (sim.w - 240)) };
       if (type === "lightning" && live.length) {
         const t = live[Math.floor(rnd() * live.length)];
@@ -1096,14 +1098,14 @@
     shellVsEvents(s, dt) {
       for (const e of this.events) {
         const gy = e.gy ?? this.h;
-        if (e.type === "tornado" && e.t > 0.5 && s.mode === "fly" && Math.abs(s.x - e.x) < 30 && s.y > gy - 170 && s.y < gy + 4 && !(s.caught && s.caught.includes(e.x))) {
+        if (e.type === "tornado" && e.t > 0.5 && s.mode === "fly" && Math.abs(s.x - e.x) < 30 && s.y < gy + 4 && !(s.caught && s.caught.includes(e.x))) {
           (s.caught ||= []).push(e.x);
           s.mode = "spin";
           s.spin = { x: e.x, t: 0, ph: s.x < e.x ? Math.PI : 0, r: Math.max(8, Math.abs(s.x - e.x)), top: s.y - 130 };
           this.float(e.x, s.y - 16, "\uD718\uB9D0\uB9BC!", "#3a2600");
           return false;
         }
-        if (e.type === "pillar" && e.t > 1 && Math.abs(s.x - e.x) < 18 && s.y > gy - 150 && s.y < gy && !(s.fired && s.fired.includes(e.x))) {
+        if (e.type === "pillar" && e.t > 1 && Math.abs(s.x - e.x) < 18 && s.y < gy && !(s.fired && s.fired.includes(e.x))) {
           (s.fired ||= []).push(e.x);
           s.k = Math.round(s.k * 1.3 * 100) / 100;
           s.powered = true;
@@ -1491,7 +1493,8 @@
   }
 
   // src/game.js
-  var SUPPLY_CHANCE = 0.25;
+  var SUPPLY_CHANCE = 0.15;
+  var EVENT_GAP = 3;
   var shuffle = (a) => {
     for (let i = a.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
@@ -1633,15 +1636,17 @@
       this.cur = this.player(t.uid);
       sim.turnStart(t);
       if (this.turnNo > 1) sim.wind = Sim.nextWind(sim.wind, sim.map.windMax);
+      const rest = this.turnNo - (this.lastEventTurn ?? -9) >= EVENT_GAP;
       let event = null;
-      if (this.turnNo > 2) {
+      if (this.turnNo > 2 && rest) {
         event = Sim.pickEvent(sim);
         if (event) sim.addEvent(event);
       }
-      if (!event && this.turnNo > 1 && sim.crates.length < 2 && Math.random() < SUPPLY_CHANCE) {
+      if (!event && rest && this.turnNo > 1 && sim.crates.length < 2 && Math.random() < SUPPLY_CHANCE) {
         event = Sim.pickSupply(sim);
         sim.addEvent(event);
       }
+      if (event) this.lastEventTurn = this.turnNo;
       const sd = this.turnNo > SUDDEN_DEATH_TURN;
       if (sd) sim.suddenDeath();
       sim.fxq.length = 0;
@@ -2007,8 +2012,9 @@
   function drawTornado(c, x, gy, H, t, a = 1, col = "230,236,240") {
     c.save();
     c.globalAlpha = a;
-    for (let i = 0; i < 14; i++) {
-      const k = i / 13, y = gy - k * H, r = 6 + k * k * 44 + Math.sin(t * 9 + i) * 2, sx = x + Math.sin(t * 4 + k * 5) * 10 * k;
+    const n = Math.max(14, Math.round(H / 14));
+    for (let i = 0; i < n; i++) {
+      const k = i / (n - 1), y = gy - k * H, r = 6 + k * k * 44 + Math.sin(t * 9 + i) * 2, sx = x + Math.sin(t * 4 + k * 5) * 10 * k;
       c.beginPath();
       c.ellipse(sx, y, r, 4 + k * 5, 0, t * 10 + i, t * 10 + i + 4.4);
       c.strokeStyle = `rgba(${col},${0.35 + 0.5 * (1 - k)})`;
@@ -2581,8 +2587,8 @@
       c.drawImage(this.sky, cam.x * 0.5, cam.y * 0.5, this.w, this.h);
       c.translate(sx, sy);
       c.drawImage(this.back, 0, 0, this.w, this.h);
-      this.drawLiquid(c);
       c.drawImage(this.fg, 0, 0, this.w, this.h);
+      this.drawLiquid(c);
       S.zones.forEach((z) => {
         const gy = S.ground(z.x, 0), a = Math.min(1, (clock - (z.born || 0)) * 2);
         if (z.type === "poison") poisonFog(c, z.x, gy, z.r, this.t, a);
@@ -2719,7 +2725,10 @@
         drawPlane(c, Sim.planeX(S, e), PLANE_Y, e.dir, t);
         return;
       }
-      if (e.type === "tornado") drawTornado(c, e.x, e.gy ?? S.ground(e.x, 0), 170, t, Math.min(1, e.t * 2), "200,210,220");
+      if (e.type === "tornado") {
+        const gy = e.gy ?? S.ground(e.x, 0);
+        drawTornado(c, e.x, gy, gy + 20, t, Math.min(1, e.t * 2), "200,210,220");
+      }
       if (e.type === "pillar") {
         const gy = e.gy ?? S.ground(e.x, 0);
         if (e.t < 1) {
@@ -2727,7 +2736,7 @@
           c.fillStyle = `rgba(255,120,40,${k ? 0.8 : 0.4})`;
           ell(c, e.x, gy, 22, 6);
           c.fill();
-        } else drawPillar(c, e.x, gy, 150 * ease((e.t - 1) / 0.3), t, 1);
+        } else drawPillar(c, e.x, gy, (gy + 20) * ease((e.t - 1) / 0.3), t, 1);
       }
       if (e.type === "meteors") e.xs.forEach((x, i) => {
         const tt = 0.4 + i * 0.45, u = (e.t - tt) / 0.7;
@@ -3257,7 +3266,7 @@
         if (k !== 2) return `<button data-w="${k}" aria-pressed="${weapon === k}"><kbd>${k + 1}</kbd>${info}</button>`;
         const st = ssUsed ? "used" : ready ? "ready" : "locked";
         const tag = st === "ready" ? '<span class="ss-tag">\uC0AC\uC6A9 \uAC00\uB2A5!</span>' : st === "used" ? '<span class="ss-tag">\uC0AC\uC6A9\uD568</span>' : `<span class="ss-tag">\uCCB4\uB825 ${Math.round(t.hp / t.max * 100)}% \xB7 50% \uC774\uD558\uC5D0\uC11C</span>`;
-        return `<button class="ss ss-${st}${st === "ready" && ssPop ? " ss-pop" : ""}" data-w="2" aria-pressed="${weapon === 2}" ${st === "ready" ? "" : "disabled"}><kbd>SS</kbd>${info}${tag}</button>`;
+        return `<button class="ss ss-${st}${st === "ready" && ssPop ? " ss-pop" : ""}" data-w="2" aria-pressed="${weapon === 2}" ${st === "ready" ? "" : "disabled"}><kbd>3</kbd><b class="ss-badge">SS</b>${info}${tag}</button>`;
       }).join("");
       ssPop = false;
     }
@@ -3487,8 +3496,52 @@
       }
       c.globalAlpha = 1;
       sim.events.forEach((e) => {
-        c.fillStyle = e.type === "pillar" ? "#ff7a3c" : "#e6eef5";
-        c.fillRect(x + e.x * k - 1.5, y + (e.gy ?? sim.h) * k - 14, 3, 14);
+        const ex = x + e.x * k, gy = y + (e.gy ?? sim.ground(e.x, 0)) * k;
+        if (e.type === "tornado") {
+          const g = c.createLinearGradient(0, y, 0, gy);
+          g.addColorStop(0, "rgba(230,238,245,.25)");
+          g.addColorStop(1, "rgba(230,238,245,.95)");
+          c.fillStyle = g;
+          c.beginPath();
+          c.moveTo(ex - 2, gy);
+          c.lineTo(ex - 7, y);
+          c.lineTo(ex + 7, y);
+          c.lineTo(ex + 2, gy);
+          c.closePath();
+          c.fill();
+          c.strokeStyle = "rgba(80,90,110,.9)";
+          c.lineWidth = 1;
+          for (let j = 1; j < 5; j++) {
+            const yy = gy - (gy - y) * j / 5, r = 2 + j * 1.2;
+            c.beginPath();
+            c.ellipse(ex, yy, r, 1.3, 0, 0, Math.PI * 2);
+            c.stroke();
+          }
+        } else if (e.type === "pillar" && e.t > 1) {
+          const g = c.createLinearGradient(0, y, 0, gy);
+          g.addColorStop(0, "rgba(255,200,90,.35)");
+          g.addColorStop(1, "rgba(255,110,30,1)");
+          c.fillStyle = g;
+          c.fillRect(ex - 3, y, 6, gy - y);
+        } else if (e.type === "pillar") {
+          c.fillStyle = performance.now() / 150 % 2 < 1 ? "#ff7a3c" : "#7a2a10";
+          c.fillRect(ex - 3, gy - 3, 6, 3);
+        } else if (e.type === "supply") {
+          const px = x + Sim.planeX(sim, e) * k;
+          if (px > x && px < x + w) {
+            c.fillStyle = "#f1f3f5";
+            c.fillRect(px - 5, y + 3, 10, 3);
+            c.fillStyle = "#e8590c";
+            c.fillRect(px - 2, y + 2, 4, 5);
+          }
+        }
+      });
+      (sim.crates || []).forEach((cr) => {
+        c.fillStyle = "#ffd43b";
+        c.strokeStyle = "#5a3a10";
+        c.lineWidth = 1;
+        c.fillRect(x + cr.x * k - 2.5, y + cr.y * k - 5, 5, 5);
+        c.strokeRect(x + cr.x * k - 2.5, y + cr.y * k - 5, 5, 5);
       });
       sim.tanks.forEach((t) => {
         if (t.left || t.sunk) return;
@@ -3649,20 +3702,23 @@
         e.preventDefault();
         if (!e.repeat) startCharge();
       }
-      if (e.key.toLowerCase() === "p" && !e.repeat) pass();
-      if (e.key === "1") {
-        weapon = 0;
+      const code = e.code || "", num = /^(Digit|Numpad)[1-3]$/.test(code) ? +code.slice(-1) : ["1", "2", "3"].includes(e.key) ? +e.key : 0;
+      const letter = /^Key[A-Z]$/.test(code) ? code.slice(3).toLowerCase() : (e.key || "").toLowerCase();
+      if (letter === "p" && !e.repeat) pass();
+      if (num === 1 || num === 2) {
+        weapon = num - 1;
         renderWeapons();
       }
-      if (e.key === "2") {
-        weapon = 1;
-        renderWeapons();
+      if (num === 3 && !e.repeat) {
+        if (ssReady()) {
+          weapon = 2;
+          renderWeapons();
+        } else {
+          const t = myTank();
+          toast2(ssUsed ? "\uD544\uC0B4\uAE30\uB294 \uC774\uBBF8 \uC37C\uC5B4\uC694." : `\uD544\uC0B4\uAE30\uB294 \uCCB4\uB825 50% \uC774\uD558\uC5D0\uC11C \uC4F8 \uC218 \uC788\uC5B4\uC694. (\uC9C0\uAE08 ${t ? Math.round(t.hp / t.max * 100) : 0}%)`, true);
+        }
       }
-      if (e.key === "3" && ssReady()) {
-        weapon = 2;
-        renderWeapons();
-      }
-      const qi = "qwerty".indexOf(e.key.toLowerCase());
+      const qi = "qwerty".indexOf(letter);
       if (qi >= 0 && !e.repeat) {
         let c = 0;
         bag.forEach((b, i) => {

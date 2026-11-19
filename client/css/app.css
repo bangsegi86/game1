@@ -247,6 +247,8 @@ td.win { color: var(--good); font-weight: 700; } td.lose { color: var(--muted); 
 /* 필살기 버튼: 잠김 · 준비됨 · 사용함 */
 .weapons button.ss { position: relative; overflow: hidden; }
 .weapons .ss-tag { display: block; font-size: 11px; margin-top: 2px; opacity: .85; }
+.weapons .ss-badge { font-size: 11px; margin-right: 4px; color: #ffb703; letter-spacing: .5px; }
+.weapons button.ss-ready .ss-badge { color: #fff3bf; }
 .weapons button.ss-locked { opacity: .55; filter: grayscale(.8); cursor: not-allowed; }
 .weapons button.ss-locked kbd::after { content: ' 🔒'; }
 .weapons button.ss-used { opacity: .4; filter: grayscale(1); text-decoration: line-through; cursor: not-allowed; }

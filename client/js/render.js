@@ -84,8 +84,9 @@ function drawUFO(c, x, y, t, glow) {
 }
 function drawTornado(c, x, gy, H, t, a = 1, col = '230,236,240') {
   c.save(); c.globalAlpha = a;
-  for (let i = 0; i < 14; i++) {
-    const k = i / 13, y = gy - k * H, r = 6 + k * k * 44 + Math.sin(t * 9 + i) * 2, sx = x + Math.sin(t * 4 + k * 5) * 10 * k;
+  const n = Math.max(14, Math.round(H / 14));
+  for (let i = 0; i < n; i++) {
+    const k = i / (n - 1), y = gy - k * H, r = 6 + k * k * 44 + Math.sin(t * 9 + i) * 2, sx = x + Math.sin(t * 4 + k * 5) * 10 * k;
     c.beginPath(); c.ellipse(sx, y, r, 4 + k * 5, 0, t * 10 + i, t * 10 + i + 4.4); c.strokeStyle = `rgba(${col},${.35 + .5 * (1 - k)})`; c.lineWidth = 3.5; c.stroke();
   }
   for (let i = 0; i < 8; i++) { const p = (t * 1.3 + i / 8) % 1, ang = t * 12 + i * 2, r = 8 + p * 40; c.fillStyle = `rgba(140,110,80,${(1 - p) * .9})`; c.fillRect(x + Math.cos(ang) * r, gy - p * H * .8, 3, 3); }
@@ -308,7 +309,7 @@ export class Renderer {
     const sx = this.shake ? (hash(Math.floor(this.t * 60)) - .5) * this.shake * 12 : 0, sy = this.shake ? (hash(Math.floor(this.t * 60) + 7) - .5) * this.shake * 12 : 0;
     const cam = o.cam || { x: 0, y: 0 };
     c.save(); c.drawImage(this.sky, cam.x * .5, cam.y * .5, this.w, this.h); c.translate(sx, sy); // 하늘은 절반 속도로 움직여 깊이감을 준다
-    c.drawImage(this.back, 0, 0, this.w, this.h); this.drawLiquid(c); c.drawImage(this.fg, 0, 0, this.w, this.h); // 물·용암은 땅 뒤: 웅덩이·틈 안에서만 보인다
+    c.drawImage(this.back, 0, 0, this.w, this.h); c.drawImage(this.fg, 0, 0, this.w, this.h); this.drawLiquid(c); // 물(서든데스에 차오르는 물 포함)은 땅 위에 그려야 잠긴 곳이 보인다
     S.zones.forEach(z => { const gy = S.ground(z.x, 0), a = Math.min(1, (clock - (z.born || 0)) * 2); if (z.type === 'poison') poisonFog(c, z.x, gy, z.r, this.t, a); else fireField(c, z.x, gy, z.r, this.t, a); if (this.labels) zoneLabel(c, z.x, gy - z.r - 20, (z.type === 'poison' ? '독 ' : '불 ') + z.turns + '턴', z.type === 'poison' ? '#d4a6ff' : '#ffb36b'); });
     S.events.forEach(e => this.drawEvent(c, e));
     (S.crates || []).forEach(cr => drawCrate(c, cr, this.t));
@@ -346,8 +347,8 @@ export class Renderer {
   drawEvent(c, e) {
     const S = this.sim, t = this.t;
     if (e.type === 'supply') { drawPlane(c, Sim.planeX(S, e), PLANE_Y, e.dir, t); return; }
-    if (e.type === 'tornado') drawTornado(c, e.x, e.gy ?? S.ground(e.x, 0), 170, t, Math.min(1, e.t * 2), '200,210,220');
-    if (e.type === 'pillar') { const gy = e.gy ?? S.ground(e.x, 0); if (e.t < 1) { const k = (e.t * 6) % 1 < .5; c.fillStyle = `rgba(255,120,40,${k ? .8 : .4})`; ell(c, e.x, gy, 22, 6); c.fill(); } else drawPillar(c, e.x, gy, 150 * ease((e.t - 1) / .3), t, 1); }
+    if (e.type === 'tornado') { const gy = e.gy ?? S.ground(e.x, 0); drawTornado(c, e.x, gy, gy + 20, t, Math.min(1, e.t * 2), '200,210,220'); } // 땅에서 하늘 끝까지
+    if (e.type === 'pillar') { const gy = e.gy ?? S.ground(e.x, 0); if (e.t < 1) { const k = (e.t * 6) % 1 < .5; c.fillStyle = `rgba(255,120,40,${k ? .8 : .4})`; ell(c, e.x, gy, 22, 6); c.fill(); } else drawPillar(c, e.x, gy, (gy + 20) * ease((e.t - 1) / .3), t, 1); }
     if (e.type === 'meteors') e.xs.forEach((x, i) => { const tt = .4 + i * .45, u = (e.t - tt) / .7; if (u < 0 || u > 1) return; const gy = S.ground(x, 0), px = lerp(x - 160, x, u), py = lerp(-40, gy, u); c.save(); c.translate(px, py); c.scale(1.2, 1.2); drawShell(c, { key: 'meteor' }, t, .8); c.restore(); });
     if (e.type === 'lightning') { const a = Math.min(1, e.t * 3, (1.3 - e.t) * 3); drawStormCloud(c, e.x, 46, 1, t, a); if (e.t > .7 && e.t < .9) drawBolt(c, e.x, 60, e.x, S.ground(e.x, 0), Math.floor(t * 30), 1 - (e.t - .7) / .2); }
   }

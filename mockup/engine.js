@@ -254,8 +254,9 @@ function drawUFO(c, x, y, t, glow) {
 }
 function drawTornado(c, x, gy, H, t, a = 1, col = '230,236,240') {
   c.save(); c.globalAlpha = a;
-  for (let i = 0; i < 14; i++) {
-    const k = i / 13, y = gy - k * H, r = 6 + k * k * 44 + Math.sin(t * 9 + i) * 2, sx = x + Math.sin(t * 4 + k * 5) * 10 * k;
+  const n = Math.max(14, Math.round(H / 14));
+  for (let i = 0; i < n; i++) {
+    const k = i / (n - 1), y = gy - k * H, r = 6 + k * k * 44 + Math.sin(t * 9 + i) * 2, sx = x + Math.sin(t * 4 + k * 5) * 10 * k;
     c.beginPath(); c.ellipse(sx, y, r, 4 + k * 5, 0, t * 10 + i, t * 10 + i + 4.4); c.strokeStyle = `rgba(${col},${.35 + .5 * (1 - k)})`; c.lineWidth = 3.5; c.stroke();
   }
   for (let i = 0; i < 8; i++) { const p = (t * 1.3 + i / 8) % 1, ang = t * 12 + i * 2, r = 8 + p * 40; c.fillStyle = `rgba(140,110,80,${(1 - p) * .9})`; c.fillRect(x + Math.cos(ang) * r, gy - p * H * .8, 3, 3); }
@@ -556,8 +557,8 @@ class World {
   shellVsEvents(s, dt) {
     for (const e of this.events) {
       const gy = e.gy || this.h;
-      if (e.type === 'tornado' && e.t > .5 && s.mode === 'fly' && Math.abs(s.x - e.x) < 30 && s.y > gy - 170 && s.y < gy + 4 && !(s.caught && s.caught.includes(e.x))) { (s.caught ||= []).push(e.x); s.mode = 'spin'; s.spin = { x: e.x, t: 0, ph: s.x < e.x ? Math.PI : 0, r: Math.max(8, Math.abs(s.x - e.x)), top: s.y - 130 }; this.float(e.x, s.y - 16, '휘말림!', '#3a2600'); }
-      if (e.type === 'pillar' && e.t > 1 && Math.abs(s.x - e.x) < 18 && s.y > gy - 150 && s.y < gy && !(s.fired && s.fired.includes(e.x))) { (s.fired ||= []).push(e.x); s.k = (s.k || 1) * 1.3; s.powered = true; this.float(s.x, s.y - 18, '파워업!', '#ff6a2a'); }
+      if (e.type === 'tornado' && e.t > .5 && s.mode === 'fly' && Math.abs(s.x - e.x) < 30 && s.y < gy + 4 && !(s.caught && s.caught.includes(e.x))) { (s.caught ||= []).push(e.x); s.mode = 'spin'; s.spin = { x: e.x, t: 0, ph: s.x < e.x ? Math.PI : 0, r: Math.max(8, Math.abs(s.x - e.x)), top: s.y - 130 }; this.float(e.x, s.y - 16, '휘말림!', '#3a2600'); }
+      if (e.type === 'pillar' && e.t > 1 && Math.abs(s.x - e.x) < 18 && s.y < gy && !(s.fired && s.fired.includes(e.x))) { (s.fired ||= []).push(e.x); s.k = (s.k || 1) * 1.3; s.powered = true; this.float(s.x, s.y - 18, '파워업!', '#ff6a2a'); }
     }
     return false;
   }
@@ -643,7 +644,7 @@ class World {
   draw(c, o = {}) {
     const sx = this.shake ? (hash(Math.floor(this.clock * 60)) - .5) * this.shake * 12 : 0, sy = this.shake ? (hash(Math.floor(this.clock * 60) + 7) - .5) * this.shake * 12 : 0;
     c.save(); c.drawImage(this.baked.sky, 0, 0, this.w, this.h); c.translate(sx, sy);
-    c.drawImage(this.baked.back, 0, 0, this.w, this.h); this.drawLiquid(c); c.drawImage(this.tc, 0, 0, this.w, this.h);
+    c.drawImage(this.baked.back, 0, 0, this.w, this.h); c.drawImage(this.tc, 0, 0, this.w, this.h); this.drawLiquid(c);
     this.zones.forEach(z => { const gy = this.ground(z.x, 0), a = Math.min(1, (this.clock - (z.born || 0)) * 2); if (z.type === 'poison') poisonFog(c, z.x, gy, z.r, this.clock, a); else fireField(c, z.x, gy, z.r, this.clock, a); if (this.labels) zoneLabel(c, z.x, gy - z.r - 20, (z.type === 'poison' ? '독 ' : '불 ') + z.turns + '턴', z.type === 'poison' ? '#d4a6ff' : '#ffb36b'); });
     this.events.forEach(e => this.drawEvent(c, e));
     this.tanks.forEach(t => this.drawTank(c, t, o));
@@ -671,8 +672,8 @@ class World {
     this.splashes.forEach(s => { const p = (this.clock - s.t0); for (let i = 0; i < 8; i++) { const a = -Math.PI * (.2 + .6 * hash(i)), v = 120 + hash(i + 3) * 80; c.fillStyle = L.type === 'lava' ? 'rgba(255,170,60,.9)' : 'rgba(200,240,255,.9)'; circ(c, s.x + Math.cos(a) * v * p, y0 + Math.sin(a) * v * p + 300 * p * p, 3); c.fill(); } });
   }
   drawEvent(c, e) {
-    if (e.type === 'tornado') { const a = Math.min(1, e.t * 2) * (e.turns <= 0 ? .4 : 1); drawTornado(c, e.x, e.gy || this.ground(e.x, 0), 170, this.clock, a, '200,210,220'); }
-    if (e.type === 'pillar') { const gy = e.gy || this.ground(e.x, 0); if (e.t < 1) { const k = (e.t * 6) % 1 < .5; c.fillStyle = `rgba(255,120,40,${k ? .8 : .4})`; ell(c, e.x, gy, 22, 6); c.fill(); c.strokeStyle = '#3a1a10'; c.lineWidth = 2; c.beginPath(); c.moveTo(e.x - 18, gy); c.lineTo(e.x - 6, gy + 3); c.lineTo(e.x + 4, gy - 1); c.lineTo(e.x + 18, gy + 2); c.stroke(); } else drawPillar(c, e.x, gy, 150 * ease((e.t - 1) / .3), this.clock, e.turns <= 0 ? .5 : 1); }
+    if (e.type === 'tornado') { const a = Math.min(1, e.t * 2) * (e.turns <= 0 ? .4 : 1); const gy = e.gy || this.ground(e.x, 0); drawTornado(c, e.x, gy, gy + 20, this.clock, a, '200,210,220'); }
+    if (e.type === 'pillar') { const gy = e.gy || this.ground(e.x, 0); if (e.t < 1) { const k = (e.t * 6) % 1 < .5; c.fillStyle = `rgba(255,120,40,${k ? .8 : .4})`; ell(c, e.x, gy, 22, 6); c.fill(); c.strokeStyle = '#3a1a10'; c.lineWidth = 2; c.beginPath(); c.moveTo(e.x - 18, gy); c.lineTo(e.x - 6, gy + 3); c.lineTo(e.x + 4, gy - 1); c.lineTo(e.x + 18, gy + 2); c.stroke(); } else drawPillar(c, e.x, gy, (gy + 20) * ease((e.t - 1) / .3), this.clock, e.turns <= 0 ? .5 : 1); }
     if (e.type === 'meteors') e.xs.forEach((x, i) => { const tt = .4 + i * .45, u = (e.t - tt) / .7; if (u < 0 || u > 1) return; const gy = this.ground(x, 0), px = lerp(x - 160, x, u), py = lerp(-40, gy, u); for (let j = 1; j < 8; j++) { const uu = Math.max(0, u - j * .04); c.save(); c.globalCompositeOperation = 'lighter'; puff(c, lerp(x - 160, x, uu), lerp(-40, gy, uu), 9 - j, '255,140,50', .5 * (1 - j / 8)); c.restore(); } c.save(); c.translate(px, py); c.scale(1.2, 1.2); drawShell(c, { key: 'meteor' }, this.clock, .8); c.restore(); });
     if (e.type === 'lightning') { const a = Math.min(1, e.t * 3, (1.3 - e.t) * 3); drawStormCloud(c, e.x, 46, 1, this.clock, a); if (e.t > .7 && e.t < .9) drawBolt(c, e.x, 60, e.x, this.ground(e.x, 0), Math.floor(this.clock * 30), 1 - (e.t - .7) / .2); }
   }

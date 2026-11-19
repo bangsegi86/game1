@@ -4,7 +4,7 @@ export { opsHash };
 import { botTurn } from './bot.js';
 import { SHELL_STATS, SLOT_DELAY, ITEM_INFO, TURN_BASE_DELAY, SUDDEN_DEATH_TURN } from '../../shared/gamedata.js';
 
-const SUPPLY_CHANCE = .25;
+const SUPPLY_CHANCE = .15, EVENT_GAP = 3;
 const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 
 export class GameSession {
@@ -74,9 +74,12 @@ export class GameSession {
     const t = live[0]; this.turnNo++; this.cur = this.player(t.uid);
     sim.turnStart(t);
     if (this.turnNo > 1) sim.wind = Sim.nextWind(sim.wind, sim.map.windMax);
-    let event = null; if (this.turnNo > 2) { event = Sim.pickEvent(sim); if (event) sim.addEvent(event); }
+    // 돌발 이벤트는 3턴째부터, 그리고 이벤트(보급 비행기 포함) 뒤 3턴은 쉬어 간다
+    const rest = this.turnNo - (this.lastEventTurn ?? -9) >= EVENT_GAP;
+    let event = null; if (this.turnNo > 2 && rest) { event = Sim.pickEvent(sim); if (event) sim.addEvent(event); }
     // 보급 비행기: 다른 돌발 이벤트가 없는 턴에 가끔 지나가며 아이템 상자를 떨어뜨린다 (맵에 상자는 최대 2개)
-    if (!event && this.turnNo > 1 && sim.crates.length < 2 && Math.random() < SUPPLY_CHANCE) { event = Sim.pickSupply(sim); sim.addEvent(event); }
+    if (!event && rest && this.turnNo > 1 && sim.crates.length < 2 && Math.random() < SUPPLY_CHANCE) { event = Sim.pickSupply(sim); sim.addEvent(event); }
+    if (event) this.lastEventTurn = this.turnNo;
     const sd = this.turnNo > SUDDEN_DEATH_TURN; if (sd) sim.suddenDeath();
     sim.fxq.length = 0;
     this.turnState = { itemUsed: false, flags: {}, itemDelay: 0 }; this.moveUsed = 0; this.moveDir = 0;

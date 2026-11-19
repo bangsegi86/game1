@@ -10,6 +10,7 @@ const STEEL = MK.steel, LEAF = MK.leaf, WOOD = MK.wood, PLANK = MK.plank;
 const CLIMB = 24; // 구덩이 가장자리까지 이만큼(px) 이하로 깊으면 가파른 벽도 기어 나온다
 // 보급 비행기: 속도(px/초), 나는 높이, 떨어뜨리는 아이템
 export const PLANE_SPEED = 420, PLANE_Y = 70;
+const EVENT_RATE = .2; // 맵별 이벤트 확률에 곱하는 값 (작을수록 드물다)
 const SUPPLY_ITEMS = ['repair', 'power', 'double', 'teleport', 'shield', 'fuel', 'calm', 'repair', 'power'];
 const BASE = new Map();
 export function baseGrid(mapId, w, h) {
@@ -238,8 +239,10 @@ export class Sim {
   /* ---------- 돌발 이벤트 (어떤 이벤트를 어디에 낼지는 서버가 정해서 넘긴다) ---------- */
   static pickEvent(sim, rnd = Math.random) {
     const ev = sim.map.ev || {}; let r = rnd(), type = null;
-    for (const k in ev) { r -= ev[k] * .45; if (r < 0) { type = k; break; } }
+    for (const k in ev) { r -= ev[k] * EVENT_RATE; if (r < 0) { type = k; break; } }
     if (!type) return null;
+    // 회오리·불기둥은 맵에 하나씩만
+    if ((type === 'tornado' || type === 'pillar') && sim.events.some(e => e.type === type)) return null;
     const live = sim.tanks.filter(t => !t.dead), e = { type, x: Math.round(120 + rnd() * (sim.w - 240)) };
     if (type === 'lightning' && live.length) { const t = live[Math.floor(rnd() * live.length)]; e.x = Math.round(t.x + (rnd() - .5) * 60); }
     if (type === 'pillar') for (let i = 0; i < 20; i++) { const x = Math.round(60 + rnd() * (sim.w - 120)); if (sim.ground(x, 0) < sim.liquidY && live.every(t => Math.abs(t.x - x) > 50)) { e.x = x; break; } }
@@ -281,13 +284,13 @@ export class Sim {
     for (const e of this.events) {
       const gy = e.gy ?? this.h;
       // 회오리: 포탄을 붙잡아 빙글빙글 타고 올라가게 한 뒤 튕겨 낸다 (회오리마다 한 번)
-      if (e.type === 'tornado' && e.t > .5 && s.mode === 'fly' && Math.abs(s.x - e.x) < 30 && s.y > gy - 170 && s.y < gy + 4 && !(s.caught && s.caught.includes(e.x))) {
+      if (e.type === 'tornado' && e.t > .5 && s.mode === 'fly' && Math.abs(s.x - e.x) < 30 && s.y < gy + 4 && !(s.caught && s.caught.includes(e.x))) {
         (s.caught ||= []).push(e.x);
         s.mode = 'spin'; s.spin = { x: e.x, t: 0, ph: s.x < e.x ? Math.PI : 0, r: Math.max(8, Math.abs(s.x - e.x)), top: s.y - 130 };
         this.float(e.x, s.y - 16, '휘말림!', '#3a2600'); return false;
       }
       // 불기둥: 지나가는 포탄을 파워업시킨다 (불기둥마다 한 번, 피해·파임 +30%)
-      if (e.type === 'pillar' && e.t > 1 && Math.abs(s.x - e.x) < 18 && s.y > gy - 150 && s.y < gy && !(s.fired && s.fired.includes(e.x))) {
+      if (e.type === 'pillar' && e.t > 1 && Math.abs(s.x - e.x) < 18 && s.y < gy && !(s.fired && s.fired.includes(e.x))) {
         (s.fired ||= []).push(e.x); s.k = Math.round(s.k * 1.3 * 100) / 100; s.powered = true;
         this.float(s.x, s.y - 18, '파워업!', '#ff6a2a');
       }
