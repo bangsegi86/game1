@@ -2013,16 +2013,24 @@
     c.save();
     c.globalAlpha = a;
     const n = Math.max(14, Math.round(H / 14));
+    const band = c.createLinearGradient(x - 28, 0, x + 28, 0);
+    band.addColorStop(0, `rgba(${col},0)`);
+    band.addColorStop(0.3, `rgba(${col},.35)`);
+    band.addColorStop(0.5, `rgba(${col},.5)`);
+    band.addColorStop(0.7, `rgba(${col},.35)`);
+    band.addColorStop(1, `rgba(${col},0)`);
+    c.fillStyle = band;
+    c.fillRect(x - 28, gy - H, 56, H);
     for (let i = 0; i < n; i++) {
-      const k = i / (n - 1), y = gy - k * H, r = 6 + k * k * 44 + Math.sin(t * 9 + i) * 2, sx = x + Math.sin(t * 4 + k * 5) * 10 * k;
+      const k = i / (n - 1), y = gy - k * H, r = (k < 0.04 ? 16 : 24) + Math.sin(t * 9 + i) * 2, sx = x + Math.sin(t * 4 + k * 5) * 4;
       c.beginPath();
-      c.ellipse(sx, y, r, 4 + k * 5, 0, t * 10 + i, t * 10 + i + 4.4);
-      c.strokeStyle = `rgba(${col},${0.35 + 0.5 * (1 - k)})`;
+      c.ellipse(sx, y, r, 6, 0, t * 10 + i, t * 10 + i + 4.4);
+      c.strokeStyle = `rgba(${col},${0.55 + 0.3 * Math.sin(i * 1.7)})`;
       c.lineWidth = 3.5;
       c.stroke();
     }
     for (let i = 0; i < 8; i++) {
-      const p = (t * 1.3 + i / 8) % 1, ang = t * 12 + i * 2, r = 8 + p * 40;
+      const p = (t * 1.3 + i / 8) % 1, ang = t * 12 + i * 2, r = 20;
       c.fillStyle = `rgba(140,110,80,${(1 - p) * 0.9})`;
       c.fillRect(x + Math.cos(ang) * r, gy - p * H * 0.8, 3, 3);
     }
@@ -3502,19 +3510,13 @@
           g.addColorStop(0, "rgba(230,238,245,.25)");
           g.addColorStop(1, "rgba(230,238,245,.95)");
           c.fillStyle = g;
-          c.beginPath();
-          c.moveTo(ex - 2, gy);
-          c.lineTo(ex - 7, y);
-          c.lineTo(ex + 7, y);
-          c.lineTo(ex + 2, gy);
-          c.closePath();
-          c.fill();
+          c.fillRect(ex - 3, y, 6, gy - y);
           c.strokeStyle = "rgba(80,90,110,.9)";
           c.lineWidth = 1;
-          for (let j = 1; j < 5; j++) {
-            const yy = gy - (gy - y) * j / 5, r = 2 + j * 1.2;
+          for (let j = 1; j < 6; j++) {
+            const yy = gy - (gy - y) * j / 6;
             c.beginPath();
-            c.ellipse(ex, yy, r, 1.3, 0, 0, Math.PI * 2);
+            c.ellipse(ex, yy, 3.5, 1.2, 0, 0, Math.PI * 2);
             c.stroke();
           }
         } else if (e.type === "pillar" && e.t > 1) {
