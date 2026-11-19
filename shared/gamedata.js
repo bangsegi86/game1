@@ -6,8 +6,9 @@ export const SECRET_TANK = 'super', SECRET_CHANCE = .1;
 export function pickRandomTank(rnd = Math.random) { return rnd() < SECRET_CHANCE ? SECRET_TANK : TANK_IDS[Math.floor(rnd() * TANK_IDS.length)]; }
 export const MAP_IDS = ['valley', 'temple', 'sky', 'bridge', 'cave'];
 export const MAP_NAMES = { valley: '골짜기', temple: '모래 신전', sky: '구름섬', bridge: '통나무 다리', cave: '수정 동굴', random: '무작위' };
-export const ITEM_SIZES = { double: 2, power: 1, repair: 1, teamrepair: 2, teleport: 2, calm: 1, shield: 1, fuel: 1 };
-export const BAG_CELLS = 6;
+// 모든 아이템은 1칸. 가방은 4칸
+export const ITEM_SIZES = { double: 1, power: 1, repair: 1, teamrepair: 1, teleport: 1, calm: 1, shield: 1, fuel: 1 };
+export const BAG_CELLS = 4;
 export const TURN_SECONDS = [10, 20, 30];
 export const MAX_PLAYERS = 8;
 export const DEFAULT_BAG = ['double', 'power', 'repair', 'shield'];

@@ -3063,7 +3063,7 @@
     let cam = { x: 0, y: 0 }, camHold = 0, chatLines = [];
     let sim = null, ren = null, start2 = null, bag = [], ssUsed = false, turn = null, deadline = 0, phase = "idle", order = [];
     let lastTick = 0, flags = {}, weapon = 0, power = 0, charging = false, turnItemUsed = false, keys = {}, sentDir = 0, lastAimSent = 0, aimDirty = false, acc = 0, last = 0, running = false;
-    const BAG_SLOTS = 6;
+    const BAG_SLOTS = 4;
     const myTank = () => sim?.tankOf(me());
     const mine = () => phase === "aim" && turn?.uid === me();
     function begin(s) {
@@ -3327,7 +3327,7 @@
       el.innerHTML = "";
       const n = Math.max(BAG_SLOTS, bag.length), can = !turnItemUsed && mine();
       for (let i = 0; i < n; i++) {
-        const b = bag[i], k = "QWERTY"[i] || "";
+        const b = bag[i], k = "QWER"[i] || "";
         const btn = document.createElement("button");
         btn.type = "button";
         if (!b || b.used) {
@@ -3765,7 +3765,7 @@
           toast2(ssUsed ? "\uD544\uC0B4\uAE30\uB294 \uC774\uBBF8 \uC37C\uC5B4\uC694." : `\uD544\uC0B4\uAE30\uB294 \uCCB4\uB825 50% \uC774\uD558\uC5D0\uC11C \uC4F8 \uC218 \uC788\uC5B4\uC694. (\uC9C0\uAE08 ${t ? Math.round(t.hp / t.max * 100) : 0}%)`, true);
         }
       }
-      const qi = "qwerty".indexOf(letter);
+      const qi = "qwer".indexOf(letter);
       if (qi >= 0 && !e.repeat && bag[qi] && !bag[qi].used) useItem(qi);
     });
     addEventListener("keyup", (e) => {

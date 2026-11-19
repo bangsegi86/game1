@@ -76,7 +76,7 @@ section > .lead { margin-bottom: 14px; }
   <header>
     <div class="eyebrow">포탄대결 · 아트 시안 v2</div>
     <h1>아이템 도감</h1>
-    <p class="lead">무료 아이템 8종의 아이콘과 실제로 썼을 때의 장면입니다. 방에 들어가면 6칸 가방을 채우고, 게임 중에는 턴마다 하나씩 쓸 수 있어요. 아이템을 쓰면 다음 차례가 그만큼 늦게 옵니다(딜레이).</p>
+    <p class="lead">무료 아이템 8종의 아이콘과 실제로 썼을 때의 장면입니다. 방에 들어가면 4칸 가방을 채우고(아이템은 모두 1칸), 게임 중에는 턴마다 하나씩 쓸 수 있어요. 아이템을 쓰면 다음 차례가 그만큼 늦게 옵니다(딜레이).</p>
   </header>
 
   <section>
@@ -84,8 +84,8 @@ section > .lead { margin-bottom: 14px; }
     <p class="lead">아이템은 1칸짜리와 2칸짜리가 있습니다. 칸은 상태에 따라 모양이 바뀝니다.</p>
     <div class="slots-demo">
       <div class="panel">
-        <h3>게임 화면 하단의 가방 (6칸)</h3>
-        <canvas class="bar" id="bar" aria-label="아이템 가방 6칸 예시"></canvas>
+        <h3>게임 화면의 가방 (4칸)</h3>
+        <canvas class="bar" id="bar" aria-label="아이템 가방 4칸 예시"></canvas>
         <p class="lead" style="margin:0;font-size:13px">단축키 Q · W · E · R · T · Y. 2칸짜리는 앞 칸의 키를 씁니다.</p>
       </div>
       <div class="panel">
@@ -103,7 +103,7 @@ section > .lead { margin-bottom: 14px; }
 
   <section>
     <h2>가방 조합 예시</h2>
-    <p class="lead">6칸 안에서 무엇을 챙길지가 작은 전략이 됩니다.</p>
+    <p class="lead">4칸 안에서 무엇을 챙길지가 작은 전략이 됩니다.</p>
     <div class="combos" id="combos"></div>
   </section>
 </div>
@@ -322,9 +322,9 @@ DEMOS.shield = worldDemo({ me: 'laser', foe: 'hammer', cyc: 3.8, fireAt: 1,
   over(c, W, d, tt) { iconAbove(c, d.a, 'shield', tt, W.clock); if (W.clock - d.a.hitAt < 1.2 && d.a.hitAt > 0) { c.save(); c.font = '14px Jua, sans-serif'; c.textAlign = 'center'; c.fillStyle = '#1f6fae'; c.fillText('보호막: 피해 절반', d.a.x + 10, d.a.y - 92); c.restore(); } } });
 
 /* ---------- 페이지 구성 ---------- */
-const BAG = ['double', 'power', 'repair', 'calm', 'shield'];
+const BAG = ['double', 'power', 'repair', 'shield'];
 addView(document.getElementById('bar'), 600, 120, (c, w, h, t) => {
-  let x = 16; const cell = 88, keys = 'QWERTY';
+  let x = 16; const cell = 88, keys = 'QWER';
   let k = 0; BAG.forEach((id, i) => { const it = itemById(id); slotItem(c, x, 16, cell, it, i === 2 ? 'used' : 'ready', t, keys[k]); x += cell * it.size + 8; k += it.size; });
 });
 const stateDefs = [['ready', '내 차례', '빛나는 테두리, 아이콘이 살짝 움직임'], ['idle', '기다리는 중', '다른 사람 차례에는 차분하게'], ['used', '사용함', '흐려지고 도장이 찍힘'], ['locked', '잠김', '이미 이번 턴에 하나 썼거나 봉인됨']];

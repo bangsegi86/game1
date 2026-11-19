@@ -23,11 +23,11 @@ test('비밀번호와 꽉 찬 방', () => {
   assert.throws(() => m.join(U(9), r.id, '1234'), /꽉 찼/);
 });
 
-test('가방 6칸 제한과 탱크 선택', () => {
+test('가방 4칸 제한과 탱크 선택', () => {
   const m = new RoomManager(); const r = m.create(U(1));
   m.update(1, { tankId: 'laser', items: ['double', 'teleport', 'repair', 'calm'] });
   assert.equal(r.slots[0].tankId, 'laser');
-  assert.throws(() => m.update(1, { items: ['double', 'teleport', 'teamrepair', 'calm'] }), /6칸/);
+  assert.throws(() => m.update(1, { items: ['double', 'teleport', 'teamrepair', 'calm', 'fuel'] }), /4칸/);
   assert.throws(() => m.update(1, { tankId: 'nope' }), /없는 탱크/);
 });
 
