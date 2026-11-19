@@ -105,7 +105,7 @@ function face(c, T, S) { if (S.damaged) damage(c, T, S); eyes(c, T, S); }
 /* ---------- 탱크 8종 ---------- */
 const TANKS = [
 {
-  id: 'mole', name: '두더지', role: '입문형', hp: 1000, ang: '0~70°',
+  id: 'mole', name: '두더지', role: '입문형', hp: 600, ang: '0~70°',
   concept: '드릴 코로 땅을 파고드는 굴착 탱크. 탄도가 반듯해서 처음 하는 사람에게 좋다.',
   notes: ['머리 위 고글과 드릴 코가 실루엣 포인트', '이동할 때 드릴이 빨리 돈다', '땅굴 폭탄은 지형을 뚫고 들어가 터진다'],
   c: { main: '#c07a4c', light: '#eab285', dark: '#7d4529' }, swatch: ['#c07a4c', '#7d4529', '#ffcf5a', '#c9ced8'],
@@ -131,7 +131,7 @@ const TANKS = [
   barrel(c) { pipe(c, this.len, 10, '#8a5636', '#4e2d1b', '#ffcf5a'); },
 },
 {
-  id: 'hammer', name: '망치', role: '방어형', hp: 1200, ang: '20~60°',
+  id: 'hammer', name: '망치', role: '방어형', hp: 720, ang: '20~60°',
   concept: '등에 거대한 망치를 짊어진 중장갑 탱크. 느리지만 체력이 가장 높고 한 방이 무겁다.',
   notes: ['등의 망치가 실루엣 포인트', '두꺼운 사각 포신, 노란 경고 줄무늬', '발사 반동이 가장 크다'],
   c: { main: '#7f8ca6', light: '#c9d3e4', dark: '#4a536a' }, swatch: ['#7f8ca6', '#4a536a', '#f0a93b', '#a0714a'],
@@ -162,7 +162,7 @@ const TANKS = [
   },
 },
 {
-  id: 'cloud', name: '구름열차', role: '공중형', hp: 900, ang: '30~90°',
+  id: 'cloud', name: '구름열차', role: '공중형', hp: 540, ang: '30~90°',
   concept: '구름 풍선에 매달려 떠다니는 곤돌라. 높은 각도 포격에 강하고 낙하 피해를 덜 받는다.',
   notes: ['바퀴 대신 프로펠러, 늘 둥실 떠 있음', '그림자로 높이를 알 수 있다', '폭풍은 주변 탱크를 밀어낸다'],
   c: { main: '#6db3e6', light: '#bfe5ff', dark: '#3a78ad' }, swatch: ['#6db3e6', '#3a78ad', '#ffffff', '#f0c868'],
@@ -194,7 +194,7 @@ const TANKS = [
   barrel(c) { pipe(c, this.len, 7.5, '#f6d27a', '#a87a22', '#ffffff'); },
 },
 {
-  id: 'bee', name: '불꽃벌', role: '지속 피해', hp: 950, ang: '0~80°',
+  id: 'bee', name: '불꽃벌', role: '지속 피해', hp: 570, ang: '0~80°',
   concept: '꽁무니에서 불꽃이 이는 벌 탱크. 바닥에 불을 남겨 다음 턴까지 피해를 준다.',
   notes: ['날개는 항상 파닥이고 이동 때 더 빠르다', '독침 모양 포신', '꼬리 불꽃은 상태가 나쁠수록 작아진다'],
   c: { main: '#f7c531', light: '#fff0a8', dark: '#c98d0b' }, swatch: ['#f7c531', '#2b2433', '#ff7a3c', '#e1f5ff'],
@@ -231,7 +231,7 @@ const TANKS = [
   },
 },
 {
-  id: 'magnet', name: '자석포', role: '유도형', hp: 1000, ang: '10~70°',
+  id: 'magnet', name: '자석포', role: '유도형', hp: 600, ang: '10~70°',
   concept: 'U자 자석을 얹은 코일 탱크. 포탄이 가까운 적 쪽으로 살짝 휘어진다.',
   notes: ['자석 끝 사이로 전기가 튄다', '몸통의 구리 코일과 보라색 대비', '자기폭풍은 주변 아이템을 한 턴 봉인한다'],
   c: { main: '#8f65cc', light: '#cbabf5', dark: '#56368c' }, swatch: ['#8f65cc', '#56368c', '#e8474f', '#d98b4a'],
@@ -259,7 +259,7 @@ const TANKS = [
   barrel(c) { pipe(c, this.len, 9, '#7a7090', '#3a3348', '#d98b4a'); [10, 18].forEach(x => { rr(c, x, -6.5, 4, 13, 1.5); fs(c, '#d98b4a', 1.5); }); },
 },
 {
-  id: 'shroom', name: '버섯포', role: '확산형', hp: 1050, ang: '25~85°',
+  id: 'shroom', name: '버섯포', role: '확산형', hp: 630, ang: '25~85°',
   concept: '커다란 버섯 갓을 쓴 포자 탱크. 포탄 여러 발을 넓게 뿌린다.',
   notes: ['분홍 갓과 흰 점이 실루엣 포인트', '가만히 있어도 포자가 둥실 떠오른다', '독버섯밭은 3턴 동안 독 피해'],
   c: { main: '#ead9bf', light: '#fff6e6', dark: '#b9a07c', face: '#ead9bf' }, swatch: ['#e5487a', '#ead9bf', '#86c464', '#fff4f7'],
@@ -289,7 +289,7 @@ const TANKS = [
   },
 },
 {
-  id: 'whale', name: '얼음고래', role: '제어형', hp: 1100, ang: '5~65°',
+  id: 'whale', name: '얼음고래', role: '제어형', hp: 660, ang: '5~65°',
   concept: '얼음을 뿜는 고래 탱크. 빙결탄에 맞은 적은 다음 턴에 움직이지 못한다.',
   notes: ['꼬리가 살랑거리고 머리 위로 물을 뿜는다', '배 쪽 흰 줄무늬, 얼음 포신', '해일은 맵을 가로질러 밀어붙인다'],
   c: { main: '#48aec4', light: '#a6e6f0', dark: '#256f86' }, swatch: ['#48aec4', '#256f86', '#e4f7f9', '#bfeaf5'],
@@ -324,7 +324,7 @@ const TANKS = [
   },
 },
 {
-  id: 'laser', name: '레이저로봇', role: '고수형', hp: 850, ang: '0~45°',
+  id: 'laser', name: '레이저로봇', role: '고수형', hp: 510, ang: '0~45°',
   concept: '직선 빔을 쏘는 로봇 탱크. 체력은 낮지만 낮은 각도 직사에서 가장 강하다.',
   notes: ['눈 대신 빛나는 바이저 표정', '등 쪽 빔 발사기, 깜빡이는 상태등', '궁극 빔은 하늘에서 수직으로 떨어진다'],
   c: { main: '#a3aebd', light: '#e8edf4', dark: '#5d6878' }, swatch: ['#a3aebd', '#5d6878', '#2fe0ff', '#7fe36b'],
@@ -523,8 +523,8 @@ Object.keys(SHELLS).forEach(id => SHELLS[id].forEach((sh, k) => Object.assign(sh
 const ITEMS = [
   { id: 'double', n: '연발탄', size: 2, delay: 150, d: '이번 턴 포탄을 두 번 쏜다.', tip: '두 번 발사' },
   { id: 'power', n: '강화탄', size: 1, delay: 80, d: '이번 포탄의 피해와 땅 파임이 30% 커진다.', tip: '피해·파임 +30%' },
-  { id: 'repair', n: '수리킷', size: 1, delay: 60, d: '내 탱크 체력을 250 회복한다.', tip: '체력 +250' },
-  { id: 'teamrepair', n: '팀 수리킷', size: 2, delay: 120, d: '우리 팀 전원의 체력을 150씩 회복한다.', tip: '팀 전원 +150' },
+  { id: 'repair', n: '수리킷', size: 1, delay: 60, d: '내 탱크 체력을 150 회복한다.', tip: '체력 +150' },
+  { id: 'teamrepair', n: '팀 수리킷', size: 2, delay: 120, d: '우리 팀 전원의 체력을 90씩 회복한다.', tip: '팀 전원 +90' },
   { id: 'teleport', n: '순간이동탄', size: 2, delay: 100, d: '포탄이 떨어진 자리로 내 탱크가 옮겨 간다.', tip: '떨어진 곳으로 이동' },
   { id: 'calm', n: '바람정지', size: 1, delay: 50, d: '이번 턴만 바람이 0이 된다.', tip: '바람 0' },
   { id: 'shield', n: '보호막', size: 1, delay: 70, d: '다음 내 턴까지 받는 피해가 절반이 된다.', tip: '받는 피해 -50%' },

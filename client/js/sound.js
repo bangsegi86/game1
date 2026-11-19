@@ -28,6 +28,7 @@ const SFX = {
   turn: () => { tone('sine', 784, 0, .12, .22); tone('sine', 1175, 0, .2, .22, .1); },
   banner: () => { tone('sawtooth', 220, 440, .35, .12); tone('sawtooth', 330, 660, .35, .1, .05); },
   zap: () => { burst(.25, 6000, .3, 0, 8); tone('sawtooth', 1400, 200, .2, .12); },
+  ssready: () => { [523, 784, 1047, 1568].forEach((f, i) => tone('triangle', f, 0, .18, .22, i * .07)); tone('sawtooth', 200, 800, .4, .08, .05); },
   tick: () => { tone('square', 1200, 0, .03, .06); },
   win: () => [523, 659, 784, 1047].forEach((f, i) => tone('triangle', f, 0, .25, .2, i * .12)),
   lose: () => [392, 330, 262].forEach((f, i) => tone('triangle', f, 0, .3, .18, i * .16)),

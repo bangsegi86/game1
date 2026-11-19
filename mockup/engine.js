@@ -610,7 +610,7 @@ class World {
       t.vy += 900 * dt; t.x += t.vx * dt;
       if (t.x < 10 || t.x > this.w - 10) { t.x = Math.max(10, Math.min(this.w - 10, t.x)); t.vx = 0; }
       const ny = t.y + t.vy * dt;
-      if (t.vy > 0) { const land = this.ground(t.x, t.y - 3); if (ny >= land && land < this.h) { t.y = land; t.air = false; t.vx = 0; const fall = t.y - t.fallFrom; if (fall > 40) this.damage(t, fall * 1.2, null, '낙하 '); t.vy = 0; t.fallFrom = t.y; return true; } }
+      if (t.vy > 0) { const land = this.ground(t.x, t.y - 3); if (ny >= land && land < this.h) { t.y = land; t.air = false; t.vx = 0; const fall = t.y - t.fallFrom; if (fall > 40) this.damage(t, fall * .8, null, '낙하 '); t.vy = 0; t.fallFrom = t.y; return true; } }
       t.y = ny;
       if (t.y > this.liquidY + 6 || t.y > this.h + 20) {
         t.sunk = true; t.dead = true; t.hp = 0; this.float(t.x, Math.min(this.liquidY, this.h) - 30, '낙사!', '#c92a2a');

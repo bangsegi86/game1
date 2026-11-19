@@ -450,14 +450,14 @@
   // ../shared/gamedata.js
   var TANK_NAMES = { mole: "\uB450\uB354\uC9C0", hammer: "\uB9DD\uCE58", cloud: "\uAD6C\uB984\uC5F4\uCC28", bee: "\uBD88\uAF43\uBC8C", magnet: "\uC790\uC11D\uD3EC", shroom: "\uBC84\uC12F\uD3EC", whale: "\uC5BC\uC74C\uACE0\uB798", laser: "\uB808\uC774\uC800\uB85C\uBD07", random: "\uB79C\uB364" };
   var TANK_STATS = {
-    mole: { hp: 1e3, amin: 0, amax: 70, pivot: [-8, -50], len: 42, w: 96 },
-    hammer: { hp: 1200, amin: 20, amax: 60, pivot: [12, -60], len: 46, w: 112 },
-    cloud: { hp: 900, amin: 30, amax: 90, pivot: [18, -46], len: 38, w: 92, hover: true },
-    bee: { hp: 950, amin: 0, amax: 80, pivot: [40, -32], len: 30, w: 90 },
-    magnet: { hp: 1e3, amin: 10, amax: 70, pivot: [30, -46], len: 36, w: 100 },
-    shroom: { hp: 1050, amin: 25, amax: 85, pivot: [32, -32], len: 34, w: 96 },
-    whale: { hp: 1100, amin: 5, amax: 65, pivot: [14, -60], len: 34, w: 104 },
-    laser: { hp: 850, amin: 0, amax: 45, pivot: [-20, -58], len: 44, w: 96 }
+    mole: { hp: 600, amin: 0, amax: 70, pivot: [-8, -50], len: 42, w: 96 },
+    hammer: { hp: 720, amin: 20, amax: 60, pivot: [12, -60], len: 46, w: 112 },
+    cloud: { hp: 540, amin: 30, amax: 90, pivot: [18, -46], len: 38, w: 92, hover: true },
+    bee: { hp: 570, amin: 0, amax: 80, pivot: [40, -32], len: 30, w: 90 },
+    magnet: { hp: 600, amin: 10, amax: 70, pivot: [30, -46], len: 36, w: 100 },
+    shroom: { hp: 630, amin: 25, amax: 85, pivot: [32, -32], len: 34, w: 96 },
+    whale: { hp: 660, amin: 5, amax: 65, pivot: [14, -60], len: 34, w: 104 },
+    laser: { hp: 510, amin: 0, amax: 45, pivot: [-20, -58], len: 44, w: 96 }
   };
   var SHELL_STATS = {
     mole: [{ n: "\uB3CC\uD0C4", dmg: 200, r: 34, cr: 34, wind: 1, wt: 1, R: 24 }, { n: "\uD30C\uD3B8\uD0C4", dmg: 110, r: 24, cr: 20, wind: 1, wt: 1, R: 15, spread: [-1.5, 0, 1.5], pspread: [0.91, 1, 1.09] }, { n: "\uB545\uAD74 \uD3ED\uD0C4", dmg: 380, r: 60, cr: 50, wind: 0.8, wt: 1.1, R: 36, shape: "tunnel", sp: "erupt" }],
@@ -494,6 +494,7 @@
   var LEAF = MK.leaf;
   var WOOD = MK.wood;
   var PLANK = MK.plank;
+  var CLIMB = 24;
   var BASE = /* @__PURE__ */ new Map();
   function baseGrid(mapId, w, h) {
     const key = `${mapId}:${w}x${h}`;
@@ -570,6 +571,33 @@
     }
     // 다리(널판)는 위에서만 밟힌다: feet(탱크 발 높이)를 주면, 발보다 위에 있는 널판 윗면과 널판 속은 무시한다.
     // 그래서 다리가 끊어져 협곡에 떨어진 탱크가 다리 밑 비탈을 올라 빠져나올 때 널판에 막히지 않는다
+    // 탱크 발 높이(feet)에서 위아래로 가장 가까운 밟을 곳. 발밑부터 이어진 벽이 up보다 높으면 null(못 오름).
+    // 머리 위 천장(터널·다리 밑)은 무시한다
+    standF(x, y, feet) {
+      if (!this.stand(x, y)) return false;
+      if (this.grid[(y | 0) * this.w + (x | 0)] !== PLANK) return true;
+      return !(y < feet - 4 || y > 0 && this.grid[((y | 0) - 1) * this.w + (x | 0)] === PLANK);
+    }
+    // skip=true면 너무 높은 벽 쪽 바퀴는 빼고 나머지로 선다 (가만히 있을 때 벽을 타고 오르지 않게)
+    reach(x, feet, up, skip = false) {
+      let best = Infinity;
+      feet = Math.round(feet);
+      for (const xx of [x, x - 7, x + 7]) {
+        let y = feet - 1;
+        if (this.standF(xx, y, feet)) {
+          while (y > feet - 1 - up && this.standF(xx, y - 1, feet)) y--;
+          if (y <= feet - 1 - up) {
+            if (skip) continue;
+            return null;
+          }
+        } else {
+          while (y < this.h && !this.standF(xx, y, feet)) y++;
+        }
+        best = Math.min(best, y);
+      }
+      if (best === Infinity) return feet;
+      return best >= this.h ? this.h + 200 : best;
+    }
     ground(x, from = 0, feet = null) {
       const mat = (xx, yy) => {
         xx |= 0;
@@ -727,10 +755,18 @@
       if (t.fuel <= 0 || !t.canMove || t.air || t.dead) return 0;
       const nx = t.x + dir * 50 * dt;
       if (nx < 12 || nx > this.w - 12) return 0;
-      const ny = this.ground(nx, t.y - 14, t.y);
-      if (ny < t.y - 12) return 0;
-      const ahead = this.ground(t.x + dir * 6, t.y - 14, t.y);
-      if (t.y - ahead > 8.5) return 0;
+      const ny = this.reach(nx, t.y, 60);
+      if (ny == null) return 0;
+      let rim = t.y;
+      for (let k = 2; k <= 40; k += 2) {
+        const g = this.reach(t.x + dir * k, t.y, 200, true);
+        if (g < rim) rim = g;
+      }
+      if (t.y - rim > CLIMB) {
+        if (ny < t.y - 12) return 0;
+        const ahead = this.reach(t.x + dir * 6, t.y, 60);
+        if (ahead == null || t.y - ahead > 8.5) return 0;
+      }
       t.moving = true;
       t.x = nx;
       if (ny <= t.y + 2) {
@@ -1153,7 +1189,7 @@
     }
     settle(t, dt) {
       if (t.sunk || t.left) return true;
-      const g = this.ground(t.x, t.y - 3, t.y);
+      const g = this.reach(t.x, t.y, 3, true);
       if (t.air || g > t.y + 1) {
         t.vy += 900 * dt;
         t.x += t.vx * dt;
@@ -1169,7 +1205,7 @@
             t.air = false;
             t.vx = 0;
             const fall = t.y - t.fallFrom;
-            if (fall > 40) this.damage(t, fall * 1.2, null, "\uB099\uD558 ");
+            if (fall > 40) this.damage(t, fall * 0.8, null, "\uB099\uD558 ");
             t.vy = 0;
             t.fallFrom = t.y;
             t.tilt = this.slope(t);
@@ -1239,8 +1275,8 @@
         x.hp = Math.min(x.max, x.hp + n);
         this.float(x.x, x.y - 60, "+" + n, "#2f9e44");
       };
-      if (id === "repair") heal(t, 250);
-      if (id === "teamrepair") this.tanks.filter((x) => x === t || t.team !== "solo" && x.team === t.team).forEach((x) => heal(x, 150));
+      if (id === "repair") heal(t, 150);
+      if (id === "teamrepair") this.tanks.filter((x) => x === t || t.team !== "solo" && x.team === t.team).forEach((x) => heal(x, 90));
       if (id === "calm") this.wind = { ...this.wind, str: 0 };
       if (id === "shield") t.shield = true;
       if (id === "fuel") t.fuel = 200;
@@ -2746,6 +2782,10 @@
       burst(0.25, 6e3, 0.3, 0, 8);
       tone("sawtooth", 1400, 200, 0.2, 0.12);
     },
+    ssready: () => {
+      [523, 784, 1047, 1568].forEach((f, i) => tone("triangle", f, 0, 0.18, 0.22, i * 0.07));
+      tone("sawtooth", 200, 800, 0.4, 0.08, 0.05);
+    },
     tick: () => {
       tone("square", 1200, 0, 0.03, 0.06);
     },
@@ -2797,6 +2837,7 @@
       const mp = s.players.find((p) => p.uid === me());
       bag = (mp?.items || []).map((id) => ({ id, used: false }));
       ssUsed = false;
+      ssWas = false;
       weapon = 0;
       power = 0;
       charging = false;
@@ -2837,6 +2878,7 @@
       sim.restore(st.snapshot);
       bag = st.bag.map((b) => ({ ...b }));
       ssUsed = !!st.ssUsed;
+      ssWas = null;
       flags = { ...st.flags || {} };
       if (st.turn) {
         turn = { uid: st.turn.uid, turnNo: st.turn.turnNo };
@@ -2971,12 +3013,21 @@
     };
     const ssReady = () => {
       const t = myTank();
-      return t && !ssUsed && t.hp <= t.max / 2;
+      return !!t && !t.dead && !ssUsed && t.hp <= t.max / 2;
     };
+    let ssWas = false, ssPop = false, ssHpShown = -1;
     function renderWeapons() {
       const t = myTank();
       if (!t) return;
-      $("weapons").innerHTML = SHELL_STATS[t.tankId].map((s, k) => `<button data-w="${k}" aria-pressed="${weapon === k}" ${k === 2 && !ssReady() ? "disabled" : ""}><kbd>${k === 2 ? "SS" : k + 1}</kbd>${s.n} <small>${s.dmg}${s.spread ? "\xD7" + s.spread.length : ""}</small></button>`).join("");
+      const ready = ssReady();
+      $("weapons").innerHTML = SHELL_STATS[t.tankId].map((s, k) => {
+        const info = `${s.n} <small>${s.dmg}${s.spread ? "\xD7" + s.spread.length : ""}</small>`;
+        if (k !== 2) return `<button data-w="${k}" aria-pressed="${weapon === k}"><kbd>${k + 1}</kbd>${info}</button>`;
+        const st = ssUsed ? "used" : ready ? "ready" : "locked";
+        const tag = st === "ready" ? '<span class="ss-tag">\uC0AC\uC6A9 \uAC00\uB2A5!</span>' : st === "used" ? '<span class="ss-tag">\uC0AC\uC6A9\uD568</span>' : `<span class="ss-tag">\uCCB4\uB825 ${Math.round(t.hp / t.max * 100)}% \xB7 50% \uC774\uD558\uC5D0\uC11C</span>`;
+        return `<button class="ss ss-${st}${st === "ready" && ssPop ? " ss-pop" : ""}" data-w="2" aria-pressed="${weapon === 2}" ${st === "ready" ? "" : "disabled"}><kbd>SS</kbd>${info}${tag}</button>`;
+      }).join("");
+      ssPop = false;
     }
     $("weapons").addEventListener("click", (e) => {
       const b = e.target.closest("button");
@@ -3032,9 +3083,9 @@
       const [lo, hi] = sim.angleRange(t);
       $("deg").textContent = t.angle + "\xB0";
       $("degRange").textContent = `\uC9C0\uAE08 ${lo}~${hi}\xB0` + (t.tilt ? ` (\uAE30\uC6B8\uAE30 ${t.tilt > 0 ? "\uC55E\uC73C\uB85C" : "\uB4A4\uB85C"} ${Math.abs(t.tilt)}\xB0)` : "");
-      const P = (d, r) => [60 + r * Math.cos(d * Math.PI / 180), 60 - r * Math.sin(d * Math.PI / 180)];
-      const set = (id, d, r) => {
-        const [x, y] = P(d, r);
+      const P = (d, r2) => [60 + r2 * Math.cos(d * Math.PI / 180), 60 - r2 * Math.sin(d * Math.PI / 180)];
+      const set = (id, d, r2) => {
+        const [x, y] = P(d, r2);
         $(id).setAttribute("x2", x);
         $(id).setAttribute("y2", y);
       };
@@ -3070,8 +3121,17 @@
       $("flags").textContent = fl.length ? "\uB300\uAE30 \uC911 \uD6A8\uACFC: " + fl.join(" + ") : "";
       $("flags").hidden = !fl.length;
       $("passBtn").disabled = !mine();
-      const ssBtn = document.querySelector('#weapons [data-w="2"]');
-      if (ssBtn && ssBtn.disabled === ssReady()) renderWeapons();
+      const r = ssReady(), mt = myTank(), hpPct = mt ? Math.round(mt.hp / mt.max * 100) : -1;
+      if (r && ssWas === false) {
+        ssPop = true;
+        play("ssready");
+        if (ren) ren.banner = { text: "\uD544\uC0B4\uAE30 \uC900\uBE44 \uC644\uB8CC! (3\uBC88 \uD0A4)", t0: ren.t };
+      }
+      if (r !== ssWas || hpPct !== ssHpShown) {
+        ssWas = r;
+        ssHpShown = hpPct;
+        renderWeapons();
+      }
     }
     function loop(now2) {
       if (!running) return;
@@ -3494,7 +3554,7 @@
   window.practice = { start: (cfg) => {
     lastCfg = cfg;
     start(cfg);
-  } };
+  }, session: () => session };
   var maybeStart = () => {
     if (location.hash === "#game" && (!session || session.phase === "over")) window.practice.start(lastCfg || { tank: "hammer", map: "valley", bag: ["double", "teleport", "power", "repair"] });
   };

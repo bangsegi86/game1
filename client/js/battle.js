@@ -21,7 +21,7 @@ export function createBattle({ socket, me, toast, onExit, onQuit }) {
     start = s; sim = new Sim({ map: s.mapId }); MM.h = Math.round(MM.w * sim.h / sim.w);
     s.players.forEach(p => { const t = sim.addTank({ uid: p.uid, tankId: p.tankId, x: p.x, facing: p.facing, team: p.team, name: p.nickname }); });
     const mp = s.players.find(p => p.uid === me());
-    bag = (mp?.items || []).map(id => ({ id, used: false })); ssUsed = false; weapon = 0; power = 0; charging = false;
+    bag = (mp?.items || []).map(id => ({ id, used: false })); ssUsed = false; ssWas = false; weapon = 0; power = 0; charging = false;
     ren = new Renderer(sim, { me: me() });
     ren.onFx = f => {
       if (f.type === 'fire') play('fire');
@@ -41,7 +41,7 @@ export function createBattle({ socket, me, toast, onExit, onQuit }) {
     begin(st.start);
     for (const op of st.ops) { sim.applyOp(op); sim.ops.push(op); }
     ren.rebuild(); sim.restore(st.snapshot);
-    bag = st.bag.map(b => ({ ...b })); ssUsed = !!st.ssUsed; flags = { ...(st.flags || {}) };
+    bag = st.bag.map(b => ({ ...b })); ssUsed = !!st.ssUsed; ssWas = null; flags = { ...(st.flags || {}) };
     if (st.turn) { turn = { uid: st.turn.uid, turnNo: st.turn.turnNo }; order = st.turn.order || []; deadline = performance.now() + st.turn.left * 1000; phase = st.phase === 'aim' ? 'aim' : 'resolve'; }
     renderWeapons(); renderItems();
   }
@@ -97,10 +97,20 @@ export function createBattle({ socket, me, toast, onExit, onQuit }) {
   $('toRoomBtn').onclick = () => { $('resultBox').hidden = true; phase = 'idle'; onExit(); };
 
   /* ---------- 화면 ---------- */
-  const ssReady = () => { const t = myTank(); return t && !ssUsed && t.hp <= t.max / 2; };
+  const ssReady = () => { const t = myTank(); return !!t && !t.dead && !ssUsed && t.hp <= t.max / 2; };
+  let ssWas = false, ssPop = false, ssHpShown = -1;
   function renderWeapons() {
     const t = myTank(); if (!t) return;
-    $('weapons').innerHTML = SHELL_STATS[t.tankId].map((s, k) => `<button data-w="${k}" aria-pressed="${weapon === k}" ${k === 2 && !ssReady() ? 'disabled' : ''}><kbd>${k === 2 ? 'SS' : k + 1}</kbd>${s.n} <small>${s.dmg}${s.spread ? '×' + s.spread.length : ''}</small></button>`).join('');
+    const ready = ssReady();
+    $('weapons').innerHTML = SHELL_STATS[t.tankId].map((s, k) => {
+      const info = `${s.n} <small>${s.dmg}${s.spread ? '×' + s.spread.length : ''}</small>`;
+      if (k !== 2) return `<button data-w="${k}" aria-pressed="${weapon === k}"><kbd>${k + 1}</kbd>${info}</button>`;
+      // 필살기 버튼: 잠김(체력 50% 넘음) · 준비됨(빛나며 흔들림) · 사용함 세 가지로 분명히 보이게
+      const st = ssUsed ? 'used' : ready ? 'ready' : 'locked';
+      const tag = st === 'ready' ? '<span class="ss-tag">사용 가능!</span>' : st === 'used' ? '<span class="ss-tag">사용함</span>' : `<span class="ss-tag">체력 ${Math.round(t.hp / t.max * 100)}% · 50% 이하에서</span>`;
+      return `<button class="ss ss-${st}${st === 'ready' && ssPop ? ' ss-pop' : ''}" data-w="2" aria-pressed="${weapon === 2}" ${st === 'ready' ? '' : 'disabled'}><kbd>SS</kbd>${info}${tag}</button>`;
+    }).join('');
+    ssPop = false;
   }
   $('weapons').addEventListener('click', e => { const b = e.target.closest('button'); if (b && !b.disabled) { weapon = +b.dataset.w; renderWeapons(); } });
   function renderItems() {
@@ -142,7 +152,10 @@ export function createBattle({ socket, me, toast, onExit, onQuit }) {
     $('order').innerHTML = `${sim.map.n} · 턴 ${turn?.turnNo || 0} · 순서 ` + names.map(x => `<span class="${x.uid === turn?.uid ? 'cur' : ''}">${esc(x.name)}</span>`).join('');
     const fl = Object.keys(flags).map(k => ITEM_INFO[k].n); $('flags').textContent = fl.length ? '대기 중 효과: ' + fl.join(' + ') : ''; $('flags').hidden = !fl.length;
     $('passBtn').disabled = !mine();
-    const ssBtn = document.querySelector('#weapons [data-w="2"]'); if (ssBtn && ssBtn.disabled === ssReady()) renderWeapons();
+    // 필살기가 막 쓸 수 있게 되면: 소리 + 전장 가운데 알림 + 버튼이 튀어 오르며 빛난다
+    const r = ssReady(), mt = myTank(), hpPct = mt ? Math.round(mt.hp / mt.max * 100) : -1;
+    if (r && ssWas === false) { ssPop = true; play('ssready'); if (ren) ren.banner = { text: '필살기 준비 완료! (3번 키)', t0: ren.t }; }
+    if (r !== ssWas || hpPct !== ssHpShown) { ssWas = r; ssHpShown = hpPct; renderWeapons(); }
   }
   function loop(now) {
     if (!running) return;

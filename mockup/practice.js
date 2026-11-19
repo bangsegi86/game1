@@ -72,6 +72,6 @@ function start(cfg) {
 
 battle = createBattle({ socket: () => fakeSocket, me: () => ME, toast, onExit: () => { location.hash = 'room'; } });
 let lastCfg = null;
-window.practice = { start: cfg => { lastCfg = cfg; start(cfg); } };
+window.practice = { start: cfg => { lastCfg = cfg; start(cfg); }, session: () => session }; // session: 화면 확인용
 const maybeStart = () => { if (location.hash === '#game' && (!session || session.phase === 'over')) window.practice.start(lastCfg || { tank: 'hammer', map: 'valley', bag: ['double', 'teleport', 'power', 'repair'] }); };
 addEventListener('hashchange', maybeStart); maybeStart();

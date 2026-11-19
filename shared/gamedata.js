@@ -26,14 +26,14 @@ export function checkNickname(n) {
 
 /* ---------- 전투 수치 (그림은 mockup/art.js, 수치는 여기) ---------- */
 export const TANK_STATS = {
-  mole:   { hp: 1000, amin: 0,  amax: 70, pivot: [-8, -50], len: 42, w: 96 },
-  hammer: { hp: 1200, amin: 20, amax: 60, pivot: [12, -60], len: 46, w: 112 },
-  cloud:  { hp: 900,  amin: 30, amax: 90, pivot: [18, -46], len: 38, w: 92, hover: true },
-  bee:    { hp: 950,  amin: 0,  amax: 80, pivot: [40, -32], len: 30, w: 90 },
-  magnet: { hp: 1000, amin: 10, amax: 70, pivot: [30, -46], len: 36, w: 100 },
-  shroom: { hp: 1050, amin: 25, amax: 85, pivot: [32, -32], len: 34, w: 96 },
-  whale:  { hp: 1100, amin: 5,  amax: 65, pivot: [14, -60], len: 34, w: 104 },
-  laser:  { hp: 850,  amin: 0,  amax: 45, pivot: [-20, -58], len: 44, w: 96 },
+  mole:   { hp: 600, amin: 0,  amax: 70, pivot: [-8, -50], len: 42, w: 96 },
+  hammer: { hp: 720, amin: 20, amax: 60, pivot: [12, -60], len: 46, w: 112 },
+  cloud:  { hp: 540,  amin: 30, amax: 90, pivot: [18, -46], len: 38, w: 92, hover: true },
+  bee:    { hp: 570,  amin: 0,  amax: 80, pivot: [40, -32], len: 30, w: 90 },
+  magnet: { hp: 600, amin: 10, amax: 70, pivot: [30, -46], len: 36, w: 100 },
+  shroom: { hp: 630, amin: 25, amax: 85, pivot: [32, -32], len: 34, w: 96 },
+  whale:  { hp: 660, amin: 5,  amax: 65, pivot: [14, -60], len: 34, w: 104 },
+  laser:  { hp: 510,  amin: 0,  amax: 45, pivot: [-20, -58], len: 44, w: 96 },
 };
 // dmg 피해, r 피해 반경, cr 파임 반경, wind 바람계수, wt 무게계수, R 폭발 그림 크기
 export const SHELL_STATS = {

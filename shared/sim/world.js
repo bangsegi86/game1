@@ -7,6 +7,7 @@ import { TANK_STATS, SHELL_STATS } from '../gamedata.js';
 // 맵은 화면(960×480)보다 넓은 1440×600. 화면은 카메라로 일부만 보여 준다
 export const G0 = 380, SPEED = 6.6, WINDK = 14, DT = 1 / 60, WORLD_W = 1440, WORLD_H = 600;
 const STEEL = MK.steel, LEAF = MK.leaf, WOOD = MK.wood, PLANK = MK.plank;
+const CLIMB = 24; // 구덩이 가장자리까지 이만큼(px) 이하로 깊으면 가파른 벽도 기어 나온다
 const BASE = new Map();
 export function baseGrid(mapId, w, h) {
   const key = `${mapId}:${w}x${h}`;
@@ -40,6 +41,21 @@ export class Sim {
   stand(x, y) { x |= 0; y |= 0; if (x < 0 || x >= this.w || y < 0 || y >= this.h) return false; const m = this.grid[y * this.w + x]; return m !== 0 && m !== LEAF && m !== WOOD; }
   // 다리(널판)는 위에서만 밟힌다: feet(탱크 발 높이)를 주면, 발보다 위에 있는 널판 윗면과 널판 속은 무시한다.
   // 그래서 다리가 끊어져 협곡에 떨어진 탱크가 다리 밑 비탈을 올라 빠져나올 때 널판에 막히지 않는다
+  // 탱크 발 높이(feet)에서 위아래로 가장 가까운 밟을 곳. 발밑부터 이어진 벽이 up보다 높으면 null(못 오름).
+  // 머리 위 천장(터널·다리 밑)은 무시한다
+  standF(x, y, feet) { if (!this.stand(x, y)) return false; if (this.grid[(y | 0) * this.w + (x | 0)] !== PLANK) return true; return !(y < feet - 4 || (y > 0 && this.grid[((y | 0) - 1) * this.w + (x | 0)] === PLANK)); }
+  // skip=true면 너무 높은 벽 쪽 바퀴는 빼고 나머지로 선다 (가만히 있을 때 벽을 타고 오르지 않게)
+  reach(x, feet, up, skip = false) {
+    let best = Infinity; feet = Math.round(feet);
+    for (const xx of [x, x - 7, x + 7]) {
+      let y = feet - 1;
+      if (this.standF(xx, y, feet)) { while (y > feet - 1 - up && this.standF(xx, y - 1, feet)) y--; if (y <= feet - 1 - up) { if (skip) continue; return null; } }
+      else { while (y < this.h && !this.standF(xx, y, feet)) y++; }
+      best = Math.min(best, y);
+    }
+    if (best === Infinity) return feet;
+    return best >= this.h ? this.h + 200 : best;
+  }
   ground(x, from = 0, feet = null) {
     const mat = (xx, yy) => { xx |= 0; return xx < 0 || xx >= this.w || yy < 0 || yy >= this.h ? 0 : this.grid[yy * this.w + xx]; };
     for (let y = Math.max(0, from | 0); y < this.h; y++) {
@@ -119,10 +135,15 @@ export class Sim {
   move(t, dir, dt) {
     t.facing = dir; if (t.fuel <= 0 || !t.canMove || t.air || t.dead) return 0;
     const nx = t.x + dir * 50 * dt; if (nx < 12 || nx > this.w - 12) return 0;
-    const ny = this.ground(nx, t.y - 14, t.y); if (ny < t.y - 12) return 0;
-    // 가파른 벽(약 55° 이상)은 못 오른다: 앞 6px 경사를 본다. 그래서 깊은 구덩이는 함정이 된다
-    const ahead = this.ground(t.x + dir * 6, t.y - 14, t.y); if (t.y - ahead > 8.5) return 0;
-    t.moving = true; t.x = nx; if (ny <= t.y + 2) { t.y = ny; t.fallFrom = ny; }
+    // 오를 수 있는지는 경사가 아니라 벽 높이로 정한다: 얕은 구덩이(보통 포탄 한 발)는 기어 나오고,
+    // 탱크 키보다 깊은 구덩이(큰 포탄, 같은 자리 여러 발)는 빠져나오지 못하는 함정이 된다
+    const ny = this.reach(nx, t.y, 60); if (ny == null) return 0;
+    // 앞 40px 안의 가장 높은 땅(구덩이 가장자리)까지 높이. 그게 CLIMB 이하면 가파른 벽도 기어오르고,
+    // 그보다 깊으면 55°보다 가파른 벽(앞 6px에서 8.5px 넘게 높아짐)에 막힌다
+    let rim = t.y; for (let k = 2; k <= 40; k += 2) { const g = this.reach(t.x + dir * k, t.y, 200, true); if (g < rim) rim = g; }
+    if (t.y - rim > CLIMB) { if (ny < t.y - 12) return 0; const ahead = this.reach(t.x + dir * 6, t.y, 60); if (ahead == null || t.y - ahead > 8.5) return 0; }
+    t.moving = true; t.x = nx;
+    if (ny <= t.y + 2) { t.y = ny; t.fallFrom = ny; }
     if (this.map.slip) { t.slideV = dir * 55; t.lastMove = this.clock; }
     const used = 22 * dt * (ny < t.y ? 1.5 : 1); t.fuel = Math.max(0, t.fuel - used); return used;
   }
@@ -306,12 +327,12 @@ export class Sim {
   }
   settle(t, dt) {
     if (t.sunk || t.left) return true;
-    const g = this.ground(t.x, t.y - 3, t.y);
+    const g = this.reach(t.x, t.y, 3, true);
     if (t.air || g > t.y + 1) {
       t.vy += 900 * dt; t.x += t.vx * dt;
       if (t.x < 10 || t.x > this.w - 10) { t.x = Math.max(10, Math.min(this.w - 10, t.x)); t.vx = 0; }
       const ny = t.y + t.vy * dt;
-      if (t.vy > 0) { const land = this.ground(t.x, t.y - 3, t.y); if (ny >= land && land < this.h && land < this.liquidY + 6) { t.y = land; t.air = false; t.vx = 0; const fall = t.y - t.fallFrom; if (fall > 40) this.damage(t, fall * 1.2, null, '낙하 '); t.vy = 0; t.fallFrom = t.y; t.tilt = this.slope(t); this.clampAngle(t); return true; } }
+      if (t.vy > 0) { const land = this.ground(t.x, t.y - 3, t.y); if (ny >= land && land < this.h && land < this.liquidY + 6) { t.y = land; t.air = false; t.vx = 0; const fall = t.y - t.fallFrom; if (fall > 40) this.damage(t, fall * .8, null, '낙하 '); t.vy = 0; t.fallFrom = t.y; t.tilt = this.slope(t); this.clampAngle(t); return true; } }
       t.y = ny;
       if (t.y > this.liquidY + 6 || t.y > this.h + 20) {
         t.sunk = true; this.float(t.x, Math.min(this.liquidY, this.h) - 30, '낙사!', '#c92a2a');
@@ -343,8 +364,8 @@ export class Sim {
   /* ---------- 아이템 (즉시 효과는 여기서, 발사에 붙는 효과는 표시만) ---------- */
   useItem(t, id) {
     const heal = (x, n) => { if (x.dead) return; x.hp = Math.min(x.max, x.hp + n); this.float(x.x, x.y - 60, '+' + n, '#2f9e44'); };
-    if (id === 'repair') heal(t, 250);
-    if (id === 'teamrepair') this.tanks.filter(x => x === t || (t.team !== 'solo' && x.team === t.team)).forEach(x => heal(x, 150));
+    if (id === 'repair') heal(t, 150);
+    if (id === 'teamrepair') this.tanks.filter(x => x === t || (t.team !== 'solo' && x.team === t.team)).forEach(x => heal(x, 90));
     if (id === 'calm') this.wind = { ...this.wind, str: 0 };
     if (id === 'shield') t.shield = true;
     if (id === 'fuel') t.fuel = 200;
