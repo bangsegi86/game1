@@ -61,7 +61,7 @@ section > .lead { margin-bottom: 14px; }
 .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 16px; display: grid; gap: 10px; min-width: 0; }
 .panel h3 { font-size: 20px; }
 .panel canvas.traj { aspect-ratio: 800 / 330; border-radius: 10px; }
-.panel canvas.compass { width: 180px; aspect-ratio: 1; margin: 0 auto; }
+.panel canvas.compass { width: min(100%, 320px); aspect-ratio: 320 / 110; margin: 0 auto; }
 .panel ul { margin: 0; padding-left: 18px; color: var(--muted); display: grid; gap: 4px; }
 .legend { display: flex; gap: 12px; flex-wrap: wrap; font-size: 12.5px; color: var(--muted); }
 .legend span::before { content: ""; display: inline-block; width: 14px; height: 4px; border-radius: 2px; margin-right: 6px; vertical-align: middle; background: var(--c); }
@@ -79,7 +79,7 @@ section > .lead { margin-bottom: 14px; }
 
   <section>
     <h2>맵 5종</h2>
-    <p class="lead">탱크 두 대가 서로 쏘는 장면이 계속 반복됩니다. 바람(가운데 위 나침반)은 쏠 때마다 바뀝니다.</p>
+    <p class="lead">탱크 두 대가 서로 쏘는 장면이 계속 반복됩니다. 바람(가운데 위 게이지)은 쏠 때마다 바뀝니다.</p>
     <div class="maps" id="maps"></div>
   </section>
 
@@ -91,7 +91,7 @@ section > .lead { margin-bottom: 14px; }
 
   <section>
     <h2>바람</h2>
-    <p class="lead">바람은 방향(360°)과 세기(1~20)가 있고, 턴마다 조금씩 바뀌다가 가끔 크게 바뀝니다. 세기 한 칸의 힘은 작아서 바람을 세세하게 읽을 수 있습니다. 수정 동굴은 바람이 약합니다(최대 8).</p>
+    <p class="lead">바람은 왼쪽 또는 오른쪽으로만 불고, 세기는 1~20입니다. 턴마다 조금씩 바뀌다가 가끔 방향이 뒤집히거나 크게 바뀝니다. 탄은 옆으로만 밀리고 위아래로는 밀리지 않습니다. 세기 한 칸의 힘은 작아서 바람을 세세하게 읽을 수 있습니다. 수정 동굴은 바람이 약합니다(최대 8).</p>
     <div class="wind">
       <div class="panel">
         <h3>같은 각도·파워라도 바람에 따라 이렇게 달라진다</h3>
@@ -101,15 +101,14 @@ section > .lead { margin-bottom: 14px; }
           <span style="--c:#ffd34d">순풍 20 · 45° 파워 80 (더 멀리)</span>
           <span style="--c:#55aef0">역풍 20 · 45° 파워 80 (짧게)</span>
           <span style="--c:#ff7a6a">역풍 20 · 85° 파워 100 (뒤로 떨어짐)</span>
-          <span style="--c:#d4a6ff">아래로 부는 바람 16 · 45° 파워 80</span>
         </div>
       </div>
       <div class="panel">
-        <h3>바람 나침반</h3>
-        <canvas class="compass" id="compass" aria-label="바람 나침반 예시"></canvas>
+        <h3>바람 게이지</h3>
+        <canvas class="compass" id="compass" aria-label="바람 게이지 예시"></canvas>
         <ul>
-          <li>화살표 방향으로 포탄이 밀립니다. 위아래로 부는 바람도 있습니다.</li>
-          <li>숫자가 세기입니다. 세기 1당 초속 14px²씩 밀어요.</li>
+          <li>가운데에서 바람 부는 쪽(왼쪽·오른쪽)으로 칸이 찹니다. 칸이 많을수록 세고, 색이 노랑에서 빨강으로 바뀝니다.</li>
+          <li>숫자가 세기(1~20)입니다. 세기 1당 초속 5px²씩 옆으로 밀어요.</li>
           <li>가벼운 포탄(포자, 물방울)은 더 많이, 무거운 포탄(철구, 메테오)은 덜 밀립니다.</li>
           <li>번개구름, 레이저는 바람을 무시합니다.</li>
         </ul>
@@ -200,7 +199,6 @@ const TR = [
   { col: '#ffd34d', a: 45, p: 80, wa: 0, ws: 20 },
   { col: '#55aef0', a: 45, p: 80, wa: 180, ws: 20 },
   { col: '#ff7a6a', a: 85, p: 100, wa: 180, ws: 20 },
-  { col: '#d4a6ff', a: 45, p: 80, wa: 270, ws: 16 },
 ];
 const trajW = 800, trajH = 330, gy = 290, sx = 250;
 TR.forEach(r => { const pts = []; let x = sx, y = gy - 10, a = r.a * Math.PI / 180, vx = Math.cos(a) * r.p * SPEED, vy = -Math.sin(a) * r.p * SPEED; const wa = r.wa * Math.PI / 180, wx = Math.cos(wa) * r.ws * WINDK, wy = -Math.sin(wa) * r.ws * WINDK; for (let i = 0; i < 2000; i++) { const h = 1 / 120; vx += wx * h; vy += (wy + G0) * h; x += vx * h; y += vy * h; if (i % 3 === 0) pts.push([x, y]); if (y > gy) break; } r.pts = pts; });
@@ -220,11 +218,11 @@ addView(document.getElementById('traj'), trajW, trajH, (c, w, h, t) => {
   });
   renderTank(c, w, h, tankById('hammer'), 'idle', t, OX, gy, .45);
 });
-const comp = { ang: 30, str: 6, t: 0 };
-addView(document.getElementById('compass'), 180, 180, (c, w, h, t) => {
-  if (t - comp.t > 2) { comp.t = t; const fake = { map: { windMax: 10 }, wind: { ang: comp.ang, str: comp.str } }; World.prototype.nextWind.call(fake); comp.ang = fake.wind.ang; comp.str = fake.wind.str; }
-  const fake = { wind: comp }; c.save(); c.translate(0, -14); World.prototype.drawWind.call(fake, c, w / 2, h / 2, 56); c.restore();
-  c.font = '13px Jua, sans-serif'; c.fillStyle = '#aab5d3'; c.textAlign = 'center'; c.fillText(`방향 ${Math.round(comp.ang)}° · 2초마다 다음 턴`, w / 2, h - 4);
+const comp = { ang: 0, str: 6, t: 0 };
+addView(document.getElementById('compass'), 320, 110, (c, w, h, t) => {
+  if (t - comp.t > 2) { comp.t = t; const fake = { map: { windMax: 20 }, wind: { ang: comp.ang, str: comp.str } }; World.prototype.nextWind.call(fake); comp.ang = fake.wind.ang; comp.str = fake.wind.str; }
+  const fake = { wind: comp }; c.save(); c.translate(0, -14); World.prototype.drawWind.call(fake, c, w / 2, h / 2 - 4, 24); c.restore();
+  c.font = '13px Jua, sans-serif'; c.fillStyle = '#aab5d3'; c.textAlign = 'center'; c.fillText('2초마다 다음 턴', w / 2, h - 4);
 });
 
 const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;

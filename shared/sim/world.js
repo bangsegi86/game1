@@ -79,14 +79,15 @@ export class Sim {
   carveRect(x, y, w, h) { this.carve({ k: 'rect', x: r1(x), y: r1(y), w: r1(w), h: r1(h), s: 1 }); }
 
   /* ---------- 바람 (ang 0 = 오른쪽, 90 = 위) ---------- */
-  windVec() { const a = this.wind.ang * Math.PI / 180, s = this.wind.str * WINDK; return [Math.cos(a) * s, -Math.sin(a) * s]; }
+  // 바람은 왼쪽(ang 180) 또는 오른쪽(ang 0)으로만 분다. 위아래로는 밀지 않는다
+  windVec() { const s = this.wind.str * WINDK; return [(Math.cos(this.wind.ang * Math.PI / 180) < 0 ? -1 : 1) * s, 0]; }
   static nextWind(prev, max, rnd = Math.random) {
     if (!max) return { ang: 0, str: 0 };
-    let w = { ...prev };
-    // 세기는 1~max(보통 20) 정수. 한 칸의 힘(WINDK)은 예전 10단계 때보다 작다
-    if (rnd() < .18) w = { ang: rnd() * 360, str: 1 + rnd() * (max - 1) };
-    else { w.ang = (w.ang + (rnd() - .5) * 80 + 360) % 360; w.str = Math.max(1, Math.min(max, w.str + (rnd() - .5) * 8)); }
-    return { ang: Math.round(w.ang), str: Math.round(w.str) };
+    // 방향은 왼쪽·오른쪽 둘 중 하나, 세기는 1~max(보통 20) 정수. 한 칸의 힘(WINDK)은 예전 10단계 때보다 작다
+    let dir = Math.cos((prev.ang || 0) * Math.PI / 180) < 0 ? -1 : 1, str = prev.str || 1;
+    if (rnd() < .18) { dir = rnd() < .5 ? -1 : 1; str = 1 + rnd() * (max - 1); }
+    else { if (rnd() < .15) dir = -dir; str = Math.max(1, Math.min(max, str + (rnd() - .5) * 8)); }
+    return { ang: dir > 0 ? 0 : 180, str: Math.round(str) };
   }
 
   /* ---------- 탱크 ---------- */

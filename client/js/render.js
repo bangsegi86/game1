@@ -249,6 +249,23 @@ function bakeTerrain(mapId, grid, w, h, bgrid) {
   return { fg: cv(fg), back: cv(bk), steel: cv(st) };
 }
 
+// 바람 게이지: 가운데에서 바람 부는 쪽으로 칸이 찬다 (한 칸 = 세기 1, 최대 20칸). 노랑 → 빨강
+function windBar(c, x, y, str, ang, k = 1) {
+  const n = 20, seg = 5 * k, gap = 1.6 * k, half = n * (seg + gap) + 6 * k, H = 14 * k, dir = Math.cos((ang || 0) * Math.PI / 180) < 0 ? -1 : 1;
+  c.save(); c.translate(x, y);
+  c.beginPath(); if (c.roundRect) c.roundRect(-half - 10 * k, -H / 2 - 8 * k, (half + 10 * k) * 2, H + 16 * k, 10 * k); else c.rect(-half - 10 * k, -H / 2 - 8 * k, (half + 10 * k) * 2, H + 16 * k);
+  c.fillStyle = 'rgba(20,30,60,.82)'; c.fill(); c.strokeStyle = 'rgba(244,239,225,.35)'; c.lineWidth = 1.5; c.stroke();
+  for (let side = -1; side <= 1; side += 2) for (let i = 0; i < n; i++) {
+    const on = str > 0 && side === dir && i < str, px = side > 0 ? 4 * k + i * (seg + gap) : -4 * k - (i + 1) * (seg + gap) + gap;
+    c.fillStyle = on ? `hsl(${50 - i / (n - 1) * 50}, 95%, ${58 - i / (n - 1) * 8}%)` : (i % 5 === 4 ? 'rgba(255,255,255,.22)' : 'rgba(255,255,255,.1)');
+    c.fillRect(px, -H / 2, seg, H);
+  }
+  c.fillStyle = 'rgba(244,239,225,.8)'; c.fillRect(-1, -H / 2 - 3 * k, 2, H + 6 * k);
+  if (str > 0) { const tip = dir * (4 * k + str * (seg + gap) + 3 * k); c.fillStyle = `hsl(${50 - (str - 1) / (n - 1) * 50}, 95%, 55%)`; c.beginPath(); c.moveTo(tip + dir * 8 * k, 0); c.lineTo(tip, -H / 2 - 4 * k); c.lineTo(tip, H / 2 + 4 * k); c.closePath(); c.fill(); c.strokeStyle = '#2a2140'; c.lineWidth = 1.2; c.stroke(); }
+  c.font = `${Math.round(15 * k)}px Jua, sans-serif`; c.textAlign = 'center'; c.textBaseline = 'top'; c.fillStyle = '#f4efe1';
+  c.fillText(str > 0 ? (dir < 0 ? '◀ 바람 ' + str : '바람 ' + str + ' ▶') : '바람 없음', 0, H / 2 + 12 * k);
+  c.restore();
+}
 export class Renderer {
   constructor(sim, o = {}) {
     this.sim = sim; this.w = sim.w; this.h = sim.h; this.labels = o.labels !== false; this.me = o.me;
@@ -387,14 +404,5 @@ export class Renderer {
     c.font = '15px Jua, sans-serif'; c.textAlign = 'center'; c.lineJoin = 'round'; c.lineWidth = 4; c.strokeStyle = 'rgba(255,248,232,.9)'; const [tx, ty] = pt(t.angle, R + 26); c.strokeText(t.angle + '°', tx, ty + 5); c.fillStyle = '#3a2600'; c.fillText(t.angle + '°', tx, ty + 5);
     c.restore();
   }
-  drawWind(c, x, y, r = 24) {
-    c.save(); c.translate(x, y);
-    circ(c, 0, 0, r + 8); c.fillStyle = 'rgba(31,45,82,.85)'; c.fill();
-    circ(c, 0, 0, r); c.strokeStyle = 'rgba(244,239,225,.35)'; c.lineWidth = 1.5; c.stroke();
-    for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4; c.beginPath(); c.moveTo(Math.cos(a) * (r - 4), Math.sin(a) * (r - 4)); c.lineTo(Math.cos(a) * r, Math.sin(a) * r); c.stroke(); }
-    const s = this.sim.wind.str, a = -this.sim.wind.ang * Math.PI / 180;
-    if (s > 0) { c.rotate(a); const L = 6 + s / 10 * (r - 4); c.strokeStyle = '#ffd34d'; c.fillStyle = '#ffd34d'; c.lineWidth = 3.5; c.lineCap = 'round'; c.beginPath(); c.moveTo(-L, 0); c.lineTo(L - 6, 0); c.stroke(); c.beginPath(); c.moveTo(L + 2, 0); c.lineTo(L - 8, -6); c.lineTo(L - 8, 6); c.closePath(); c.fill(); c.rotate(-a); }
-    c.font = '15px Jua, sans-serif'; c.textAlign = 'center'; c.fillStyle = '#f4efe1'; c.fillText(s, 0, r + 26);
-    c.restore();
-  }
+  drawWind(c, x, y, r = 24) { const w = this.sim.wind; windBar(c, x, y, w.str, w.ang, r / 24); }
 }
