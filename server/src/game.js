@@ -117,13 +117,14 @@ export class GameSession {
     if (slot === 2 && (p.ssUsed || t.hp > t.max / 2)) throw new Error('필살기는 체력 50% 이하에서 한 번만 쓸 수 있어요.');
     if (slot === 2) p.ssUsed = true;
     power = Math.max(1, Math.min(100, Number(power) || 0));
-    const f = p.flags, opts = { boost: f.power ? 1.3 : 1, double: !!f.double, teleport: !!f.teleport }; p.flags = {};
+    // 필살기에는 순간이동을 붙이지 않는다 (필살기가 헛되이 사라지지 않게). 순간이동은 다음 발사까지 남는다
+    const f = p.flags, keepTele = slot === 2 && !!f.teleport, opts = { boost: f.power ? 1.3 : 1, double: !!f.double, teleport: !!f.teleport && !keepTele }; p.flags = keepTele ? { teleport: true } : {};
     this.moveDir = 0;
     const snapshot = this.sim.snapshot();
     this.sim.fire(t, slot, power, opts);
     t.delay += TURN_BASE_DELAY + SLOT_DELAY[slot] + this.turnState.itemDelay + Math.round(this.moveUsed);
     this.phase = 'resolve';
-    this.send('game:shot', { uid, slot, power, angle: t.angle, opts, snapshot });
+    this.send('game:shot', { uid, slot, power, angle: t.angle, opts, snapshot, flags: p.flags });
   }
   onPass(uid) {
     if (!this.isTurn(uid)) throw new Error('지금은 내 차례가 아니에요.');

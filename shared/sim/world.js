@@ -160,14 +160,15 @@ export class Sim {
     const sh = SHELL_STATS[t.tankId][slot]; t.firedAt = this.clock;
     this.teleported = false;
     // 다발 포탄: 각도와 파워를 조금씩 달리해 멀리 쏠수록 넓게 퍼지고, 가까이 쏘면 거의 한 곳에 맞는다
-    const spawn = () => (sh.spread || [0]).forEach((da, i) => {
+    // 순간이동은 첫 발(첫 묶음)에만 붙는다. 더블의 두 번째 발은 보통 포탄
+    const spawn = (tele) => (sh.spread || [0]).forEach((da, i) => {
       const pk = sh.pspread ? sh.pspread[i] : 1;
       const a = (t.angle + da) * Math.PI / 180, v = sh.shape === 'line' ? 900 : p * pk * SPEED, [ox, oy] = this.muzzle(t);
-      this.shells.push({ x: ox, y: oy, sx: ox, sy: oy, vx: Math.cos(a) * t.facing * v, vy: -Math.sin(a) * v, sh, tankId: t.tankId, slot, owner: t, age: 0, trail: [], mode: 'fly', dug: 0, dist: 0, lastCarve: null, k: o.boost || 1, teleport: !!o.teleport });
+      this.shells.push({ x: ox, y: oy, sx: ox, sy: oy, vx: Math.cos(a) * t.facing * v, vy: -Math.sin(a) * v, sh, tankId: t.tankId, slot, owner: t, age: 0, trail: [], mode: 'fly', dug: 0, dist: 0, lastCarve: null, k: o.boost || 1, teleport: !!tele });
     });
-    spawn();
+    spawn(!!o.teleport);
     // 더블: 첫 발이 맞고 폭발·필살기·탱크 낙하까지 다 끝난 뒤에 두 번째가 나간다 (지금 탱크 자리에서)
-    if (o.double) this.queued = { wait: .4, fn: () => { if (t.dead) return; t.firedAt = this.clock; spawn(); this.fx('fire', { uid: t.uid, second: true }); } };
+    if (o.double) this.queued = { wait: .4, fn: () => { if (t.dead) return; t.firedAt = this.clock; spawn(false); this.fx('fire', { uid: t.uid, second: true }); } };
     this.fx('fire', { uid: t.uid });
   }
   // 유도 미사일: 가장 가까운 적 쪽으로 초당 최대 2.6라디안까지 방향을 틀고, 너무 느려지지 않게 한다
@@ -225,7 +226,7 @@ export class Sim {
         for (const t of W.tanks) { if (t.dead || s.hit.has(t)) continue; if (Math.abs(t.x - s.x) < 34 && t.y > s.gy - 150) { s.hit.add(t); W.damage(t, s.sh.dmg * s.k, s.owner); t.vy = -420; t.vx = s.dir * 190; t.air = true; } }
         return s.t < 3;
       case 'storm':
-        [.45, .65, .85, 1.05, 1.25].forEach((tt, i) => { if (s.t >= tt && !s.done[i]) { s.done[i] = true; const x = s.x + [-50, 30, -15, 55, 0][i] * s.k, gy = W.ground(x, 0); s.flash[i] = { x, gy, t: s.t }; W.carveRound(x, gy, 16 * s.k); W.hurtArea(x, gy - 10, 30, s.sh.dmg * s.k / 4.2, s.owner); W.boom(x, gy, { kind: 'electric', R: 18, color: '#b98cff', shake: .25 }); } });
+        [.45, .65, .85, 1.05, 1.25].forEach((tt, i) => { if (s.t >= tt && !s.done[i]) { s.done[i] = true; const x = s.x + [-50, 30, -15, 55, 0][i], gy = W.ground(x, 0); s.flash[i] = { x, gy, t: s.t }; W.carveRound(x, gy, 16 * s.k); W.hurtArea(x, gy - 10, 30, s.sh.dmg * s.k / 4.2, s.owner); W.boom(x, gy, { kind: 'electric', R: 18, color: '#b98cff', shake: .25 }); } });
         return s.t < 1.8;
       case 'shroom':
         if (s.t >= .85 && !s.fired) { s.fired = true; W.carveRound(s.x, s.gy, s.sh.cr * s.k); W.hurtArea(s.x, s.gy - 30, s.sh.r * s.k, s.sh.dmg * s.k, s.owner); W.boom(s.x, s.gy - 60, { kind: 'toxic', R: 50 * s.k, shake: .4 }); W.zones.push({ type: 'poison', x: r1(s.x), r: 80, turns: 3, dmg: 80, born: W.clock, from: s.owner?.uid }); }
@@ -345,11 +346,13 @@ export class Sim {
         const ht = this.hitTank(s);
         if (sh.shape === 'line') {
           s.dist += 900 * h; if (ht) { this.impact(s, s.x, s.y, ht); break; }
-          if (this.solid(s.x, s.y) && (!s.lastCarve || Math.hypot(s.x - s.lastCarve[0], s.y - s.lastCarve[1]) > 5)) { this.carveRound(s.x, s.y, sh.cr / 2, 0, false); s.lastCarve = [s.x, s.y]; }
+          // 순간이동 레이저: 땅을 뚫지 않고 처음 닿은 땅에서 순간이동한다
+          if (s.teleport && this.solid(s.x, s.y)) { this.impact(s, s.x, s.y); break; }
+          if (this.solid(s.x, s.y) && (!s.lastCarve || Math.hypot(s.x - s.lastCarve[0], s.y - s.lastCarve[1]) > 5)) { this.carveRound(s.x, s.y, sh.cr * s.k / 2, 0, false); s.lastCarve = [s.x, s.y]; }
           if (s.dist > 1100) s.done = true; continue;
         }
         if (ht || this.solid(s.x, s.y)) {
-          if (sh.shape === 'tunnel' && !ht) { s.mode = 'dig'; const sp = Math.hypot(s.vx, s.vy) || 1; s.vx = s.vx / sp * 170; s.vy = Math.abs(s.vy / sp * 170) + 40; }
+          if (sh.shape === 'tunnel' && !ht && !s.teleport) { s.mode = 'dig'; const sp = Math.hypot(s.vx, s.vy) || 1; s.vx = s.vx / sp * 170; s.vy = Math.abs(s.vy / sp * 170) + 40; }
           else this.impact(s, s.x, s.y, ht);
         }
       }

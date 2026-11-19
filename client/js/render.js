@@ -191,7 +191,7 @@ const SPECIALS = {
   },
   storm: { // 자석포: 먹구름에서 번개 5발
     step(W, s, dt) {
-      [.45, .65, .85, 1.05, 1.25].forEach((tt, i) => { if (s.t >= tt && !s.done[i]) { s.done[i] = true; const x = s.x + [-50, 30, -15, 55, 0][i] * s.k, gy = W.ground(x, 0); s.flash[i] = { x, gy, t: s.t }; W.carveRound(x, gy, 16 * s.k); W.hurtArea(x, gy - 10, 30, s.sh.dmg * s.k / 4.2, s.owner); W.boomAt({ boom: 'electric', R: 18, color: '#b98cff' }, x, gy, 1); W.shake += .25; } });
+      [.45, .65, .85, 1.05, 1.25].forEach((tt, i) => { if (s.t >= tt && !s.done[i]) { s.done[i] = true; const x = s.x + [-50, 30, -15, 55, 0][i], gy = W.ground(x, 0); s.flash[i] = { x, gy, t: s.t }; W.carveRound(x, gy, 16 * s.k); W.hurtArea(x, gy - 10, 30, s.sh.dmg * s.k / 4.2, s.owner); W.boomAt({ boom: 'electric', R: 18, color: '#b98cff' }, x, gy, 1); W.shake += .25; } });
       return s.t < 1.8;
     },
     draw(c, W, s) { const a = Math.min(1, s.t * 3, (1.8 - s.t) * 3); drawStormCloud(c, s.x, 40, 1.3, s.t, a); s.flash.forEach((f, i) => { if (f && s.t - f.t < .18) drawBolt(c, s.x + (i - 2) * 14, 60, f.x, f.gy, i * 13 + Math.floor(s.t * 30), 1 - (s.t - f.t) / .18); }); },

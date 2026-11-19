@@ -80,7 +80,7 @@ export function createBattle({ socket, me, toast, onExit, onQuit }) {
       if (!sim) return; sim.restore(d.snapshot); const t = sim.tankOf(d.uid); t.angle = d.angle; t.movingVis = false;
       sim.fire(t, d.slot, d.power, d.opts); phase = 'resolve'; charging = false;
       if (d.uid === me() && d.slot === 2) ssUsed = true;
-      if (d.uid === me()) flags = {};
+      if (d.uid === me()) { flags = { ...(d.flags || {}) }; if (d.flags?.teleport && d.slot === 2) toast('순간이동은 필살기에 붙지 않아요. 다음 발사에 남아 있어요.'); }
       t.lastPower = d.power; renderItems(); renderWeapons();
     },
     'game:sync': d => {

@@ -881,16 +881,16 @@
       const sh = SHELL_STATS[t.tankId][slot];
       t.firedAt = this.clock;
       this.teleported = false;
-      const spawn = () => (sh.spread || [0]).forEach((da, i) => {
+      const spawn = (tele) => (sh.spread || [0]).forEach((da, i) => {
         const pk = sh.pspread ? sh.pspread[i] : 1;
         const a = (t.angle + da) * Math.PI / 180, v = sh.shape === "line" ? 900 : p * pk * SPEED, [ox, oy] = this.muzzle(t);
-        this.shells.push({ x: ox, y: oy, sx: ox, sy: oy, vx: Math.cos(a) * t.facing * v, vy: -Math.sin(a) * v, sh, tankId: t.tankId, slot, owner: t, age: 0, trail: [], mode: "fly", dug: 0, dist: 0, lastCarve: null, k: o.boost || 1, teleport: !!o.teleport });
+        this.shells.push({ x: ox, y: oy, sx: ox, sy: oy, vx: Math.cos(a) * t.facing * v, vy: -Math.sin(a) * v, sh, tankId: t.tankId, slot, owner: t, age: 0, trail: [], mode: "fly", dug: 0, dist: 0, lastCarve: null, k: o.boost || 1, teleport: !!tele });
       });
-      spawn();
+      spawn(!!o.teleport);
       if (o.double) this.queued = { wait: 0.4, fn: () => {
         if (t.dead) return;
         t.firedAt = this.clock;
-        spawn();
+        spawn(false);
         this.fx("fire", { uid: t.uid, second: true });
       } };
       this.fx("fire", { uid: t.uid });
@@ -1028,7 +1028,7 @@
           [0.45, 0.65, 0.85, 1.05, 1.25].forEach((tt, i) => {
             if (s.t >= tt && !s.done[i]) {
               s.done[i] = true;
-              const x = s.x + [-50, 30, -15, 55, 0][i] * s.k, gy = W.ground(x, 0);
+              const x = s.x + [-50, 30, -15, 55, 0][i], gy = W.ground(x, 0);
               s.flash[i] = { x, gy, t: s.t };
               W.carveRound(x, gy, 16 * s.k);
               W.hurtArea(x, gy - 10, 30, s.sh.dmg * s.k / 4.2, s.owner);
@@ -1316,15 +1316,19 @@
               this.impact(s, s.x, s.y, ht);
               break;
             }
+            if (s.teleport && this.solid(s.x, s.y)) {
+              this.impact(s, s.x, s.y);
+              break;
+            }
             if (this.solid(s.x, s.y) && (!s.lastCarve || Math.hypot(s.x - s.lastCarve[0], s.y - s.lastCarve[1]) > 5)) {
-              this.carveRound(s.x, s.y, sh.cr / 2, 0, false);
+              this.carveRound(s.x, s.y, sh.cr * s.k / 2, 0, false);
               s.lastCarve = [s.x, s.y];
             }
             if (s.dist > 1100) s.done = true;
             continue;
           }
           if (ht || this.solid(s.x, s.y)) {
-            if (sh.shape === "tunnel" && !ht) {
+            if (sh.shape === "tunnel" && !ht && !s.teleport) {
               s.mode = "dig";
               const sp = Math.hypot(s.vx, s.vy) || 1;
               s.vx = s.vx / sp * 170;
@@ -1788,14 +1792,14 @@
       if (slot === 2 && (p.ssUsed || t.hp > t.max / 2)) throw new Error("\uD544\uC0B4\uAE30\uB294 \uCCB4\uB825 50% \uC774\uD558\uC5D0\uC11C \uD55C \uBC88\uB9CC \uC4F8 \uC218 \uC788\uC5B4\uC694.");
       if (slot === 2) p.ssUsed = true;
       power = Math.max(1, Math.min(100, Number(power) || 0));
-      const f = p.flags, opts = { boost: f.power ? 1.3 : 1, double: !!f.double, teleport: !!f.teleport };
-      p.flags = {};
+      const f = p.flags, keepTele = slot === 2 && !!f.teleport, opts = { boost: f.power ? 1.3 : 1, double: !!f.double, teleport: !!f.teleport && !keepTele };
+      p.flags = keepTele ? { teleport: true } : {};
       this.moveDir = 0;
       const snapshot = this.sim.snapshot();
       this.sim.fire(t, slot, power, opts);
       t.delay += TURN_BASE_DELAY + SLOT_DELAY[slot] + this.turnState.itemDelay + Math.round(this.moveUsed);
       this.phase = "resolve";
-      this.send("game:shot", { uid, slot, power, angle: t.angle, opts, snapshot });
+      this.send("game:shot", { uid, slot, power, angle: t.angle, opts, snapshot, flags: p.flags });
     }
     onPass(uid) {
       if (!this.isTurn(uid)) throw new Error("\uC9C0\uAE08\uC740 \uB0B4 \uCC28\uB840\uAC00 \uC544\uB2C8\uC5D0\uC694.");
@@ -2387,7 +2391,7 @@
         [0.45, 0.65, 0.85, 1.05, 1.25].forEach((tt, i) => {
           if (s.t >= tt && !s.done[i]) {
             s.done[i] = true;
-            const x = s.x + [-50, 30, -15, 55, 0][i] * s.k, gy = W.ground(x, 0);
+            const x = s.x + [-50, 30, -15, 55, 0][i], gy = W.ground(x, 0);
             s.flash[i] = { x, gy, t: s.t };
             W.carveRound(x, gy, 16 * s.k);
             W.hurtArea(x, gy - 10, 30, s.sh.dmg * s.k / 4.2, s.owner);
@@ -3307,7 +3311,10 @@
         phase = "resolve";
         charging = false;
         if (d.uid === me() && d.slot === 2) ssUsed = true;
-        if (d.uid === me()) flags = {};
+        if (d.uid === me()) {
+          flags = { ...d.flags || {} };
+          if (d.flags?.teleport && d.slot === 2) toast2("\uC21C\uAC04\uC774\uB3D9\uC740 \uD544\uC0B4\uAE30\uC5D0 \uBD99\uC9C0 \uC54A\uC544\uC694. \uB2E4\uC74C \uBC1C\uC0AC\uC5D0 \uB0A8\uC544 \uC788\uC5B4\uC694.");
+        }
         t.lastPower = d.power;
         renderItems();
         renderWeapons();

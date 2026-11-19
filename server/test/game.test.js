@@ -86,3 +86,39 @@ test('컴퓨터끼리 끝까지 싸운다', () => {
   for (let i = 0; i < 60 * 60 * 30 && g.phase !== 'over'; i++) { clock += 1 / 60; g.tick(1 / 60); }
   assert.equal(g.phase, 'over'); assert.ok(over.results.some(r => r.win));
 });
+
+// 모든 탄 × 발사 아이템(강화·더블·순간이동) 점검
+import { Sim } from '../../shared/sim/world.js';
+import { SHELL_STATS, TANK_STATS } from '../../shared/gamedata.js';
+function shot(tankId, slot, opts, map = 'demo') {
+  const sim = new Sim({ map }); const a = sim.addTank({ uid: 1, tankId, x: 300, team: 'red' }), b = sim.addTank({ uid: 2, tankId: 'hammer', x: 720, team: 'blue', facing: -1 });
+  for (let i = 0; i < 30; i++) sim.step(DT); sim.wind = { ang: 0, str: 0 };
+  const sh = SHELL_STATS[tankId][slot], S = TANK_STATS[tankId];
+  a.angle = sh.shape === 'line' ? Math.max(S.amin, 2) : Math.min(Math.max(45, S.amin), S.amax); sim.clampAngle(a);
+  const x0 = a.x, ops0 = sim.ops.length; sim.fire(a, slot, sh.shape === 'line' ? 60 : sim.solvePower(a, slot, b.x, true), opts);
+  for (let i = 0; i < 1500 && (sim.busy() || i < 30); i++) sim.step(DT);
+  return { dmg: b.max - b.hp, moved: a.x - x0, ops: sim.ops.length - ops0 };
+}
+test('모든 탄에 강화·더블·순간이동이 적용된다', () => {
+  for (const t of Object.keys(SHELL_STATS)) for (const slot of [0, 1, 2]) {
+    const name = `${t}/${slot}`, base = shot(t, slot, {});
+    assert.ok(shot(t, slot, { boost: 1.3 }).dmg > base.dmg, name + ' 강화');
+    assert.ok(shot(t, slot, { double: true }).dmg > base.dmg, name + ' 더블');
+    const tp = shot(t, slot, { teleport: true });
+    assert.ok(Math.abs(tp.moved) > 60 && tp.dmg === 0 && tp.ops === 0, name + ' 순간이동(이동만)');
+  }
+});
+test('관통 레이저 순간이동은 탱크를 못 맞혀도 처음 닿은 땅으로 옮긴다', () => {
+  const sim = new Sim({ map: 'valley' }); const a = sim.addTank({ uid: 1, tankId: 'laser', x: 700, team: 'red', facing: 1 });
+  sim.addTank({ uid: 2, tankId: 'hammer', x: 120, team: 'blue' }); for (let i = 0; i < 30; i++) sim.step(DT);
+  a.angle = 0; a.facing = 1; sim.clampAngle(a); const x0 = a.x; sim.fire(a, 1, 60, { teleport: true });
+  for (let i = 0; i < 600 && (sim.busy() || i < 30); i++) sim.step(DT);
+  assert.ok(a.x - x0 > 40, '오르막 땅에 닿은 곳으로 이동해야 한다: ' + (a.x - x0));
+});
+test('필살기는 순간이동을 쓰지 않고 다음 발사까지 남긴다', () => {
+  let clock = 0; const g = new GameSession({ roomId: 1, mapId: 'demo', mode: 'team', turnSeconds: 20, players: [1, 2].map(i => ({ userId: i, nickname: 'p' + i, team: i === 1 ? 'red' : 'blue', tankId: 'hammer', items: ['teleport'] })) }, { send: () => {}, now: () => clock * 1000 });
+  for (let i = 0; i < 400 && g.phase !== 'aim'; i++) { clock += DT; g.tick(DT); }
+  const uid = g.cur.uid, t = g.sim.tankOf(uid); t.hp = 100;
+  g.onItem(uid, 0); g.onFire(uid, 2, 70);
+  assert.equal(g.player(uid).flags.teleport, true);
+});
