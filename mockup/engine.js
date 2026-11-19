@@ -616,7 +616,7 @@ class World {
     for (const e of this.events) {
       const gy = e.gy || this.h;
       if (e.type === 'tornado' && e.t > .5 && s.mode === 'fly' && Math.abs(s.x - e.x) < 30 && s.y < gy + 4 && !(s.caught && s.caught.includes(e.x))) { (s.caught ||= []).push(e.x); s.mode = 'spin'; s.spin = { x: e.x, t: 0, ph: s.x < e.x ? Math.PI : 0, r: Math.max(8, Math.abs(s.x - e.x)), top: s.y - 130 }; this.float(e.x, s.y - 16, '휘말림!', '#3a2600'); }
-      if (e.type === 'pillar' && e.t > 1 && Math.abs(s.x - e.x) < 18 && s.y < gy && !(s.fired && s.fired.includes(e.x))) { (s.fired ||= []).push(e.x); s.k = (s.k || 1) * 1.3; s.powered = true; this.float(s.x, s.y - 18, '파워업!', '#ff6a2a'); }
+      if (e.type === 'pillar' && e.t > 1 && Math.abs(s.x - e.x) < 18 && s.y < gy && !(s.fired && s.fired.includes(e.x))) { (s.fired ||= []).push(e.x); s.k = Math.max(s.k || 1, 1.3); s.powered = true; this.float(s.x, s.y - 18, '파워업!', '#ff6a2a'); }
     }
     return false;
   }
@@ -711,7 +711,7 @@ class World {
       if (s.teleport) { drawWarpShell(c, s.x, s.y, this.clock, Math.atan2(s.vy, s.vx), s.trail.slice(1)); return; } // 순간이동탄은 모두 같은 모양
       if (s.sh.shape === 'line') { c.save(); c.lineCap = 'round'; c.strokeStyle = 'rgba(47,224,255,.55)'; c.lineWidth = 10; c.beginPath(); c.moveTo(s.sx, s.sy); c.lineTo(s.x, s.y); c.stroke(); c.strokeStyle = '#fff'; c.lineWidth = 3; c.stroke(); c.restore(); return; }
       trail(c, s.sh, s.trail.slice(1), this.clock);
-      if (s.powered) { c.save(); s.trail.forEach(([tx, ty], j) => { if (j % 2) return; const k = 1 - j / s.trail.length, R = 4 + 6 * k; c.globalAlpha = .35 + .65 * k; star(c, tx + Math.sin(j * 2.3 + this.clock * 9) * 3, ty + Math.cos(j * 1.7 + this.clock * 7) * 3, R, R * .45, 5, this.clock * 6 + j); c.fillStyle = j % 4 ? '#ffe066' : '#ffffff'; c.fill(); c.strokeStyle = 'rgba(200,90,20,.8)'; c.lineWidth = 1; c.stroke(); }); c.restore(); } // 불기둥을 지나온 탄: 별 꼬리
+      if ((s.k || 1) > 1) drawPowerTrail(c, s.x, s.y, this.clock, s.trail.slice(1)); // 강화된 탄: 붉은 꼬리
       c.save(); c.translate(s.x, s.y); c.scale(.95, .95); drawShell(c, s.sh, this.clock, Math.atan2(s.vy, s.vx)); c.restore();
       if (s.y < 0) { c.fillStyle = '#c92a2a'; c.beginPath(); c.moveTo(s.x, 4); c.lineTo(s.x - 6, 14); c.lineTo(s.x + 6, 14); c.fill(); }
     });

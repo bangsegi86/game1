@@ -10,6 +10,7 @@ const STEEL = MK.steel, LEAF = MK.leaf, WOOD = MK.wood, PLANK = MK.plank;
 const CLIMB = 24; // 구덩이 가장자리까지 이만큼(px) 이하로 깊으면 가파른 벽도 기어 나온다
 // 보급 비행기: 속도(px/초), 나는 높이, 떨어뜨리는 아이템
 export const PLANE_SPEED = 420, PLANE_Y = 70;
+export const POWER_K = 1.3; // 강화탄·불기둥 공격력 배율(같은 값)
 const EVENT_RATE = .2; // 맵별 이벤트 확률에 곱하는 값 (작을수록 드물다)
 const SUPPLY_ITEMS = ['repair', 'power', 'double', 'teleport', 'shield', 'fuel', 'repair', 'power'];
 const BASE = new Map();
@@ -157,7 +158,7 @@ export class Sim {
 
   /* ---------- 발사 ---------- */
   fire(t, slot, p, o = {}) {
-    const sh = SHELL_STATS[t.tankId][slot]; t.firedAt = this.clock;
+    const sh = SHELL_STATS[t.tankId][slot]; t.firedAt = this.clock; t.powerUp = false; // 쏘면 강화 버프 표시가 사라진다
     this.teleported = false;
     // 다발 포탄: 각도와 파워를 조금씩 달리해 멀리 쏠수록 넓게 퍼지고, 가까이 쏘면 거의 한 곳에 맞는다
     // 순간이동은 첫 발(첫 묶음)에만 붙는다. 더블의 두 번째 발은 보통 포탄
@@ -296,7 +297,7 @@ export class Sim {
       }
       // 불기둥: 지나가는 포탄을 파워업시킨다 (불기둥마다 한 번, 피해·파임 +30%)
       if (e.type === 'pillar' && e.t > 1 && Math.abs(s.x - e.x) < 18 && s.y < gy && !(s.fired && s.fired.includes(e.x))) {
-        (s.fired ||= []).push(e.x); s.k = Math.round(s.k * 1.3 * 100) / 100; s.powered = true;
+        (s.fired ||= []).push(e.x); s.k = Math.max(s.k, POWER_K); s.powered = true; // 강화탄과 같은 +30%, 겹치지 않음
         this.float(s.x, s.y - 18, '파워업!', '#ff6a2a');
       }
     }
@@ -417,7 +418,7 @@ export class Sim {
   snapshot() {
     return {
       clock: this.clock, wind: { ...this.wind }, liquidY: this.liquidY, sdLiquid: !!this.sdLiquid, ops: this.ops.length,
-      tanks: this.tanks.map(t => ({ uid: t.uid, x: t.x, y: t.y, vx: t.vx, vy: t.vy, air: t.air, fallFrom: t.fallFrom, hp: t.hp, angle: t.angle, facing: t.facing, fuel: t.fuel, tilt: t.tilt, shield: t.shield, frozen: t.frozen, canMove: t.canMove, dead: t.dead, sunk: t.sunk, left: t.left, kills: t.kills, dealt: t.dealt, lastHitBy: t.lastHitBy, delay: t.delay })),
+      tanks: this.tanks.map(t => ({ uid: t.uid, x: t.x, y: t.y, vx: t.vx, vy: t.vy, air: t.air, fallFrom: t.fallFrom, hp: t.hp, angle: t.angle, facing: t.facing, fuel: t.fuel, tilt: t.tilt, shield: t.shield, frozen: t.frozen, powerUp: !!t.powerUp, canMove: t.canMove, dead: t.dead, sunk: t.sunk, left: t.left, kills: t.kills, dealt: t.dealt, lastHitBy: t.lastHitBy, delay: t.delay })),
       events: this.events.map(e => ({ type: e.type, x: e.x, xs: e.xs, gy: e.gy, t: e.t, turns: e.turns, done: e.done, dir: e.dir, item: e.item })),
       crates: this.crates.map(c => ({ ...c })), crateId: this.crateId,
       zones: this.zones.map(z => ({ ...z })),

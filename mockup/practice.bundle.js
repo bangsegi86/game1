@@ -581,6 +581,7 @@
   var CLIMB = 24;
   var PLANE_SPEED = 420;
   var PLANE_Y = 70;
+  var POWER_K = 1.3;
   var EVENT_RATE = 0.2;
   var SUPPLY_ITEMS = ["repair", "power", "double", "teleport", "shield", "fuel", "repair", "power"];
   var BASE = /* @__PURE__ */ new Map();
@@ -880,6 +881,7 @@
     fire(t, slot, p, o = {}) {
       const sh = SHELL_STATS[t.tankId][slot];
       t.firedAt = this.clock;
+      t.powerUp = false;
       this.teleported = false;
       const spawn = (tele) => (sh.spread || [0]).forEach((da, i) => {
         const pk = sh.pspread ? sh.pspread[i] : 1;
@@ -1192,7 +1194,7 @@
         }
         if (e.type === "pillar" && e.t > 1 && Math.abs(s.x - e.x) < 18 && s.y < gy && !(s.fired && s.fired.includes(e.x))) {
           (s.fired ||= []).push(e.x);
-          s.k = Math.round(s.k * 1.3 * 100) / 100;
+          s.k = Math.max(s.k, POWER_K);
           s.powered = true;
           this.float(s.x, s.y - 18, "\uD30C\uC6CC\uC5C5!", "#ff6a2a");
         }
@@ -1461,7 +1463,7 @@
         liquidY: this.liquidY,
         sdLiquid: !!this.sdLiquid,
         ops: this.ops.length,
-        tanks: this.tanks.map((t) => ({ uid: t.uid, x: t.x, y: t.y, vx: t.vx, vy: t.vy, air: t.air, fallFrom: t.fallFrom, hp: t.hp, angle: t.angle, facing: t.facing, fuel: t.fuel, tilt: t.tilt, shield: t.shield, frozen: t.frozen, canMove: t.canMove, dead: t.dead, sunk: t.sunk, left: t.left, kills: t.kills, dealt: t.dealt, lastHitBy: t.lastHitBy, delay: t.delay })),
+        tanks: this.tanks.map((t) => ({ uid: t.uid, x: t.x, y: t.y, vx: t.vx, vy: t.vy, air: t.air, fallFrom: t.fallFrom, hp: t.hp, angle: t.angle, facing: t.facing, fuel: t.fuel, tilt: t.tilt, shield: t.shield, frozen: t.frozen, powerUp: !!t.powerUp, canMove: t.canMove, dead: t.dead, sunk: t.sunk, left: t.left, kills: t.kills, dealt: t.dealt, lastHitBy: t.lastHitBy, delay: t.delay })),
         events: this.events.map((e) => ({ type: e.type, x: e.x, xs: e.xs, gy: e.gy, t: e.t, turns: e.turns, done: e.done, dir: e.dir, item: e.item })),
         crates: this.crates.map((c) => ({ ...c })),
         crateId: this.crateId,
@@ -1725,6 +1727,10 @@
       this.turnNo++;
       this.cur = this.player(t.uid);
       sim.turnStart(t);
+      for (const p of this.players) {
+        const tk = sim.tankOf(p.uid);
+        if (tk) tk.powerUp = !!p.flags.power;
+      }
       if (this.turnNo > 1) sim.wind = Sim.nextWind(sim.wind, sim.map.windMax);
       const rest = this.turnNo - (this.lastEventTurn ?? -9) >= EVENT_GAP;
       let event = null;
@@ -1780,8 +1786,10 @@
       this.turnState.itemUsed = true;
       this.turnState.itemDelay = ITEM_INFO[it.id].delay;
       const t = this.sim.tankOf(uid);
-      if (fireItem) p.flags[it.id] = true;
-      else this.sim.useItem(t, it.id);
+      if (fireItem) {
+        p.flags[it.id] = true;
+        if (it.id === "power") t.powerUp = true;
+      } else this.sim.useItem(t, it.id);
       this.sim.fxq.length = 0;
       this.send("game:item", { uid, index, id: it.id, flags: p.flags, snapshot: this.sim.snapshot() });
     }
@@ -1792,7 +1800,7 @@
       if (slot === 2 && (p.ssUsed || t.hp > t.max / 2)) throw new Error("\uD544\uC0B4\uAE30\uB294 \uCCB4\uB825 50% \uC774\uD558\uC5D0\uC11C \uD55C \uBC88\uB9CC \uC4F8 \uC218 \uC788\uC5B4\uC694.");
       if (slot === 2) p.ssUsed = true;
       power = Math.max(1, Math.min(100, Number(power) || 0));
-      const f = p.flags, keepTele = slot === 2 && !!f.teleport, opts = { boost: f.power ? 1.3 : 1, double: !!f.double, teleport: !!f.teleport && !keepTele };
+      const f = p.flags, keepTele = slot === 2 && !!f.teleport, opts = { boost: f.power ? POWER_K : 1, double: !!f.double, teleport: !!f.teleport && !keepTele };
       p.flags = keepTele ? { teleport: true } : {};
       this.moveDir = 0;
       const snapshot = this.sim.snapshot();
@@ -2763,29 +2771,7 @@
         }
         const art = SHELLS[s.tankId][s.slot];
         trail(c, art, s.trail.slice(1), this.t);
-        if (s.powered) {
-          c.save();
-          s.trail.forEach(([tx, ty], i) => {
-            if (i % 2) return;
-            const k = 1 - i / s.trail.length, rot = this.t * 6 + i, R = 4 + 6 * k;
-            c.globalAlpha = 0.35 + 0.65 * k;
-            star(c, tx + Math.sin(i * 2.3 + this.t * 9) * 3, ty + Math.cos(i * 1.7 + this.t * 7) * 3, R, R * 0.45, 5, rot);
-            c.fillStyle = i % 4 ? "#ffe066" : "#ffffff";
-            c.fill();
-            c.strokeStyle = "rgba(200,90,20,.8)";
-            c.lineWidth = 1;
-            c.stroke();
-          });
-          c.restore();
-        }
-        if (s.powered || s.k > 1) {
-          const g = c.createRadialGradient(s.x, s.y, 2, s.x, s.y, 20);
-          g.addColorStop(0, "rgba(255,120,50,.75)");
-          g.addColorStop(1, "rgba(255,90,40,0)");
-          c.fillStyle = g;
-          circ(c, s.x, s.y, 20);
-          c.fill();
-        }
+        if (s.k > 1) drawPowerTrail(c, s.x, s.y, this.t, s.trail.slice(1));
         c.save();
         c.translate(s.x, s.y);
         c.scale(0.95, 0.95);
@@ -2929,7 +2915,9 @@
         ph = S.clock - t.firedAt;
       } else if (t.moving || t.movingVis) st = "move";
       else if (t.hp <= t.max * 0.25) st = "danger";
+      if (t.powerUp && !t.dead) drawPowerBuff(c, t.x, t.y, this.t, false);
       renderTank(c, this.w, this.h, T, st, this.t, t.x, t.y, S.ts, { flip: t.facing, angle: t.angle + (t.tilt || 0), tilt: (t.tilt || 0) * Math.PI / 180, phaseT: ph, noText: true });
+      if (t.powerUp && !t.dead) drawPowerBuff(c, t.x, t.y, this.t, true);
       if (t.shield) {
         c.strokeStyle = "rgba(160,220,255,.85)";
         c.fillStyle = "rgba(85,174,240,.15)";
@@ -2959,6 +2947,18 @@
       c.strokeText(t.name, t.x, t.y + 25);
       c.fillStyle = col;
       c.fillText(t.name, t.x, t.y + 25);
+      if (t.powerUp) {
+        const tw = c.measureText(t.name).width / 2 + 4;
+        c.font = '700 11px "Noto Sans KR", sans-serif';
+        const bw = 34;
+        c.fillStyle = "#e8352a";
+        c.beginPath();
+        if (c.roundRect) c.roundRect(t.x + tw, t.y + 15, bw, 14, 4);
+        else c.rect(t.x + tw, t.y + 15, bw, 14);
+        c.fill();
+        c.fillStyle = "#fff";
+        c.fillText("\uAC15\uD654", t.x + tw + bw / 2, t.y + 26);
+      }
       if (active) {
         const b = Math.abs(Math.sin(this.t * 5)) * 8, y = top - 6 - b;
         c.fillStyle = "#e8352a";
@@ -3292,6 +3292,7 @@
         const t = sim.tankOf(d.uid);
         if (["double", "power", "teleport"].includes(d.id)) sim.float(t.x, t.y - 84, itemById(d.id).n, "#3a2600");
         else sim.useItem(t, d.id);
+        if (d.id === "power") t.powerUp = true;
         sim.restore(d.snapshot);
         if (d.uid === me()) {
           bag[d.index].used = true;

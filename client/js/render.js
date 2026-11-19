@@ -340,9 +340,8 @@ export class Renderer {
       if (s.sh.shape === 'line') { c.save(); c.lineCap = 'round'; c.strokeStyle = 'rgba(47,224,255,.55)'; c.lineWidth = 10; c.beginPath(); c.moveTo(s.sx, s.sy); c.lineTo(s.x, s.y); c.stroke(); c.strokeStyle = '#fff'; c.lineWidth = 3; c.stroke(); c.restore(); return; }
       const art = SHELLS[s.tankId][s.slot];
       trail(c, art, s.trail.slice(1), this.t);
-      // 불기둥을 지나온 탄: 뒤로 반짝이는 별이 줄지어 따라간다
-      if (s.powered) { c.save(); s.trail.forEach(([tx, ty], i) => { if (i % 2) return; const k = 1 - i / s.trail.length, rot = this.t * 6 + i, R = 4 + 6 * k; c.globalAlpha = .35 + .65 * k; star(c, tx + Math.sin(i * 2.3 + this.t * 9) * 3, ty + Math.cos(i * 1.7 + this.t * 7) * 3, R, R * .45, 5, rot); c.fillStyle = i % 4 ? '#ffe066' : '#ffffff'; c.fill(); c.strokeStyle = 'rgba(200,90,20,.8)'; c.lineWidth = 1; c.stroke(); }); c.restore(); }
-      if (s.powered || s.k > 1) { const g = c.createRadialGradient(s.x, s.y, 2, s.x, s.y, 20); g.addColorStop(0, 'rgba(255,120,50,.75)'); g.addColorStop(1, 'rgba(255,90,40,0)'); c.fillStyle = g; circ(c, s.x, s.y, 20); c.fill(); }
+      // 강화된 탄(강화탄 아이템·불기둥 통과): 붉은 꼬리 하나만
+      if (s.k > 1) drawPowerTrail(c, s.x, s.y, this.t, s.trail.slice(1));
       c.save(); c.translate(s.x, s.y); c.scale(.95, .95); drawShell(c, art, this.t, Math.atan2(s.vy, s.vx)); c.restore();
       if (s.y < 0) { c.fillStyle = '#c92a2a'; c.beginPath(); c.moveTo(s.x, 4); c.lineTo(s.x - 6, 14); c.lineTo(s.x + 6, 14); c.fill(); }
     });
@@ -381,7 +380,9 @@ export class Renderer {
     const S = this.sim, T = tankById(t.tankId); let st = 'idle', ph = null;
     if (t.dead) st = 'dead'; else if (S.clock - t.hitAt < .6) { st = 'hit'; ph = S.clock - t.hitAt; } else if (S.clock - t.firedAt < .5) { st = 'fire'; ph = S.clock - t.firedAt; } else if (t.moving || t.movingVis) st = 'move'; else if (t.hp <= t.max * .25) st = 'danger';
     // 몸체는 경사만큼 기울고, 포신은 '보이는 각도 = 몸체 각도 - 기울기'가 되도록 그린다
+    if (t.powerUp && !t.dead) drawPowerBuff(c, t.x, t.y, this.t, false); // 강화탄을 쓰고 아직 안 쏜 탱크
     renderTank(c, this.w, this.h, T, st, this.t, t.x, t.y, S.ts, { flip: t.facing, angle: t.angle + (t.tilt || 0), tilt: (t.tilt || 0) * Math.PI / 180, phaseT: ph, noText: true });
+    if (t.powerUp && !t.dead) drawPowerBuff(c, t.x, t.y, this.t, true);
     if (t.shield) { c.strokeStyle = 'rgba(160,220,255,.85)'; c.fillStyle = 'rgba(85,174,240,.15)'; c.lineWidth = 2.5; circ(c, t.x, t.y - 20, 32); c.fill(); c.stroke(); }
     if (t.frozen > 0) { c.save(); c.translate(t.x + 22, t.y - 40); c.scale(.7, .7); drawShell(c, { key: 'snowflake' }, this.t, 0); c.restore(); }
     if (t.dead || !this.labels) return;
@@ -391,6 +392,7 @@ export class Renderer {
     c.fillStyle = t.hp / t.max > .5 ? '#3fae4a' : t.hp / t.max > .25 ? '#f0a020' : '#d63c3c'; c.fillRect(t.x - 23, t.y + 5, 46 * t.hp / t.max, 6);
     c.textAlign = 'center'; c.font = `600 12px "Noto Sans KR", sans-serif`; c.lineJoin = 'round';
     c.lineWidth = 3.5; c.strokeStyle = 'rgba(255,248,232,.9)'; c.strokeText(t.name, t.x, t.y + 25); c.fillStyle = col; c.fillText(t.name, t.x, t.y + 25);
+    if (t.powerUp) { const tw = c.measureText(t.name).width / 2 + 4; c.font = '700 11px "Noto Sans KR", sans-serif'; const bw = 34; c.fillStyle = '#e8352a'; c.beginPath(); if (c.roundRect) c.roundRect(t.x + tw, t.y + 15, bw, 14, 4); else c.rect(t.x + tw, t.y + 15, bw, 14); c.fill(); c.fillStyle = '#fff'; c.fillText('강화', t.x + tw + bw / 2, t.y + 26); }
     if (active) { const b = Math.abs(Math.sin(this.t * 5)) * 8, y = top - 6 - b; c.fillStyle = '#e8352a'; c.strokeStyle = 'rgba(40,10,10,.8)'; c.lineWidth = 2; c.beginPath(); c.moveTo(t.x, y); c.lineTo(t.x - 11, y - 12); c.lineTo(t.x - 4, y - 12); c.lineTo(t.x - 4, y - 26); c.lineTo(t.x + 4, y - 26); c.lineTo(t.x + 4, y - 12); c.lineTo(t.x + 11, y - 12); c.closePath(); c.fill(); c.stroke(); }
     if (t.uid === this.me && !active) { c.strokeStyle = 'rgba(255,183,3,.7)'; c.lineWidth = 2; ell(c, t.x, t.y + 2, 26, 6); c.stroke(); }
   }

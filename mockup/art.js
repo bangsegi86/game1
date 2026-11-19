@@ -629,6 +629,31 @@ function rock(c, s, rot, seed) {
   c.closePath(); fs(c, vg(c, -s, s, '#c9b196', '#8a7058', '#5a4636'), 2.2);
   c.fillStyle = 'rgba(255,255,255,.35)'; ell(c, -s * .3, -s * .35, s * .3, s * .15, -.5); c.fill(); c.restore();
 }
+// 강화된 탄(강화탄 아이템, 불기둥 통과 모두 같은 효과): 탄 뒤를 붉은 불꽃 꼬리가 따라가고 탄 둘레가 붉게 빛난다
+function drawPowerTrail(c, x, y, t, trailPts) {
+  c.save();
+  (trailPts || []).forEach(([tx, ty], i) => {
+    const k = 1 - i / trailPts.length; c.globalAlpha = .8 * k;
+    c.fillStyle = i % 2 ? '#ff8a3c' : '#e8352a'; c.beginPath(); c.arc(tx, ty, 3 + 9 * k, 0, Math.PI * 2); c.fill();
+    if (i % 3 === 1) { c.globalAlpha = k; c.fillStyle = '#ffe28a'; c.beginPath(); c.arc(tx + Math.sin(i * 2.1 + t * 9) * 6, ty + Math.cos(i * 1.7 + t * 8) * 6, 1.5 + 2 * k, 0, Math.PI * 2); c.fill(); }
+  });
+  c.globalAlpha = 1; const g = c.createRadialGradient(x, y, 2, x, y, 22); g.addColorStop(0, 'rgba(255,110,50,.8)'); g.addColorStop(1, 'rgba(232,53,42,0)'); c.fillStyle = g; c.beginPath(); c.arc(x, y, 22, 0, Math.PI * 2); c.fill();
+  c.restore();
+}
+// 강화 버프: 강화탄을 쓰고 아직 쏘지 않은 탱크 발밑의 붉은 고리와 위로 올라가는 화살표
+function drawPowerBuff(c, x, y, t, front) {
+  c.save();
+  const p = .5 + .5 * Math.sin(t * 5);
+  if (!front) {
+    // 뒤: 탱크 몸을 감싸는 붉은 빛과 발밑 고리
+    const g = c.createRadialGradient(x, y - 22, 6, x, y - 22, 52); g.addColorStop(0, `rgba(255,90,40,${.45 + .2 * p})`); g.addColorStop(1, 'rgba(255,90,40,0)'); c.fillStyle = g; c.beginPath(); c.arc(x, y - 22, 52, 0, Math.PI * 2); c.fill();
+    c.strokeStyle = `rgba(255,70,30,${.6 + .35 * p})`; c.lineWidth = 3.5; c.beginPath(); c.ellipse(x, y + 1, 32 + 3 * p, 8 + p, 0, 0, Math.PI * 2); c.stroke();
+  } else {
+    // 앞: 위로 솟는 붉은 화살표
+    for (let i = 0; i < 3; i++) { const q = (t * .9 + i / 3) % 1, ax = x + (i - 1) * 20, ay = y - 10 - q * 44; c.globalAlpha = Math.min(1, (1 - q) * 1.6); c.fillStyle = '#ff4a1f'; c.strokeStyle = 'rgba(80,10,0,.8)'; c.lineWidth = 1.4; c.beginPath(); c.moveTo(ax, ay - 9); c.lineTo(ax + 7, ay); c.lineTo(ax + 2.5, ay); c.lineTo(ax + 2.5, ay + 6); c.lineTo(ax - 2.5, ay + 6); c.lineTo(ax - 2.5, ay); c.lineTo(ax - 7, ay); c.closePath(); c.fill(); c.stroke(); }
+  }
+  c.restore();
+}
 // 순간이동탄: 어느 탱크가 쏘든 같은 모양. 보라색 빛 구슬 + 두 겹으로 도는 차원문 고리 + 반짝이 꼬리
 function drawWarpShell(c, x, y, t, ang, trailPts) {
   c.save();

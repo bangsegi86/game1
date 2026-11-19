@@ -1,5 +1,5 @@
 // 한 방의 전투 진행: 턴 순서(딜레이), 타이머, 발사·아이템 검증, 서버 판정, 승패와 전적
-import { Sim, spawnPositions, opsHash } from '../../shared/sim/world.js';
+import { Sim, spawnPositions, opsHash, POWER_K } from '../../shared/sim/world.js';
 export { opsHash };
 import { botTurn } from './bot.js';
 import { SHELL_STATS, SLOT_DELAY, ITEM_INFO, TURN_BASE_DELAY, SUDDEN_DEATH_TURN } from '../../shared/gamedata.js';
@@ -73,6 +73,7 @@ export class GameSession {
     if (!live.length) return this.finish({ winnerTeam: null });
     const t = live[0]; this.turnNo++; this.cur = this.player(t.uid);
     sim.turnStart(t);
+    for (const p of this.players) { const tk = sim.tankOf(p.uid); if (tk) tk.powerUp = !!p.flags.power; } // 쏘기 전까지 강화 표시 유지
     if (this.turnNo > 1) sim.wind = Sim.nextWind(sim.wind, sim.map.windMax);
     // 돌발 이벤트는 3턴째부터, 그리고 이벤트(보급 비행기 포함) 뒤 3턴은 쉬어 간다
     const rest = this.turnNo - (this.lastEventTurn ?? -9) >= EVENT_GAP;
@@ -106,7 +107,7 @@ export class GameSession {
     it.used = true; this.turnState.itemUsed = true; this.turnState.itemDelay = ITEM_INFO[it.id].delay;
     const t = this.sim.tankOf(uid);
     // 발사에 붙는 아이템(파워업·더블·순간이동)은 실제로 쏠 때까지 남는다. 턴을 넘겨도 다음 내 턴에 함께 나간다
-    if (fireItem) p.flags[it.id] = true; else this.sim.useItem(t, it.id);
+    if (fireItem) { p.flags[it.id] = true; if (it.id === 'power') t.powerUp = true; } else this.sim.useItem(t, it.id);
     this.sim.fxq.length = 0;
     this.send('game:item', { uid, index, id: it.id, flags: p.flags, snapshot: this.sim.snapshot() });
   }
@@ -118,7 +119,7 @@ export class GameSession {
     if (slot === 2) p.ssUsed = true;
     power = Math.max(1, Math.min(100, Number(power) || 0));
     // 필살기에는 순간이동을 붙이지 않는다 (필살기가 헛되이 사라지지 않게). 순간이동은 다음 발사까지 남는다
-    const f = p.flags, keepTele = slot === 2 && !!f.teleport, opts = { boost: f.power ? 1.3 : 1, double: !!f.double, teleport: !!f.teleport && !keepTele }; p.flags = keepTele ? { teleport: true } : {};
+    const f = p.flags, keepTele = slot === 2 && !!f.teleport, opts = { boost: f.power ? POWER_K : 1, double: !!f.double, teleport: !!f.teleport && !keepTele }; p.flags = keepTele ? { teleport: true } : {};
     this.moveDir = 0;
     const snapshot = this.sim.snapshot();
     this.sim.fire(t, slot, power, opts);

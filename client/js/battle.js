@@ -68,6 +68,7 @@ export function createBattle({ socket, me, toast, onExit, onQuit }) {
     'game:item': d => {
       if (!sim) return; const t = sim.tankOf(d.uid);
       if (['double', 'power', 'teleport'].includes(d.id)) sim.float(t.x, t.y - 84, itemById(d.id).n, '#3a2600'); else sim.useItem(t, d.id);
+      if (d.id === 'power') t.powerUp = true;
       sim.restore(d.snapshot);
       if (d.uid === me()) { bag[d.index].used = true; flags = { ...(d.flags || {}) }; } turnItemUsed = true; renderItems(); play('item');
     },
